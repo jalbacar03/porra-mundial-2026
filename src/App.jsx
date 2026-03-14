@@ -190,9 +190,12 @@ function Navbar({ isAdmin }) {
         </span>
       </NavLink>
 
-      {/* Countdown centrado */}
+      {/* Countdown centrado absoluto */}
       {!countdown.expired && (
         <div style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
@@ -209,7 +212,7 @@ function Navbar({ isAdmin }) {
             letterSpacing: '0.5px',
             fontVariantNumeric: 'tabular-nums'
           }}>
-            {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
+            {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m
           </span>
         </div>
       )}

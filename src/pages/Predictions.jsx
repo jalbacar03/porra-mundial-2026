@@ -196,8 +196,7 @@ export default function Predictions({ session }) {
             {[
               { value: deadline.days, label: 'días' },
               { value: deadline.hours, label: 'horas' },
-              { value: deadline.minutes, label: 'min' },
-              { value: deadline.seconds, label: 'seg' }
+              { value: deadline.minutes, label: 'min' }
             ].map((unit, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{
