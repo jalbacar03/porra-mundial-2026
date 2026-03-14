@@ -10,6 +10,7 @@ export default function Predictions({ session }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [activeGroup, setActiveGroup] = useState('A')
+  const deadline = useCountdown(PREDICTIONS_DEADLINE)
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
@@ -153,7 +154,6 @@ export default function Predictions({ session }) {
   const groupMatches = matches.filter(m => m.group_name === activeGroup)
   const groupTotal = groupMatches.length
   const groupDone = countGroupPredictions(activeGroup)
-  const deadline = useCountdown(PREDICTIONS_DEADLINE)
 
   // Agrupar partidos por jornada
   const matchesByMatchday = {}
