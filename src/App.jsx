@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
 import Dashboard from './pages/Dashboard'
-import Leaderboard from './pages/Leaderboard.jsx'
+import Predictions from './pages/Predictions'
+import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 
+/* ============================
+   PANTALLA DE LOGIN / REGISTRO
+   ============================ */
 function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +20,6 @@ function Auth() {
   const handleSubmit = async () => {
     setLoading(true)
     setMessage('')
-
     if (isLogin) {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
@@ -33,112 +36,233 @@ function Auth() {
   }
 
   return (
-    <div style={{ maxWidth: '400px', margin: '100px auto', fontFamily: 'sans-serif', padding: '0 20px' }}>
-      <h2 style={{ textAlign: 'center' }}>🏆 Porra Mundial 2026</h2>
-      <div style={{ background: '#f9f9f9', padding: '32px', borderRadius: '12px', border: '1px solid #eee' }}>
-        <h3 style={{ margin: '0 0 24px', textAlign: 'center' }}>{isLogin ? 'Iniciar sesión' : 'Crear cuenta'}</h3>
-        
-        {!isLogin && (
-          <input
-            type="text"
-            placeholder="Nombre completo"
-            value={fullName}
-            onChange={e => setFullName(e.target.value)}
-            style={{ width: '100%', padding: '10px', marginBottom: '12px', borderRadius: '6px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-          />
-        )}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          style={{ width: '100%', padding: '10px', marginBottom: '12px', borderRadius: '6px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-        />
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          style={{ width: '100%', padding: '10px', marginBottom: '16px', borderRadius: '6px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-        />
-        
-        {message && (
-          <div style={{ padding: '10px', marginBottom: '16px', background: '#fff3cd', borderRadius: '6px', fontSize: '14px', color: '#856404' }}>
-            {message}
+    <div style={{
+      minHeight: '100svh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      background: 'var(--bg-primary)'
+    }}>
+      <div style={{ width: '100%', maxWidth: '380px' }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ fontSize: '22px', fontWeight: '700', color: '#fff', letterSpacing: '1.5px' }}>
+            PORRA MUNDIAL <span style={{ color: 'var(--gold)' }}>26</span>
           </div>
-        )}
-        
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          style={{ width: '100%', padding: '12px', background: '#2d6a4f', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
-        >
-          {loading ? 'Cargando...' : isLogin ? 'Entrar' : 'Crear cuenta'}
-        </button>
-        
-        <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '14px', color: '#666' }}>
-          {isLogin ? '¿No tienes cuenta? ' : '¿Ya tienes cuenta? '}
-          <span onClick={() => setIsLogin(!isLogin)} style={{ color: '#2d6a4f', cursor: 'pointer', fontWeight: 'bold' }}>
-            {isLogin ? 'Regístrate' : 'Inicia sesión'}
-          </span>
-        </p>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px' }}>
+            La porra del Mundial 2026
+          </div>
+        </div>
+
+        {/* Formulario */}
+        <div style={{
+          background: 'var(--bg-secondary)',
+          padding: '28px 24px',
+          borderRadius: '10px',
+          border: '0.5px solid var(--border)'
+        }}>
+          <h3 style={{
+            margin: '0 0 20px',
+            textAlign: 'center',
+            color: 'var(--text-primary)',
+            fontSize: '16px',
+            fontWeight: '600'
+          }}>
+            {isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
+          </h3>
+
+          {!isLogin && (
+            <input
+              type="text"
+              placeholder="Nombre completo"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              style={inputStyle}
+            />
+          )}
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={inputStyle}
+          />
+          <input
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            style={{ ...inputStyle, marginBottom: '20px' }}
+          />
+
+          {message && (
+            <div style={{
+              padding: '10px 12px',
+              marginBottom: '16px',
+              background: message.includes('Revisa') ? 'var(--green-light)' : 'var(--red-bg)',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: message.includes('Revisa') ? 'var(--green)' : 'var(--red)'
+            }}>
+              {message}
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: 'var(--green)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              opacity: loading ? 0.7 : 1
+            }}
+          >
+            {loading ? 'Cargando...' : isLogin ? 'Entrar' : 'Crear cuenta'}
+          </button>
+
+          <p style={{
+            textAlign: 'center',
+            marginTop: '16px',
+            fontSize: '13px',
+            color: 'var(--text-muted)'
+          }}>
+            {isLogin ? '¿No tienes cuenta? ' : '¿Ya tienes cuenta? '}
+            <span
+              onClick={() => { setIsLogin(!isLogin); setMessage('') }}
+              style={{ color: 'var(--green)', cursor: 'pointer', fontWeight: '600' }}
+            >
+              {isLogin ? 'Regístrate' : 'Inicia sesión'}
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   )
 }
 
-const navStyle = {
-  display: 'flex',
-  gap: '16px',
-  alignItems: 'center',
-  padding: '12px 24px',
-  background: '#2d6a4f',
-  fontFamily: 'sans-serif'
+const inputStyle = {
+  width: '100%',
+  padding: '11px 14px',
+  marginBottom: '12px',
+  borderRadius: '6px',
+  border: '0.5px solid var(--border)',
+  background: 'var(--bg-input)',
+  color: 'var(--text-primary)',
+  fontSize: '14px',
+  boxSizing: 'border-box'
 }
 
-const linkStyle = {
-  color: 'rgba(255,255,255,0.7)',
-  textDecoration: 'none',
-  fontSize: '15px',
-  padding: '6px 12px',
-  borderRadius: '6px'
-}
-
-const activeLinkStyle = {
-  color: 'white',
-  background: 'rgba(255,255,255,0.15)'
-}
-
-function AppLayout({ session }) {
+/* ============================
+   NAVBAR + LAYOUT PRINCIPAL
+   ============================ */
+function Navbar({ isAdmin }) {
   return (
-    <div>
-      <nav style={navStyle}>
-        <span style={{ color: 'white', fontWeight: 'bold', marginRight: 'auto' }}>🏆 Porra Mundial 2026</span>
-        <NavLink to="/" end style={({ isActive }) => ({ ...linkStyle, ...(isActive ? activeLinkStyle : {}) })}>
-          Dashboard
-        </NavLink>
-        <NavLink to="/leaderboard" style={({ isActive }) => ({ ...linkStyle, ...(isActive ? activeLinkStyle : {}) })}>
-          Clasificación
-        </NavLink>
-        <NavLink to="/admin" style={({ isActive }) => ({ ...linkStyle, ...(isActive ? activeLinkStyle : {}) })}>
-          Admin
-        </NavLink>
+    <nav style={{
+      background: 'var(--bg-nav)',
+      borderBottom: '2px solid var(--green)',
+      padding: '0 16px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      height: '48px',
+      position: 'sticky',
+      top: 0,
+      zIndex: 100
+    }}>
+      {/* Logo */}
+      <NavLink to="/" style={{ textDecoration: 'none' }}>
+        <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '1.2px' }}>
+          PORRA MUNDIAL <span style={{ color: 'var(--gold)' }}>26</span>
+        </span>
+      </NavLink>
+
+      {/* Links */}
+      <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+        <StyledNavLink to="/" end>Inicio</StyledNavLink>
+        <StyledNavLink to="/predictions">Predicciones</StyledNavLink>
+        <StyledNavLink to="/leaderboard">Ranking</StyledNavLink>
+        {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
         <button
           onClick={() => supabase.auth.signOut()}
-          style={{ ...linkStyle, background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted)',
+            fontSize: '12px',
+            cursor: 'pointer',
+            padding: '7px 12px',
+            marginLeft: '4px'
+          }}
         >
           Salir
         </button>
-      </nav>
+      </div>
+    </nav>
+  )
+}
+
+function StyledNavLink({ to, end, children }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      style={({ isActive }) => ({
+        padding: '7px 14px',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: isActive ? '600' : '400',
+        color: isActive ? '#fff' : 'var(--text-muted)',
+        background: isActive ? 'var(--green)' : 'transparent',
+        textDecoration: 'none',
+        letterSpacing: '0.3px'
+      })}
+    >
+      {children}
+    </NavLink>
+  )
+}
+
+function AppLayout({ session }) {
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', session.user.id)
+        .single()
+      if (data?.is_admin) setIsAdmin(true)
+    }
+    checkAdmin()
+  }, [session.user.id])
+
+  return (
+    <div>
+      <Navbar isAdmin={isAdmin} />
       <Routes>
         <Route path="/" element={<Dashboard session={session} />} />
+        <Route path="/predictions" element={<Predictions session={session} />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/admin" element={<Admin session={session} />} />
+        {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
       </Routes>
     </div>
   )
 }
 
+/* ============================
+   APP PRINCIPAL
+   ============================ */
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -148,15 +272,26 @@ export default function App() {
       setSession(session)
       setLoading(false)
     })
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando...</div>
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100svh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-muted)',
+        fontSize: '14px'
+      }}>
+        Cargando...
+      </div>
+    )
+  }
 
   if (!session) return <Auth />
 

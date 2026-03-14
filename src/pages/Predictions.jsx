@@ -17,7 +17,6 @@ export default function Predictions({ session }) {
   }, [])
 
   async function fetchData() {
-    // Cargar partidos con equipos
     const { data: matchesData, error: matchesError } = await supabase
       .from('matches')
       .select(`
@@ -33,10 +32,8 @@ export default function Predictions({ session }) {
       setLoading(false)
       return
     }
-
     setMatches(matchesData || [])
 
-    // Cargar predicciones existentes del usuario
     const { data: predsData, error: predsError } = await supabase
       .from('predictions')
       .select('*')
@@ -53,14 +50,11 @@ export default function Predictions({ session }) {
       setPredictions(predsMap)
       setSavedPredictions(predsMap)
     }
-
     setLoading(false)
   }
 
   function updatePrediction(matchId, field, value) {
-    // Solo permitir números del 0 al 99
     if (value !== '' && (isNaN(value) || parseInt(value) < 0 || parseInt(value) > 99)) return
-
     setPredictions(prev => ({
       ...prev,
       [matchId]: {
@@ -74,7 +68,6 @@ export default function Predictions({ session }) {
     setSaving(true)
     setMessage('')
 
-    // Filtrar solo las predicciones del grupo activo que están completas
     const groupMatches = matches.filter(m => m.group_name === activeGroup)
     const toSave = []
 
@@ -97,16 +90,13 @@ export default function Predictions({ session }) {
       return
     }
 
-    // Upsert: inserta o actualiza si ya existe
     const { error } = await supabase
       .from('predictions')
       .upsert(toSave, { onConflict: 'user_id,match_id' })
 
     if (error) {
-      console.error('Error guardando:', error)
       setMessage('Error al guardar: ' + error.message)
     } else {
-      // Actualizar savedPredictions con lo que acabamos de guardar
       const newSaved = { ...savedPredictions }
       toSave.forEach(p => {
         newSaved[p.match_id] = {
@@ -115,17 +105,17 @@ export default function Predictions({ session }) {
         }
       })
       setSavedPredictions(newSaved)
-      setMessage(`✅ ${toSave.length} predicciones guardadas para el Grupo ${activeGroup}`)
+      setMessage(`${toSave.length} predicciones guardadas — Grupo ${activeGroup}`)
     }
-
     setSaving(false)
     setTimeout(() => setMessage(''), 3000)
   }
 
   function formatDate(dateStr) {
     const date = new Date(dateStr)
-    const options = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
-    return date.toLocaleDateString('es-ES', options)
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+    })
   }
 
   function hasUnsavedChanges(matchId) {
@@ -136,171 +126,257 @@ export default function Predictions({ session }) {
     return current.home_score !== saved.home_score || current.away_score !== saved.away_score
   }
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando partidos...</div>
+  function isSaved(matchId) {
+    const saved = savedPredictions[matchId]
+    return saved && saved.home_score !== '' && saved.home_score !== undefined &&
+           saved.away_score !== '' && saved.away_score !== undefined
+  }
 
-  const groupMatches = matches.filter(m => m.group_name === activeGroup)
-
-  // Contar predicciones completadas por grupo
   function countGroupPredictions(group) {
     const gMatches = matches.filter(m => m.group_name === group)
     let count = 0
     gMatches.forEach(m => {
-      const saved = savedPredictions[m.id]
-      if (saved && saved.home_score !== '' && saved.home_score !== undefined &&
-          saved.away_score !== '' && saved.away_score !== undefined) {
-        count++
-      }
+      if (isSaved(m.id)) count++
     })
     return count
   }
 
-  return (
-    <div style={{ maxWidth: '700px', margin: '0 auto', padding: '20px', fontFamily: 'sans-serif' }}>
+  if (loading) {
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+        Cargando partidos...
+      </div>
+    )
+  }
 
-      {/* Título */}
-      <h2 style={{ textAlign: 'center', marginBottom: '4px' }}>⚽ Predicciones - Fase de Grupos</h2>
-      <p style={{ textAlign: 'center', color: '#666', fontSize: '14px', marginTop: '0' }}>
-        Introduce el resultado exacto para cada partido
-      </p>
+  const groupMatches = matches.filter(m => m.group_name === activeGroup)
+  const groupTotal = groupMatches.length
+  const groupDone = countGroupPredictions(activeGroup)
+
+  // Agrupar partidos por jornada
+  const matchesByMatchday = {}
+  groupMatches.forEach(m => {
+    const key = m.matchday || 1
+    if (!matchesByMatchday[key]) matchesByMatchday[key] = []
+    matchesByMatchday[key].push(m)
+  })
+
+  return (
+    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px' }}>
+
+      {/* Cabecera */}
+      <div style={{ marginBottom: '14px' }}>
+        <h2 style={{
+          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
+          margin: '0 0 4px', letterSpacing: '0.3px'
+        }}>
+          Predicciones — Fase de Grupos
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+          Introduce el resultado exacto de cada partido
+        </p>
+      </div>
 
       {/* Selector de grupos */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '6px',
-        justifyContent: 'center',
-        marginBottom: '24px'
-      }}>
+      <div className="group-tabs" style={{ marginBottom: '16px' }}>
         {groups.map(g => {
           const total = matches.filter(m => m.group_name === g).length
           const done = countGroupPredictions(g)
+          const isActive = activeGroup === g
           const isComplete = done === total && total > 0
           return (
             <button
               key={g}
               onClick={() => setActiveGroup(g)}
               style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: activeGroup === g ? '2px solid #2d6a4f' : '1px solid #ddd',
-                background: activeGroup === g ? '#2d6a4f' : isComplete ? '#d4edda' : '#fff',
-                color: activeGroup === g ? '#fff' : '#333',
+                padding: '6px 14px',
+                borderRadius: '4px',
+                border: 'none',
+                background: isActive ? 'var(--green)' : isComplete ? 'var(--green-light)' : 'var(--bg-secondary)',
+                color: isActive ? '#fff' : isComplete ? 'var(--green)' : 'var(--text-muted)',
                 cursor: 'pointer',
-                fontWeight: activeGroup === g ? 'bold' : 'normal',
-                fontSize: '13px',
-                position: 'relative'
+                fontSize: '12px',
+                fontWeight: isActive ? '600' : '400',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
             >
-              Grupo {g}
-              <span style={{
-                display: 'block',
-                fontSize: '10px',
-                color: activeGroup === g ? '#ccc' : '#999',
-                marginTop: '2px'
-              }}>
-                {done}/{total}
-              </span>
+              {g} <span style={{ opacity: 0.6, fontSize: '10px' }}>{done}/{total}</span>
             </button>
           )
         })}
       </div>
 
-      {/* Partidos del grupo */}
-      <div>
-        {groupMatches.map((match, index) => {
-          const pred = predictions[match.id] || {}
-          const unsaved = hasUnsavedChanges(match.id)
-
-          return (
-            <div key={match.id} style={{
-              border: unsaved ? '1px solid #ffc107' : '1px solid #eee',
-              borderRadius: '10px',
-              padding: '14px 16px',
-              marginBottom: '10px',
-              background: unsaved ? '#fffdf0' : '#fafafa'
-            }}>
-              {/* Fecha */}
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px', textAlign: 'center' }}>
-                📅 {formatDate(match.match_date)} — Jornada {match.matchday}
-              </div>
-
-              {/* Equipos y marcadores */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px'
-              }}>
-                {/* Equipo local */}
-                <div style={{ flex: 1, textAlign: 'right', fontSize: '15px', fontWeight: '500' }}>
-                  {match.home_team?.flag_url && (
-                    <img src={match.home_team.flag_url} alt="" style={{ width: '20px', marginRight: '6px', verticalAlign: 'middle' }} />
-                  )}
-                  {match.home_team?.name || 'TBD'}
-                </div>
-
-                {/* Inputs de marcador */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    value={pred.home_score ?? ''}
-                    onChange={e => updatePrediction(match.id, 'home_score', e.target.value)}
-                    style={{
-                      width: '42px',
-                      height: '38px',
-                      textAlign: 'center',
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                      borderRadius: '6px',
-                      border: '1px solid #ccc',
-                      background: '#fff'
-                    }}
-                  />
-                  <span style={{ fontWeight: 'bold', color: '#999' }}>-</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    value={pred.away_score ?? ''}
-                    onChange={e => updatePrediction(match.id, 'away_score', e.target.value)}
-                    style={{
-                      width: '42px',
-                      height: '38px',
-                      textAlign: 'center',
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                      borderRadius: '6px',
-                      border: '1px solid #ccc',
-                      background: '#fff'
-                    }}
-                  />
-                </div>
-
-                {/* Equipo visitante */}
-                <div style={{ flex: 1, textAlign: 'left', fontSize: '15px', fontWeight: '500' }}>
-                  {match.away_team?.name || 'TBD'}
-                  {match.away_team?.flag_url && (
-                    <img src={match.away_team.flag_url} alt="" style={{ width: '20px', marginLeft: '6px', verticalAlign: 'middle' }} />
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })}
+      {/* Progreso del grupo */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: '6px',
+        marginBottom: '12px', border: '0.5px solid var(--border)'
+      }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          Grupo {activeGroup}
+        </span>
+        <span style={{ fontSize: '12px', fontWeight: '600', color: groupDone === groupTotal && groupTotal > 0 ? 'var(--green)' : 'var(--gold)' }}>
+          {groupDone}/{groupTotal} completados
+        </span>
       </div>
 
-      {/* Mensaje de estado */}
+      {/* Partidos por jornada */}
+      {Object.entries(matchesByMatchday).map(([matchday, mdMatches]) => (
+        <div key={matchday}>
+          {/* Separador de jornada */}
+          <div style={{
+            fontSize: '10px', color: 'var(--text-dim)',
+            textTransform: 'uppercase', letterSpacing: '0.8px',
+            padding: '10px 0 6px',
+            borderBottom: '0.5px solid var(--border-light)'
+          }}>
+            Jornada {matchday}
+          </div>
+
+          {mdMatches.map(match => {
+            const pred = predictions[match.id] || {}
+            const unsaved = hasUnsavedChanges(match.id)
+            const saved = isSaved(match.id)
+
+            return (
+              <div key={match.id} style={{
+                padding: '12px 0',
+                borderBottom: '0.5px solid var(--border-light)'
+              }}>
+                {/* Fecha */}
+                <div style={{
+                  fontSize: '11px', color: 'var(--text-dim)',
+                  marginBottom: '10px', textAlign: 'center'
+                }}>
+                  {formatDate(match.match_date)}
+                </div>
+
+                {/* Equipos y marcadores */}
+                <div style={{
+                  display: 'flex', alignItems: 'center'
+                }}>
+                  {/* Equipo local */}
+                  <div style={{
+                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px'
+                  }}>
+                    {match.home_team?.flag_url && (
+                      <img
+                        src={match.home_team.flag_url}
+                        alt=""
+                        style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    )}
+                    <span style={{
+                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500'
+                    }}>
+                      {match.home_team?.name || 'TBD'}
+                    </span>
+                  </div>
+
+                  {/* Inputs */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={pred.home_score ?? ''}
+                      onChange={e => updatePrediction(match.id, 'home_score', e.target.value)}
+                      style={{
+                        width: '36px',
+                        height: '32px',
+                        textAlign: 'center',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        borderRadius: '4px',
+                        border: unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
+                        background: 'var(--bg-input)',
+                        color: pred.home_score !== '' && pred.home_score !== undefined ? 'var(--gold)' : 'var(--text-dim)',
+                        outline: 'none'
+                      }}
+                    />
+                    <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={pred.away_score ?? ''}
+                      onChange={e => updatePrediction(match.id, 'away_score', e.target.value)}
+                      style={{
+                        width: '36px',
+                        height: '32px',
+                        textAlign: 'center',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        borderRadius: '4px',
+                        border: unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
+                        background: 'var(--bg-input)',
+                        color: pred.away_score !== '' && pred.away_score !== undefined ? 'var(--gold)' : 'var(--text-dim)',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  {/* Equipo visitante */}
+                  <div style={{
+                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end'
+                  }}>
+                    <span style={{
+                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500'
+                    }}>
+                      {match.away_team?.name || 'TBD'}
+                    </span>
+                    {match.away_team?.flag_url && (
+                      <img
+                        src={match.away_team.flag_url}
+                        alt=""
+                        style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Badge de estado */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
+                  {unsaved ? (
+                    <span style={{
+                      padding: '2px 10px', borderRadius: '3px', fontSize: '10px',
+                      background: 'var(--gold-dim)', color: 'var(--gold)'
+                    }}>
+                      Sin guardar
+                    </span>
+                  ) : saved ? (
+                    <span style={{
+                      padding: '2px 10px', borderRadius: '3px', fontSize: '10px',
+                      background: 'var(--green-light)', color: 'var(--green)'
+                    }}>
+                      Guardado
+                    </span>
+                  ) : (
+                    <span style={{
+                      padding: '2px 10px', borderRadius: '3px', fontSize: '10px',
+                      background: 'var(--bg-secondary)', color: 'var(--text-dim)'
+                    }}>
+                      Pendiente
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+
+      {/* Mensaje */}
       {message && (
         <div style={{
-          padding: '10px',
+          padding: '10px 12px',
           marginTop: '12px',
-          background: message.includes('Error') ? '#f8d7da' : '#d4edda',
+          background: message.includes('Error') ? 'var(--red-bg)' : 'var(--green-light)',
           borderRadius: '6px',
-          fontSize: '14px',
+          fontSize: '13px',
           textAlign: 'center',
-          color: message.includes('Error') ? '#721c24' : '#155724'
+          color: message.includes('Error') ? 'var(--red)' : 'var(--green)'
         }}>
           {message}
         </div>
@@ -312,33 +388,22 @@ export default function Predictions({ session }) {
         disabled={saving}
         style={{
           width: '100%',
-          padding: '14px',
-          marginTop: '16px',
-          background: '#2d6a4f',
-          color: 'white',
+          padding: '13px',
+          marginTop: '14px',
+          background: 'var(--green)',
+          color: '#fff',
           border: 'none',
-          borderRadius: '8px',
-          fontSize: '16px',
-          fontWeight: 'bold',
+          borderRadius: '6px',
+          fontSize: '13px',
+          fontWeight: '600',
           cursor: saving ? 'not-allowed' : 'pointer',
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
           opacity: saving ? 0.7 : 1
         }}
       >
-        {saving ? 'Guardando...' : `Guardar predicciones - Grupo ${activeGroup}`}
+        {saving ? 'Guardando...' : `Guardar grupo ${activeGroup}`}
       </button>
-
-      {/* Progreso total */}
-      <div style={{
-        marginTop: '20px',
-        padding: '12px',
-        background: '#f0f0f0',
-        borderRadius: '8px',
-        textAlign: 'center',
-        fontSize: '14px',
-        color: '#555'
-      }}>
-        Progreso total: {Object.keys(savedPredictions).length} / {matches.length} partidos completados
-      </div>
     </div>
   )
 }
