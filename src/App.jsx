@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import { supabase } from './supabase'
 import Dashboard from './pages/Dashboard'
-import Leaderboard from './pages/Leaderboard'
+import Leaderboard from './pages/Leaderboard.jsx'
+import Admin from './pages/Admin'
 
 function Auth() {
   const [email, setEmail] = useState('')
@@ -119,6 +120,9 @@ function AppLayout({ session }) {
         <NavLink to="/leaderboard" style={({ isActive }) => ({ ...linkStyle, ...(isActive ? activeLinkStyle : {}) })}>
           Clasificación
         </NavLink>
+        <NavLink to="/admin" style={({ isActive }) => ({ ...linkStyle, ...(isActive ? activeLinkStyle : {}) })}>
+          Admin
+        </NavLink>
         <button
           onClick={() => supabase.auth.signOut()}
           style={{ ...linkStyle, background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px' }}
@@ -129,6 +133,7 @@ function AppLayout({ session }) {
       <Routes>
         <Route path="/" element={<Dashboard session={session} />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/admin" element={<Admin session={session} />} />
       </Routes>
     </div>
   )
