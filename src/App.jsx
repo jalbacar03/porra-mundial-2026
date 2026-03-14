@@ -6,6 +6,7 @@ import Predictions from './pages/Predictions'
 import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 import PaymentWall from './components/PaymentWall'
+import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 
 /* ============================
    PANTALLA DE LOGIN / REGISTRO
@@ -167,19 +168,50 @@ const inputStyle = {
    NAVBAR + LAYOUT PRINCIPAL
    ============================ */
 function Navbar({ isAdmin }) {
+  const countdown = useCountdown(WORLD_CUP_START)
+
   return (
-    <nav style={{
-      background: 'var(--bg-nav)',
-      borderBottom: '2px solid var(--green)',
-      padding: '0 16px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      height: '48px',
-      position: 'sticky',
-      top: 0,
-      zIndex: 100
-    }}>
+    <>
+      {/* Barra countdown roja */}
+      {!countdown.expired && (
+        <div style={{
+          background: 'linear-gradient(90deg, #4a1520, #6b1c2a, #4a1520)',
+          padding: '6px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          borderBottom: '1px solid rgba(160,60,80,0.3)'
+        }}>
+          <span style={{ fontSize: '11px', color: 'rgba(255,180,180,0.6)' }}>⏱</span>
+          <span style={{
+            fontSize: '12px',
+            fontWeight: '700',
+            color: '#ff8a8a',
+            letterSpacing: '0.8px',
+            fontVariantNumeric: 'tabular-nums'
+          }}>
+            {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
+          </span>
+          <span style={{ fontSize: '10px', color: 'rgba(255,180,180,0.4)', letterSpacing: '0.3px' }}>
+            — Mundial 2026
+          </span>
+        </div>
+      )}
+
+      {/* Navbar principal */}
+      <nav style={{
+        background: 'var(--bg-nav)',
+        borderBottom: '2px solid var(--green)',
+        padding: '0 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        height: '48px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
       {/* Logo */}
       <NavLink to="/" style={{ textDecoration: 'none' }}>
         <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '1.2px' }}>
@@ -209,6 +241,7 @@ function Navbar({ isAdmin }) {
         </button>
       </div>
     </nav>
+    </>
   )
 }
 

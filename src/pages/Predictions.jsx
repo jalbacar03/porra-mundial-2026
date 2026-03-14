@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { useCountdown, PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 
 export default function Predictions({ session }) {
   const [matches, setMatches] = useState([])
@@ -152,6 +153,7 @@ export default function Predictions({ session }) {
   const groupMatches = matches.filter(m => m.group_name === activeGroup)
   const groupTotal = groupMatches.length
   const groupDone = countGroupPredictions(activeGroup)
+  const deadline = useCountdown(PREDICTIONS_DEADLINE)
 
   // Agrupar partidos por jornada
   const matchesByMatchday = {}
@@ -163,6 +165,89 @@ export default function Predictions({ session }) {
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px' }}>
+
+      {/* Countdown deadline predicciones */}
+      {!deadline.expired && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(255,204,0,0.08), rgba(255,204,0,0.03))',
+          border: '1px solid rgba(255,204,0,0.15)',
+          borderRadius: '10px',
+          padding: '16px 18px',
+          marginBottom: '16px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            fontSize: '10px',
+            color: 'var(--gold)',
+            textTransform: 'uppercase',
+            letterSpacing: '1.2px',
+            marginBottom: '8px',
+            fontWeight: '600'
+          }}>
+            Tiempo restante para predicciones
+          </div>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '12px',
+            marginBottom: '10px'
+          }}>
+            {[
+              { value: deadline.days, label: 'días' },
+              { value: deadline.hours, label: 'horas' },
+              { value: deadline.minutes, label: 'min' },
+              { value: deadline.seconds, label: 'seg' }
+            ].map((unit, i) => (
+              <div key={i} style={{ textAlign: 'center' }}>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: 'var(--gold)',
+                  lineHeight: '1',
+                  fontVariantNumeric: 'tabular-nums',
+                  minWidth: '40px'
+                }}>
+                  {String(unit.value).padStart(2, '0')}
+                </div>
+                <div style={{
+                  fontSize: '9px',
+                  color: 'var(--text-dim)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  marginTop: '3px'
+                }}>
+                  {unit.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            lineHeight: '1.5'
+          }}>
+            Todas las predicciones de fase de grupos deben realizarse <span style={{ color: 'var(--gold)', fontWeight: '600' }}>48 horas antes</span> del inicio del Mundial
+          </div>
+        </div>
+      )}
+
+      {deadline.expired && (
+        <div style={{
+          background: 'var(--red-bg)',
+          border: '1px solid rgba(226,75,74,0.2)',
+          borderRadius: '10px',
+          padding: '14px 18px',
+          marginBottom: '16px',
+          textAlign: 'center',
+          fontSize: '13px',
+          color: 'var(--red)',
+          fontWeight: '500'
+        }}>
+          🔒 El plazo para predicciones de fase de grupos ha finalizado
+        </div>
+      )}
 
       {/* Cabecera */}
       <div style={{ marginBottom: '14px' }}>
