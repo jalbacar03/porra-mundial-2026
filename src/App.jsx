@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import { supabase } from './supabase'
 import Dashboard from './pages/Dashboard'
+import Leaderboard from './pages/Leaderboard'
 
 function Auth() {
   const [email, setEmail] = useState('')
@@ -84,6 +86,54 @@ function Auth() {
   )
 }
 
+const navStyle = {
+  display: 'flex',
+  gap: '16px',
+  alignItems: 'center',
+  padding: '12px 24px',
+  background: '#2d6a4f',
+  fontFamily: 'sans-serif'
+}
+
+const linkStyle = {
+  color: 'rgba(255,255,255,0.7)',
+  textDecoration: 'none',
+  fontSize: '15px',
+  padding: '6px 12px',
+  borderRadius: '6px'
+}
+
+const activeLinkStyle = {
+  color: 'white',
+  background: 'rgba(255,255,255,0.15)'
+}
+
+function AppLayout({ session }) {
+  return (
+    <div>
+      <nav style={navStyle}>
+        <span style={{ color: 'white', fontWeight: 'bold', marginRight: 'auto' }}>🏆 Porra Mundial 2026</span>
+        <NavLink to="/" end style={({ isActive }) => ({ ...linkStyle, ...(isActive ? activeLinkStyle : {}) })}>
+          Dashboard
+        </NavLink>
+        <NavLink to="/leaderboard" style={({ isActive }) => ({ ...linkStyle, ...(isActive ? activeLinkStyle : {}) })}>
+          Clasificación
+        </NavLink>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          style={{ ...linkStyle, background: 'none', border: 'none', cursor: 'pointer', fontSize: '15px' }}
+        >
+          Salir
+        </button>
+      </nav>
+      <Routes>
+        <Route path="/" element={<Dashboard session={session} />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
+      </Routes>
+    </div>
+  )
+}
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -103,5 +153,11 @@ export default function App() {
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando...</div>
 
-  return session ? <Dashboard session={session} /> : <Auth />
+  if (!session) return <Auth />
+
+  return (
+    <BrowserRouter>
+      <AppLayout session={session} />
+    </BrowserRouter>
+  )
 }
