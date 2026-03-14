@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Predictions from './pages/Predictions'
 import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
+import PaymentWall from './components/PaymentWall'
 
 /* ============================
    PANTALLA DE LOGIN / REGISTRO
@@ -234,21 +235,40 @@ function StyledNavLink({ to, end, children }) {
 
 function AppLayout({ session }) {
   const [isAdmin, setIsAdmin] = useState(false)
+  const [hasPaid, setHasPaid] = useState(null) // null = cargando
 
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('is_admin')
+        .select('is_admin, has_paid')
         .eq('id', session.user.id)
         .single()
-      if (data?.is_admin) setIsAdmin(true)
+      if (data) {
+        setIsAdmin(!!data.is_admin)
+        setHasPaid(!!data.has_paid)
+      }
     }
-    checkAdmin()
+    checkProfile()
   }, [session.user.id])
+
+  // Mientras carga el perfil, mostrar loading
+  if (hasPaid === null) {
+    return (
+      <div style={{
+        minHeight: '100svh', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', color: 'var(--text-muted)', fontSize: '14px'
+      }}>
+        Cargando...
+      </div>
+    )
+  }
 
   return (
     <div>
+      {/* Si no ha pagado, mostrar el popup de pago encima de todo */}
+      {!hasPaid && <PaymentWall />}
+
       <Navbar isAdmin={isAdmin} />
       <Routes>
         <Route path="/" element={<Dashboard session={session} />} />
