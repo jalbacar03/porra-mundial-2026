@@ -71,10 +71,10 @@ export default function Leaderboard() {
         borderBottom: '0.5px solid var(--border)'
       }}>
         <span style={{ width: '36px' }}>#</span>
-        <span style={{ flex: 1 }}>Nombre</span>
-        <span style={{ width: '50px', textAlign: 'center' }}>Pts</span>
-        <span style={{ width: '50px', textAlign: 'center' }}>Exact</span>
-        <span style={{ width: '50px', textAlign: 'center' }}>1X2</span>
+        <span style={{ flex: 1, minWidth: 0 }}>Nombre</span>
+        <span className="leaderboard-pts" style={{ width: '50px', textAlign: 'center' }}>Pts</span>
+        <span className="leaderboard-stat" style={{ width: '50px', textAlign: 'center' }}>Exact</span>
+        <span className="leaderboard-stat" style={{ width: '50px', textAlign: 'center' }}>1X2</span>
       </div>
 
       {/* Filas */}
@@ -111,13 +111,15 @@ export default function Leaderboard() {
             <span style={{
               flex: 1, fontSize: '13px',
               fontWeight: isMe ? '600' : '400',
-              color: isMe ? 'var(--gold)' : 'var(--text-primary)'
+              color: isMe ? 'var(--gold)' : 'var(--text-primary)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              minWidth: 0
             }}>
               {user.full_name}{isMe ? ' (Tú)' : ''}
             </span>
 
             {/* Puntos */}
-            <span style={{
+            <span className="leaderboard-pts" style={{
               width: '50px', textAlign: 'center',
               fontSize: '14px', fontWeight: '600',
               color: index === 0 ? 'var(--gold)' : 'var(--text-primary)'
@@ -126,7 +128,7 @@ export default function Leaderboard() {
             </span>
 
             {/* Exactos */}
-            <span style={{
+            <span className="leaderboard-stat" style={{
               width: '50px', textAlign: 'center',
               fontSize: '13px', color: 'var(--text-secondary)'
             }}>
@@ -134,7 +136,7 @@ export default function Leaderboard() {
             </span>
 
             {/* 1X2 */}
-            <span style={{
+            <span className="leaderboard-stat" style={{
               width: '50px', textAlign: 'center',
               fontSize: '13px', color: 'var(--text-secondary)'
             }}>

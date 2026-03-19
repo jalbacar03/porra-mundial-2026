@@ -16,3 +16,35 @@ button, a {
 .group-tabs::-webkit-scrollbar {
   display: none;
 }
+
+/* ===== Responsive: Bottom Nav (móvil) / Top Nav (desktop) ===== */
+
+/* Desktop: ocultar bottom nav, mostrar top nav */
+.top-navbar {
+  display: flex !important;
+}
+.bottom-navbar {
+  display: none !important;
+}
+
+/* Móvil: ocultar top nav, mostrar bottom nav */
+@media (max-width: 767px) {
+  .top-navbar {
+    display: none !important;
+  }
+  .bottom-navbar {
+    display: flex !important;
+  }
+  /* Espacio inferior para que el contenido no quede tapado */
+  .app-content {
+    padding-bottom: 64px;
+  }
+  /* Leaderboard columnas más compactas */
+  .leaderboard-stat {
+    width: 40px !important;
+    font-size: 12px !important;
+  }
+  .leaderboard-pts {
+    width: 40px !important;
+  }
+}

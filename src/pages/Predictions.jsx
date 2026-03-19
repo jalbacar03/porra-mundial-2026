@@ -342,7 +342,7 @@ export default function Predictions({ session }) {
                 }}>
                   {/* Equipo local */}
                   <div style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px'
+                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0
                   }}>
                     {match.home_team?.flag_url && (
                       <img
@@ -352,14 +352,15 @@ export default function Predictions({ session }) {
                       />
                     )}
                     <span style={{
-                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500'
+                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
                       {match.home_team?.name || 'TBD'}
                     </span>
                   </div>
 
                   {/* Inputs */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 4px', flexShrink: 0 }}>
                     <input
                       type="number"
                       min="0"
@@ -403,10 +404,11 @@ export default function Predictions({ session }) {
 
                   {/* Equipo visitante */}
                   <div style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end'
+                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', minWidth: 0
                   }}>
                     <span style={{
-                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500'
+                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
                       {match.away_team?.name || 'TBD'}
                     </span>
