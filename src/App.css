@@ -17,6 +17,16 @@ button, a {
   display: none;
 }
 
+/* ===== PWA standalone: safe area para barra de estado iPhone ===== */
+@media all and (display-mode: standalone) {
+  .top-navbar {
+    padding-top: env(safe-area-inset-top);
+  }
+  .app-content {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 /* ===== Responsive: Bottom Nav (móvil) / Top Nav (desktop) ===== */
 
 /* Desktop: ocultar bottom nav, mostrar top nav */
