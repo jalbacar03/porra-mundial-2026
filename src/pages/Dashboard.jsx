@@ -71,7 +71,7 @@ export default function Dashboard({ session }) {
   const pct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
 
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px' }}>
+    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Tarjeta de posición */}
       <div style={{

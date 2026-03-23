@@ -45,7 +45,7 @@ export default function Leaderboard() {
   ]
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Cabecera */}
       <div style={{ marginBottom: '16px' }}>
