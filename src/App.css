@@ -44,22 +44,14 @@ button, a {
   }
   .bottom-navbar {
     display: flex !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  /* Extiende el fondo de la navbar hasta el borde absoluto del iPhone */
-  .bottom-navbar::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-bottom, 0px);
-    background: var(--bg-nav);
-    transform: translateY(100%);
+    /* Extender la barra hasta el borde inferior absoluto del iPhone */
+    padding-bottom: 34px;
+    padding-bottom: env(safe-area-inset-bottom, 34px);
   }
   /* Espacio inferior para que el contenido no quede tapado */
   .app-content {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 98px;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 34px));
   }
   /* Leaderboard columnas más compactas */
   .leaderboard-stat {
