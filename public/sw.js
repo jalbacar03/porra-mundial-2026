@@ -1,4 +1,4 @@
-const CACHE_NAME = 'porra-mundial-v1'
+const CACHE_NAME = 'porra-mundial-v2'
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
