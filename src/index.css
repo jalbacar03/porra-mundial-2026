@@ -52,11 +52,12 @@
 
 body {
   margin: 0;
-  background: var(--bg-primary);
+  background: var(--bg-nav);
   color: var(--text-secondary);
 }
 
 #root {
+  background: var(--bg-primary);
   min-height: 100svh;
 }
 

@@ -19,6 +19,13 @@
     <script type="module" src="/src/main.jsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
+        // Limpiar cachés viejas y re-registrar SW
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(r => r.unregister())
+        })
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name))
+        })
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
         })
