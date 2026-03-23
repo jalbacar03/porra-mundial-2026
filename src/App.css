@@ -47,7 +47,7 @@ button, a {
   }
   /* Espacio inferior para que el contenido no quede tapado */
   .app-content {
-    padding-bottom: 64px;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
   /* Leaderboard columnas más compactas */
   .leaderboard-stat {

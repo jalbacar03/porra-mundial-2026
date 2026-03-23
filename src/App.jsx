@@ -306,13 +306,13 @@ function BottomNavbar({ isAdmin }) {
       bottom: 0,
       left: 0,
       right: 0,
-      height: '60px',
+      minHeight: '60px',
       background: 'var(--bg-nav)',
       borderTop: '1px solid var(--border)',
       alignItems: 'center',
       justifyContent: 'space-around',
       zIndex: 100,
-      paddingBottom: 'env(safe-area-inset-bottom)'
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)'
     }}>
       {navItems.map((item, i) => {
         const isActive = item.to !== null && (
