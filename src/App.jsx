@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Predictions from './pages/Predictions'
 import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
+import Stats from './pages/Stats'
 import PaymentWall from './components/PaymentWall'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 
@@ -194,6 +195,14 @@ function IconRanking({ size = 22 }) {
     </svg>
   )
 }
+function IconStats({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+      <path d="M22 12A10 10 0 0 0 12 2v10z" />
+    </svg>
+  )
+}
 function IconAdmin({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -269,6 +278,7 @@ function TopNavbar({ isAdmin }) {
         <StyledNavLink to="/" end>Inicio</StyledNavLink>
         <StyledNavLink to="/predictions">Predicciones</StyledNavLink>
         <StyledNavLink to="/leaderboard">Ranking</StyledNavLink>
+        <StyledNavLink to="/stats">Stats</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
         <button
           onClick={() => supabase.auth.signOut()}
@@ -296,6 +306,7 @@ function BottomNavbar({ isAdmin }) {
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
     { to: '/predictions', label: 'Predic.', icon: IconPredictions },
     { to: '/leaderboard', label: 'Ranking', icon: IconRanking },
+    { to: '/stats', label: 'Stats', icon: IconStats },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
     { to: null, label: 'Salir', icon: IconLogout, action: () => supabase.auth.signOut() }
   ]
@@ -437,6 +448,7 @@ function AppLayout({ session }) {
           <Route path="/" element={<Dashboard session={session} />} />
           <Route path="/predictions" element={<Predictions session={session} />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/stats" element={<Stats />} />
           {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
         </Routes>
       </div>
