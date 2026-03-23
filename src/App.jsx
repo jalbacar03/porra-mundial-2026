@@ -311,8 +311,7 @@ function BottomNavbar({ isAdmin }) {
       borderTop: '1px solid var(--border)',
       alignItems: 'center',
       justifyContent: 'space-around',
-      zIndex: 100,
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+      zIndex: 100
     }}>
       {navItems.map((item, i) => {
         const isActive = item.to !== null && (
