@@ -179,23 +179,7 @@ export default function PredictionsPage({ session }) {
                 cursor: 'pointer'
               }}
             >
-              ⚽ Partidos Grupos
-            </button>
-            <button
-              onClick={() => setActiveTab('bets')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: 'none',
-                background: activeTab === 'bets' ? 'var(--bg-secondary)' : 'transparent',
-                color: activeTab === 'bets' ? 'var(--text-primary)' : 'var(--text-muted)',
-                fontSize: '12px',
-                fontWeight: activeTab === 'bets' ? '600' : '400',
-                cursor: 'pointer'
-              }}
-            >
-              🎯 Apuestas
+              ⚽ Grupos
             </button>
             <button
               onClick={() => setActiveTab('bracket')}
@@ -211,7 +195,23 @@ export default function PredictionsPage({ session }) {
                 cursor: 'pointer'
               }}
             >
-              🏆 Bracket
+              🏆 Cuadro
+            </button>
+            <button
+              onClick={() => setActiveTab('bets')}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: 'none',
+                background: activeTab === 'bets' ? 'var(--bg-secondary)' : 'transparent',
+                color: activeTab === 'bets' ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontSize: '12px',
+                fontWeight: activeTab === 'bets' ? '600' : '400',
+                cursor: 'pointer'
+              }}
+            >
+              🎯 Especiales
             </button>
           </div>
 
