@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import BetCard from '../../../components/bets/BetCard'
 import BetProgress from '../../../components/bets/BetProgress'
-import GroupStandingsPreview from '../../../components/bets/GroupStandingsPreview'
+// GroupStandingsPreview removed — standings now shown in GroupMatchPredictions
+// Bracket picks handled in BracketView component
 
 const CATEGORY_LABELS = {
   eliminatorias: 'Eliminatorias',
@@ -14,25 +15,14 @@ const CATEGORY_LABELS = {
 
 const CATEGORY_ORDER = ['eliminatorias', 'players', 'teams', 'stats', 'yesno']
 
-// Slugs that belong to "eliminatorias" (merged from podium + knockout teams)
-const ELIMINATORIAS_SLUGS = [
-  'my_champion', 'finalists', 'semi_finalists', 'quarter_finalists', 'round_of_16', 'round_of_32'
-]
+// Knockout bets now handled in BracketView — only keep champion here
+const ELIMINATORIAS_SLUGS = ['my_champion']
+const ELIMINATORIAS_ORDER = ['my_champion']
 
-// Display order for eliminatorias: bottom-up (32avos → campeón)
-const ELIMINATORIAS_ORDER = [
-  'round_of_32', 'round_of_16', 'quarter_finalists', 'semi_finalists', 'finalists', 'my_champion'
+// Slugs to EXCLUDE from pre-tournament bets (moved to bracket)
+const BRACKET_SLUGS = [
+  'round_of_32', 'round_of_16', 'quarter_finalists', 'semi_finalists', 'finalists'
 ]
-
-// Points per correct pick in each knockout round
-const KNOCKOUT_POINTS = {
-  round_of_32: 0,
-  round_of_16: 1,
-  quarter_finalists: 2,
-  semi_finalists: 4,
-  finalists: 5,
-  my_champion: 8
-}
 
 // Knockout cascade chain: higher tier flows into lower tiers
 // Each entry: { slug, getTeamIds(value) }
@@ -266,27 +256,20 @@ export default function PreTournamentBets({ session, deadline }) {
   const completedCount = bets.filter(b => entries[b.id]?.value).length
   const totalMaxPoints = bets.reduce((sum, b) => sum + b.max_points, 0)
 
-  // Group by category — merge podium + knockout teams into "eliminatorias"
+  // Group by category — exclude bracket slugs (handled in BracketView)
   const betsByCategory = {}
   bets.forEach(b => {
+    // Skip bets that are now in the bracket
+    if (BRACKET_SLUGS.includes(b.slug)) return
+
     let cat = b.category
-    // Podium bets → eliminatorias
+    // Champion → eliminatorias
     if (cat === 'podium') cat = 'eliminatorias'
-    // Knockout team bets (octavos, cuartos, semis) → eliminatorias
     if (cat === 'teams' && ELIMINATORIAS_SLUGS.includes(b.slug)) cat = 'eliminatorias'
 
     if (!betsByCategory[cat]) betsByCategory[cat] = []
     betsByCategory[cat].push(b)
   })
-
-  // Sort eliminatorias in bottom-up order (octavos → campeón)
-  if (betsByCategory.eliminatorias) {
-    betsByCategory.eliminatorias.sort((a, b) => {
-      const idxA = ELIMINATORIAS_ORDER.indexOf(a.slug)
-      const idxB = ELIMINATORIAS_ORDER.indexOf(b.slug)
-      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
-    })
-  }
 
   return (
     <div>
@@ -342,19 +325,6 @@ export default function PreTournamentBets({ session, deadline }) {
           )
         })}
       </div>
-
-      {/* Group standings preview for Eliminatorias tab */}
-      {activeCategory === 'eliminatorias' && (
-        <GroupStandingsPreview
-          session={session}
-          onAutoFillR32={(teamIds) => {
-            const r32BetId = slugToBetId['round_of_32']
-            if (r32BetId) {
-              handleSave(r32BetId, { teams: teamIds })
-            }
-          }}
-        />
-      )}
 
       {/* Active category bets */}
       {(betsByCategory[activeCategory] || []).map(bet => (

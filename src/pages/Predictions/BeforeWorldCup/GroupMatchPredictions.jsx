@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../../supabase'
+import { calculateGroupStandings } from '../../../utils/groupStandings'
 
 export default function GroupMatchPredictions({ session, deadline }) {
   const [matches, setMatches] = useState([])
@@ -140,6 +141,22 @@ export default function GroupMatchPredictions({ session, deadline }) {
     })
     return count
   }
+
+  // Calculate standings from saved predictions
+  const { groupStandings, qualified32 } = useMemo(() => {
+    if (!matches.length) return { groupStandings: {}, qualified32: [] }
+    // Merge saved + current predictions (saved takes priority for standings)
+    const allPreds = { ...predictions }
+    Object.keys(savedPredictions).forEach(k => {
+      if (savedPredictions[k].home_score != null && savedPredictions[k].away_score != null) {
+        allPreds[k] = savedPredictions[k]
+      }
+    })
+    return calculateGroupStandings(matches, allPreds)
+  }, [matches, savedPredictions, predictions])
+
+  const currentGroupStandings = groupStandings[activeGroup] || []
+  const groupHasPredictions = currentGroupStandings.some(t => t.played > 0)
 
   if (loading) {
     return (
@@ -363,6 +380,62 @@ export default function GroupMatchPredictions({ session, deadline }) {
         >
           {saving ? 'Guardando...' : `Guardar grupo ${activeGroup}`}
         </button>
+      )}
+
+      {/* Mini standings table */}
+      {groupHasPredictions && (
+        <div style={{
+          marginTop: '16px', background: 'var(--bg-secondary)',
+          borderRadius: '8px', padding: '12px',
+          border: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            📊 Clasificación Grupo {activeGroup}
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+            <thead>
+              <tr style={{ color: 'var(--text-dim)', fontSize: '9px', textTransform: 'uppercase' }}>
+                <th style={{ textAlign: 'left', padding: '3px 4px' }}>#</th>
+                <th style={{ textAlign: 'left', padding: '3px 4px' }}>Equipo</th>
+                <th style={{ textAlign: 'center', padding: '3px 4px' }}>PJ</th>
+                <th style={{ textAlign: 'center', padding: '3px 4px' }}>G</th>
+                <th style={{ textAlign: 'center', padding: '3px 4px' }}>E</th>
+                <th style={{ textAlign: 'center', padding: '3px 4px' }}>P</th>
+                <th style={{ textAlign: 'center', padding: '3px 4px' }}>DG</th>
+                <th style={{ textAlign: 'center', padding: '3px 4px' }}>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentGroupStandings.map((row, idx) => {
+                const isTop2 = idx < 2
+                const bgColor = isTop2 ? 'rgba(0,122,69,0.1)' : idx === 2 ? 'rgba(255,204,0,0.06)' : 'transparent'
+                const borderLeft = isTop2 ? '3px solid var(--green)' : idx === 2 ? '3px solid rgba(255,204,0,0.3)' : '3px solid transparent'
+                return (
+                  <tr key={row.team.id} style={{ background: bgColor }}>
+                    <td style={{ padding: '5px 4px', borderLeft, fontWeight: '600', color: 'var(--text-dim)' }}>{idx + 1}</td>
+                    <td style={{ padding: '5px 4px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                      {row.team.flag_url && (
+                        <img src={row.team.flag_url} alt="" style={{ width: '14px', height: '10px', marginRight: '5px', verticalAlign: 'middle', borderRadius: '1px' }} />
+                      )}
+                      {row.team.name}
+                    </td>
+                    <td style={{ textAlign: 'center', padding: '5px 4px', color: 'var(--text-muted)' }}>{row.played}</td>
+                    <td style={{ textAlign: 'center', padding: '5px 4px', color: 'var(--text-muted)' }}>{row.w}</td>
+                    <td style={{ textAlign: 'center', padding: '5px 4px', color: 'var(--text-muted)' }}>{row.d}</td>
+                    <td style={{ textAlign: 'center', padding: '5px 4px', color: 'var(--text-muted)' }}>{row.l}</td>
+                    <td style={{ textAlign: 'center', padding: '5px 4px', color: row.gd > 0 ? 'var(--green)' : row.gd < 0 ? '#e74c3c' : 'var(--text-muted)' }}>
+                      {row.gd > 0 ? '+' : ''}{row.gd}
+                    </td>
+                    <td style={{ textAlign: 'center', padding: '5px 4px', fontWeight: '700', color: '#ffcc00' }}>{row.pts}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '6px' }}>
+            <span style={{ color: 'var(--green)' }}>■</span> Clasifica directo · <span style={{ color: '#ffcc00' }}>■</span> Posible mejor 3º
+          </div>
+        </div>
       )}
     </div>
   )
