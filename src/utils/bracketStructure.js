@@ -59,7 +59,7 @@ export const FINAL_MATCH = [
 
 // All rounds in order
 export const ROUNDS = [
-  { key: 'r32', label: '32avos', matches: R32_MATCHES, pointsPerWin: 0 },
+  { key: 'r32', label: 'Dieciseisavos', matches: R32_MATCHES, pointsPerWin: 0 },
   { key: 'r16', label: 'Octavos', matches: R16_MATCHES, pointsPerWin: 1 },
   { key: 'qf', label: 'Cuartos', matches: QF_MATCHES, pointsPerWin: 2 },
   { key: 'sf', label: 'Semis', matches: SF_MATCHES, pointsPerWin: 4 },

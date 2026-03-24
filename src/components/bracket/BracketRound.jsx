@@ -21,7 +21,7 @@ export default function BracketRound({ roundKey, label, matches, matchups, picks
             fontSize: '11px', color: '#ffcc00', marginTop: '4px',
             background: 'rgba(255,204,0,0.08)', padding: '6px 10px', borderRadius: '6px'
           }}>
-            ⚡ Emparejamientos según tus predicciones de grupo. Elige el ganador de cada partido.
+            ⚡ Emparejamientos auto-rellenados según tus predicciones de grupo. Elige el ganador de cada partido.
           </div>
         )}
       </div>
