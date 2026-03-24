@@ -12,11 +12,29 @@ export default function Dashboard({ session }) {
   const [userPredictions, setUserPredictions] = useState({})
   const [paidCount, setPaidCount] = useState(0)
   const [totalUsers, setTotalUsers] = useState(0)
+  const [dailyInsight, setDailyInsight] = useState(null)
+  const [insightLoading, setInsightLoading] = useState(true)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchAll()
+    fetchInsight()
   }, [])
+
+  async function fetchInsight() {
+    setInsightLoading(true)
+    try {
+      const res = await fetch('/api/generate-insight')
+      if (res.ok) {
+        const data = await res.json()
+        setDailyInsight(data.insight)
+      }
+    } catch (err) {
+      // Silently fail — insight is optional
+      console.warn('Insight not available:', err)
+    }
+    setInsightLoading(false)
+  }
 
   async function fetchAll() {
     // Profile
@@ -190,6 +208,42 @@ export default function Dashboard({ session }) {
           </div>
         </div>
       </div>
+
+      {/* ===== DAILY INSIGHT (Gemini) ===== */}
+      {(dailyInsight || insightLoading) && (
+        <div style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '10px',
+          padding: '16px 18px',
+          marginBottom: '12px',
+          border: '0.5px solid var(--border)',
+          position: 'relative'
+        }}>
+          <div style={{
+            fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+            letterSpacing: '1px', fontWeight: '600', marginBottom: '10px',
+            display: 'flex', alignItems: 'center', gap: '6px'
+          }}>
+            <span>✨</span> Crónica del día
+          </div>
+
+          {insightLoading ? (
+            <div style={{
+              padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
+              fontSize: '12px'
+            }}>
+              Generando crónica...
+            </div>
+          ) : (
+            <div style={{
+              fontSize: '13px', color: 'var(--text-secondary)',
+              lineHeight: '1.7', whiteSpace: 'pre-line'
+            }}>
+              {dailyInsight}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== DAILY BET WIDGET (blurred) ===== */}
       <div style={{
