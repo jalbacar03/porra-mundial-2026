@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router
 import { supabase } from './supabase'
 import './App.css'
 import Dashboard from './pages/Dashboard'
-import Predictions from './pages/Predictions'
+import Predictions from './pages/Predictions/PredictionsPage'
 import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 import Stats from './pages/Stats'
