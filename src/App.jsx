@@ -277,12 +277,10 @@ function TopNavbar({ isAdmin }) {
         </span>
       </NavLink>
 
-      {/* Countdown centrado absoluto */}
+      {/* Countdown junto al logo */}
       {!countdown.expired && (
         <div style={{
-          position: 'absolute',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          marginLeft: '12px',
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
