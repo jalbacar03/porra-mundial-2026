@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase'
 
-export default function TeamSelector({ value, onChange, disabled, config = {}, multi = false }) {
+const SOURCE_LABELS = {
+  champion: 'Campeón',
+  finalists: 'Finalista',
+  semi_finalists: 'Semi',
+  quarter_finalists: 'Cuartos',
+  round_of_16: 'Octavos'
+}
+
+const SOURCE_COLORS = {
+  champion: { bg: 'rgba(255,204,0,0.15)', border: 'var(--gold)', text: 'var(--gold)' },
+  finalists: { bg: 'rgba(255,204,0,0.10)', border: 'rgba(255,204,0,0.5)', text: 'var(--gold)' },
+  semi_finalists: { bg: 'rgba(0,122,69,0.10)', border: 'var(--green)', text: 'var(--green)' },
+  quarter_finalists: { bg: 'rgba(0,122,69,0.08)', border: 'rgba(0,122,69,0.4)', text: 'var(--green)' },
+  round_of_16: { bg: 'rgba(0,122,69,0.05)', border: 'rgba(0,122,69,0.3)', text: 'var(--green)' }
+}
+
+export default function TeamSelector({ value, onChange, disabled, config = {}, multi = false, lockedTeams = [] }) {
   const [teams, setTeams] = useState([])
   const [search, setSearch] = useState('')
 
@@ -26,42 +42,108 @@ export default function TeamSelector({ value, onChange, disabled, config = {}, m
     }
   }
 
+  const lockedIds = lockedTeams.map(lt => lt.teamId)
+
   const filteredTeams = search
     ? teams.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
     : teams
 
   // Multi-team selection
   if (multi) {
-    const selectedIds = value?.teams || []
+    const allSelectedIds = value?.teams || []
+    const manualIds = allSelectedIds.filter(id => !lockedIds.includes(id))
     const exactCount = config.exact_count || null
-    const isAtLimit = exactCount && selectedIds.length >= exactCount
+    const manualSlots = exactCount ? exactCount - lockedIds.length : null
+    const isAtLimit = manualSlots !== null && manualIds.length >= manualSlots
 
     function toggleTeam(teamId) {
       if (disabled) return
-      let newIds
-      if (selectedIds.includes(teamId)) {
-        newIds = selectedIds.filter(id => id !== teamId)
+      if (lockedIds.includes(teamId)) return // can't toggle locked
+
+      let newManualIds
+      if (manualIds.includes(teamId)) {
+        newManualIds = manualIds.filter(id => id !== teamId)
       } else {
         if (isAtLimit) return
-        newIds = [...selectedIds, teamId]
+        newManualIds = [...manualIds, teamId]
       }
-      onChange({ teams: newIds })
+      // Always include locked + manual
+      onChange({ teams: [...lockedIds, ...newManualIds] })
     }
+
+    // Split into locked teams (pinned top) and rest
+    const lockedTeamObjects = lockedTeams
+      .map(lt => {
+        const team = teams.find(t => t.id === lt.teamId)
+        return team ? { ...team, source: lt.source } : null
+      })
+      .filter(Boolean)
+
+    const nonLockedFiltered = filteredTeams.filter(t => !lockedIds.includes(t.id))
 
     return (
       <div>
+        {/* Counter */}
         {exactCount && (
           <div style={{
             fontSize: '11px',
-            color: selectedIds.length === exactCount ? 'var(--green)' : 'var(--gold)',
+            color: (manualIds.length + lockedIds.length) === exactCount ? 'var(--green)' : 'var(--gold)',
             fontWeight: '600',
             marginBottom: '8px',
             textAlign: 'right'
           }}>
-            {selectedIds.length}/{exactCount} seleccionadas
+            {manualIds.length + lockedIds.length}/{exactCount} seleccionadas
+            {lockedIds.length > 0 && (
+              <span style={{ color: 'var(--text-dim)', fontWeight: '400' }}>
+                {' '}({lockedIds.length} auto)
+              </span>
+            )}
           </div>
         )}
 
+        {/* Locked teams pinned at top */}
+        {lockedTeamObjects.length > 0 && (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px'
+          }}>
+            {lockedTeamObjects.map(team => {
+              const colors = SOURCE_COLORS[team.source] || SOURCE_COLORS.round_of_16
+              return (
+                <div
+                  key={team.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 8px',
+                    borderRadius: '4px',
+                    border: `1.5px solid ${colors.border}`,
+                    background: colors.bg,
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: colors.text
+                  }}
+                >
+                  {team.flag_url && (
+                    <img src={team.flag_url} alt="" style={{
+                      width: '16px', height: '11px', borderRadius: '1px', objectFit: 'cover'
+                    }} />
+                  )}
+                  <span>{team.name}</span>
+                  <span style={{
+                    fontSize: '8px', padding: '1px 4px', borderRadius: '2px',
+                    background: 'rgba(0,0,0,0.2)', color: colors.text,
+                    textTransform: 'uppercase', letterSpacing: '0.3px'
+                  }}>
+                    {SOURCE_LABELS[team.source] || 'Auto'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Search */}
         <input
           type="text"
           placeholder="Buscar selección..."
@@ -82,6 +164,7 @@ export default function TeamSelector({ value, onChange, disabled, config = {}, m
           }}
         />
 
+        {/* Team grid (non-locked only) */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
@@ -90,8 +173,8 @@ export default function TeamSelector({ value, onChange, disabled, config = {}, m
           overflowY: 'auto',
           padding: '2px'
         }}>
-          {filteredTeams.map(team => {
-            const isSelected = selectedIds.includes(team.id)
+          {nonLockedFiltered.map(team => {
+            const isSelected = manualIds.includes(team.id)
             return (
               <button
                 key={team.id}
@@ -129,7 +212,7 @@ export default function TeamSelector({ value, onChange, disabled, config = {}, m
     )
   }
 
-  // Single team selection — GRID style (same as multi but select one)
+  // Single team selection — grid style
   const selectedTeamId = value?.team_id
   const selectedTeam = teams.find(t => t.id === selectedTeamId)
 
@@ -140,7 +223,6 @@ export default function TeamSelector({ value, onChange, disabled, config = {}, m
 
   return (
     <div>
-      {/* Show selected team badge */}
       {selectedTeam && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
@@ -160,7 +242,6 @@ export default function TeamSelector({ value, onChange, disabled, config = {}, m
         </div>
       )}
 
-      {/* Search */}
       <input
         type="text"
         placeholder="Buscar selección..."
@@ -181,7 +262,6 @@ export default function TeamSelector({ value, onChange, disabled, config = {}, m
         }}
       />
 
-      {/* Team grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',

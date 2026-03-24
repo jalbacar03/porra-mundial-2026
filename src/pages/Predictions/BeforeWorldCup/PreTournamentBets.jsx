@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import BetCard from '../../../components/bets/BetCard'
 import BetProgress from '../../../components/bets/BetProgress'
@@ -13,6 +13,16 @@ const CATEGORY_LABELS = {
 
 const CATEGORY_ORDER = ['podium', 'players', 'teams', 'stats', 'yesno']
 
+// Knockout cascade chain: higher tier flows into lower tiers
+// Each entry: { slug, getTeamIds(value) }
+const KNOCKOUT_CHAIN = [
+  { slug: 'my_champion', label: 'champion', getTeamIds: v => v?.team_id ? [v.team_id] : [] },
+  { slug: 'finalists', label: 'finalists', getTeamIds: v => v?.teams || [] },
+  { slug: 'semi_finalists', label: 'semi_finalists', getTeamIds: v => v?.teams || [] },
+  { slug: 'quarter_finalists', label: 'quarter_finalists', getTeamIds: v => v?.teams || [] },
+  { slug: 'round_of_16', label: 'round_of_16', getTeamIds: v => v?.teams || [] }
+]
+
 export default function PreTournamentBets({ session, deadline }) {
   const [bets, setBets] = useState([])
   const [entries, setEntries] = useState({}) // { bet_id: entry }
@@ -24,13 +34,11 @@ export default function PreTournamentBets({ session, deadline }) {
   useEffect(() => {
     fetchData()
     return () => {
-      // Cleanup debounce timers
       Object.values(debounceTimers.current).forEach(clearTimeout)
     }
   }, [])
 
   async function fetchData() {
-    // Fetch bets catalog
     const { data: betsData, error: betsError } = await supabase
       .from('pre_tournament_bets')
       .select('*')
@@ -44,7 +52,6 @@ export default function PreTournamentBets({ session, deadline }) {
     }
     setBets(betsData || [])
 
-    // Fetch user entries
     const { data: entriesData, error: entriesError } = await supabase
       .from('pre_tournament_entries')
       .select('*')
@@ -58,6 +65,70 @@ export default function PreTournamentBets({ session, deadline }) {
       setEntries(entriesMap)
     }
     setLoading(false)
+  }
+
+  // Build slug → betId map
+  const slugToBetId = useMemo(() => {
+    const map = {}
+    bets.forEach(b => {
+      if (b.slug) map[b.slug] = b.id
+    })
+    return map
+  }, [bets])
+
+  // Compute cascade info for each knockout bet
+  const cascadeInfoMap = useMemo(() => {
+    const info = {} // { betId: { lockedTeams: [{ teamId, source }] } }
+
+    // Walk the chain top-down, accumulating locked teams for each tier
+    let accumulatedLocked = [] // [{ teamId, source }]
+
+    for (let i = 0; i < KNOCKOUT_CHAIN.length; i++) {
+      const { slug, label } = KNOCKOUT_CHAIN[i]
+      const betId = slugToBetId[slug]
+      if (!betId) continue
+
+      // For this bet, the locked teams are everything accumulated from higher tiers
+      if (i > 0) {
+        info[betId] = {
+          lockedTeams: [...accumulatedLocked]
+        }
+      }
+
+      // Add this tier's selections to accumulated for lower tiers
+      const entry = entries[betId]
+      const teamIds = KNOCKOUT_CHAIN[i].getTeamIds(entry?.value)
+      teamIds.forEach(tid => {
+        // Only add if not already accumulated (avoid dupes)
+        if (!accumulatedLocked.some(lt => lt.teamId === tid)) {
+          accumulatedLocked.push({ teamId: tid, source: label })
+        }
+      })
+    }
+
+    return info
+  }, [bets, entries, slugToBetId])
+
+  async function saveEntry(betId, value) {
+    setSavingBetId(betId)
+
+    const { data, error } = await supabase
+      .from('pre_tournament_entries')
+      .upsert({
+        user_id: session.user.id,
+        bet_id: betId,
+        value: value,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,bet_id' })
+      .select()
+
+    if (error) {
+      setMessage('Error al guardar: ' + error.message)
+      setTimeout(() => setMessage(''), 3000)
+    } else if (data?.[0]) {
+      setEntries(prev => ({ ...prev, [betId]: data[0] }))
+    }
+    setSavingBetId(null)
   }
 
   async function handleSave(betId, value) {
@@ -83,33 +154,82 @@ export default function PreTournamentBets({ session, deadline }) {
     }
 
     debounceTimers.current[betId] = setTimeout(async () => {
-      setSavingBetId(betId)
+      await saveEntry(betId, value)
 
-      const { data, error } = await supabase
-        .from('pre_tournament_entries')
-        .upsert({
-          user_id: session.user.id,
-          bet_id: betId,
-          value: value,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,bet_id' })
-        .select()
+      // Cascade: if this bet is in the knockout chain, auto-merge to lower tiers
+      cascadeDown(betId, value)
+    }, 600)
+  }
 
-      if (error) {
-        setMessage('Error al guardar: ' + error.message)
-        setTimeout(() => setMessage(''), 3000)
-      } else {
-        // Update with real data from server
-        if (data && data[0]) {
-          setEntries(prev => ({
-            ...prev,
-            [betId]: data[0]
-          }))
-        }
+  function cascadeDown(changedBetId, newValue) {
+    // Find which position in the chain this bet is
+    const chainIdx = KNOCKOUT_CHAIN.findIndex(c => slugToBetId[c.slug] === changedBetId)
+    if (chainIdx === -1) return // not a knockout bet
+
+    // Get the team IDs from the changed bet
+    const changedTeamIds = KNOCKOUT_CHAIN[chainIdx].getTeamIds(newValue)
+
+    // Recompute full accumulation from top down to know what's locked at each level
+    let accumulated = []
+    for (let i = 0; i <= chainIdx; i++) {
+      const betId = slugToBetId[KNOCKOUT_CHAIN[i].slug]
+      if (!betId) continue
+      const entry = i === chainIdx
+        ? { value: newValue } // use the new value for the changed bet
+        : entries[betId]
+      const tids = KNOCKOUT_CHAIN[i].getTeamIds(entry?.value)
+      tids.forEach(tid => {
+        if (!accumulated.includes(tid)) accumulated.push(tid)
+      })
+    }
+
+    // For each lower tier, ensure locked teams are included
+    for (let j = chainIdx + 1; j < KNOCKOUT_CHAIN.length; j++) {
+      const lowerSlug = KNOCKOUT_CHAIN[j].slug
+      const lowerBetId = slugToBetId[lowerSlug]
+      if (!lowerBetId) continue
+
+      const lowerEntry = entries[lowerBetId]
+      const currentTeamIds = KNOCKOUT_CHAIN[j].getTeamIds(lowerEntry?.value)
+
+      // Merge: keep existing + add any missing locked teams
+      const merged = [...currentTeamIds]
+      accumulated.forEach(tid => {
+        if (!merged.includes(tid)) merged.push(tid)
+      })
+
+      // Check if lower bet has exact_count limit
+      const lowerBet = bets.find(b => b.id === lowerBetId)
+      const exactCount = lowerBet?.config?.exact_count
+      const finalTeams = exactCount ? merged.slice(0, exactCount) : merged
+
+      // Only save if actually changed
+      if (JSON.stringify(finalTeams.sort()) !== JSON.stringify(currentTeamIds.sort())) {
+        const newLowerValue = { teams: finalTeams }
+
+        // Optimistic update
+        setEntries(prev => ({
+          ...prev,
+          [lowerBetId]: {
+            ...prev[lowerBetId],
+            bet_id: lowerBetId,
+            user_id: session.user.id,
+            value: newLowerValue,
+            is_resolved: false,
+            points_awarded: 0
+          }
+        }))
+
+        // Save to DB (no debounce for cascade)
+        saveEntry(lowerBetId, newLowerValue)
       }
 
-      setSavingBetId(null)
-    }, 600) // 600ms debounce
+      // Add this tier's teams to accumulated for even lower tiers
+      const lowerTeamIds = KNOCKOUT_CHAIN[j].getTeamIds(lowerEntry?.value)
+      lowerTeamIds.forEach(tid => {
+        if (!accumulated.includes(tid)) accumulated.push(tid)
+      })
+    }
   }
 
   if (loading) {
@@ -188,6 +308,7 @@ export default function PreTournamentBets({ session, deadline }) {
                 entry={entries[bet.id]}
                 onSave={handleSave}
                 disabled={deadline.expired}
+                cascadeInfo={cascadeInfoMap[bet.id] || null}
               />
             ))}
           </div>

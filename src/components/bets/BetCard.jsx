@@ -1,5 +1,5 @@
 import TeamSelector from './TeamSelector'
-import PlayerInput from './PlayerInput'
+import PlayerSelector from './PlayerSelector'
 import GroupSelector from './GroupSelector'
 import RangeSelector from './RangeSelector'
 import YesNoSelector from './YesNoSelector'
@@ -12,7 +12,7 @@ const CATEGORY_ICONS = {
   yesno: '❓'
 }
 
-export default function BetCard({ bet, entry, onSave, disabled }) {
+export default function BetCard({ bet, entry, onSave, disabled, cascadeInfo }) {
   const isSaved = !!entry
   const isResolved = entry?.is_resolved
   const points = entry?.points_awarded || 0
@@ -32,6 +32,7 @@ export default function BetCard({ bet, entry, onSave, disabled }) {
             onChange={handleChange}
             disabled={disabled}
             config={bet.config || {}}
+            lockedTeams={cascadeInfo?.lockedTeams || []}
           />
         )
 
@@ -43,22 +44,17 @@ export default function BetCard({ bet, entry, onSave, disabled }) {
             disabled={disabled}
             config={bet.config || {}}
             multi
+            lockedTeams={cascadeInfo?.lockedTeams || []}
           />
         )
 
       case 'single_player':
         return (
-          <PlayerInput
+          <PlayerSelector
             value={currentValue}
             onChange={handleChange}
             disabled={disabled}
-            placeholder={
-              bet.config?.position === 'goalkeeper'
-                ? 'Nombre del portero...'
-                : bet.config?.filter === 'opening_match'
-                ? 'Jugador del partido inaugural...'
-                : 'Nombre del jugador...'
-            }
+            config={bet.config || {}}
           />
         )
 
@@ -189,6 +185,31 @@ export default function BetCard({ bet, entry, onSave, disabled }) {
           )}
         </div>
       </div>
+
+      {/* Champion scoring breakdown */}
+      {bet.slug === 'my_champion' && (
+        <div style={{
+          background: 'rgba(255,204,0,0.06)',
+          border: '1px solid rgba(255,204,0,0.12)',
+          borderRadius: '6px',
+          padding: '8px 10px',
+          marginTop: '8px',
+          fontSize: '11px',
+          color: 'var(--text-muted)',
+          lineHeight: '1.6'
+        }}>
+          <div style={{ fontWeight: '600', color: 'var(--gold)', marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Puntos acumulativos
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+            <span>Octavos <b style={{ color: 'var(--text-primary)' }}>+2</b></span>
+            <span>Cuartos <b style={{ color: 'var(--text-primary)' }}>+2</b></span>
+            <span>Semis <b style={{ color: 'var(--text-primary)' }}>+2</b></span>
+            <span>Final <b style={{ color: 'var(--text-primary)' }}>+3</b></span>
+            <span>Campeón <b style={{ color: 'var(--gold)' }}>+5</b></span>
+          </div>
+        </div>
+      )}
 
       {/* Input area */}
       <div style={{ marginTop: '12px' }}>
