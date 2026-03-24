@@ -10,7 +10,9 @@ export default function Admin({ session }) {
   const [saving, setSaving] = useState(null)
   const [message, setMessage] = useState('')
   const [activeGroup, setActiveGroup] = useState('A')
-  const [activeTab, setActiveTab] = useState('results') // 'results' | 'payments'
+  const [activeTab, setActiveTab] = useState('results') // 'results' | 'payments' | 'sync'
+  const [syncing, setSyncing] = useState(false)
+  const [syncLog, setSyncLog] = useState(null)
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
@@ -224,6 +226,17 @@ export default function Admin({ session }) {
           }}
         >
           Pagos
+        </button>
+        <button
+          onClick={() => setActiveTab('sync')}
+          style={{
+            flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
+            fontSize: '13px', fontWeight: '600',
+            background: activeTab === 'sync' ? 'var(--green)' : 'var(--bg-secondary)',
+            color: activeTab === 'sync' ? '#fff' : 'var(--text-muted)'
+          }}
+        >
+          ⚡ Sync API
         </button>
       </div>
 
@@ -480,6 +493,95 @@ export default function Admin({ session }) {
               </div>
             </div>
           ))}
+        </>
+      )}
+
+      {/* ========== SYNC TAB ========== */}
+      {activeTab === 'sync' && (
+        <>
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: '8px',
+            padding: '16px', marginBottom: '14px',
+            border: '1px solid rgba(255,255,255,0.05)'
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+              ⚡ Sincronización con API-Football
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '12px' }}>
+              Actualiza resultados de partidos, resuelve apuestas pre-torneo y sincroniza estadísticas.
+              Se ejecuta automáticamente cada 2 horas durante el Mundial.
+            </div>
+            <button
+              onClick={async () => {
+                setSyncing(true)
+                setSyncLog(null)
+                try {
+                  const res = await fetch('/api/sync-results')
+                  const data = await res.json()
+                  setSyncLog(data)
+                  if (data.matchesUpdated > 0) {
+                    fetchMatches() // Refresh matches
+                  }
+                } catch (err) {
+                  setSyncLog({ error: err.message })
+                }
+                setSyncing(false)
+              }}
+              disabled={syncing}
+              style={{
+                width: '100%', padding: '12px', borderRadius: '6px',
+                border: 'none', cursor: syncing ? 'not-allowed' : 'pointer',
+                fontSize: '13px', fontWeight: '600',
+                background: syncing ? 'var(--bg-input)' : 'var(--green)',
+                color: syncing ? 'var(--text-muted)' : '#fff',
+                letterSpacing: '0.5px', textTransform: 'uppercase'
+              }}
+            >
+              {syncing ? '🔄 Sincronizando...' : '▶ Ejecutar sync ahora'}
+            </button>
+          </div>
+
+          {/* Sync results */}
+          {syncLog && (
+            <div style={{
+              background: '#0d1117', borderRadius: '8px', padding: '14px',
+              border: '1px solid rgba(255,255,255,0.08)', fontFamily: 'monospace'
+            }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Resultado del sync
+              </div>
+              {syncLog.error ? (
+                <div style={{ color: '#e74c3c', fontSize: '12px' }}>❌ Error: {syncLog.error}</div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: '16px', marginBottom: '10px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--green)' }}>{syncLog.matchesUpdated}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Partidos</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#ffcc00' }}>{syncLog.betsResolved}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Apuestas</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-muted)' }}>{syncLog.totalFinished}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Terminados</div>
+                    </div>
+                  </div>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    {(syncLog.log || []).map((line, i) => (
+                      <div key={i} style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '2px 0', lineHeight: '1.4' }}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '8px' }}>
+                {syncLog.timestamp && new Date(syncLog.timestamp).toLocaleString('es-ES')}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
