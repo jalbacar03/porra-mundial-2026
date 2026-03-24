@@ -1,0 +1,143 @@
+export default function Rules() {
+  const sections = [
+    {
+      icon: '🎯',
+      title: '¿Qué es la Porra Mundial 26?',
+      content: [
+        'Una competición de predicciones entre amigos para el Mundial de Fútbol 2026.',
+        'Cada participante paga una cuota de entrada y compite por acertar los resultados de los partidos y otras apuestas especiales.',
+        'El que más puntos acumule al final del torneo se lleva el premio.'
+      ]
+    },
+    {
+      icon: '💰',
+      title: 'Cuota y premios',
+      items: [
+        { label: 'Cuota de entrada', value: '25€ (pago por Bizum)' },
+        { label: 'Bote total', value: '80% de la recaudación' },
+        { label: 'Comisión organizador', value: '20%' },
+        { label: 'Reparto', value: '60% para el 1º, 25% para el 2º, 15% para el 3º' }
+      ]
+    },
+    {
+      icon: '⚽',
+      title: 'Predicciones de partidos',
+      content: [
+        'Debes predecir el resultado exacto (goles de cada equipo) de los 48 partidos de la fase de grupos.',
+        'Las predicciones deben realizarse antes de la fecha límite: 48 horas antes del inicio del Mundial.'
+      ],
+      items: [
+        { label: 'Resultado exacto', value: '3 puntos' },
+        { label: 'Signo correcto (1X2)', value: '1 punto' },
+        { label: 'Fallo total', value: '0 puntos' }
+      ]
+    },
+    {
+      icon: '🏆',
+      title: 'Apuestas pre-torneo',
+      content: [
+        'Además de los partidos, hay 20 apuestas especiales que debes completar antes del inicio del Mundial.',
+        'Cubren temas como: campeón, finalistas, máximo goleador, selección revelación, clasificados por grupo, y más.',
+        'Cada apuesta tiene una puntuación máxima diferente, sumando hasta ~84 puntos posibles.'
+      ]
+    },
+    {
+      icon: '📅',
+      title: 'Fechas clave',
+      items: [
+        { label: 'Deadline predicciones', value: '9 de junio de 2026' },
+        { label: 'Inicio del Mundial', value: '11 de junio de 2026' },
+        { label: 'Final del Mundial', value: '19 de julio de 2026' }
+      ]
+    },
+    {
+      icon: '📊',
+      title: 'Clasificación',
+      content: [
+        'La clasificación se actualiza automáticamente conforme se juegan los partidos.',
+        'En caso de empate a puntos, gana quien tenga más resultados exactos.',
+        'Puedes ver la clasificación general y la de los últimos 3 días para seguir la emoción del momento.'
+      ]
+    },
+    {
+      icon: '🔒',
+      title: 'Reglas importantes',
+      content: [
+        'No se pueden modificar predicciones una vez cerrado el plazo.',
+        'Las apuestas de otros participantes no son visibles hasta que cierre el plazo.',
+        'El pago debe realizarse antes del inicio del Mundial para que tus predicciones cuenten.',
+        'El organizador se reserva el derecho de resolver disputas.'
+      ]
+    }
+  ]
+
+  return (
+    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: '20px' }}>
+        <h2 style={{
+          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
+          margin: '0 0 4px', letterSpacing: '0.3px'
+        }}>
+          Normas del torneo
+        </h2>
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+          Todo lo que necesitas saber
+        </p>
+      </div>
+
+      {sections.map((section, i) => (
+        <div key={i} style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '10px',
+          border: '0.5px solid var(--border)'
+        }}>
+          {/* Section header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px'
+          }}>
+            <span style={{ fontSize: '18px' }}>{section.icon}</span>
+            <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
+              {section.title}
+            </span>
+          </div>
+
+          {/* Paragraphs */}
+          {section.content && section.content.map((text, j) => (
+            <p key={j} style={{
+              fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6',
+              margin: j < section.content.length - 1 ? '0 0 8px' : '0'
+            }}>
+              {text}
+            </p>
+          ))}
+
+          {/* Key-value items */}
+          {section.items && (
+            <div style={{
+              marginTop: section.content ? '12px' : '0',
+              display: 'flex', flexDirection: 'column', gap: '6px'
+            }}>
+              {section.items.map((item, j) => (
+                <div key={j} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '6px'
+                }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    {item.label}
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}

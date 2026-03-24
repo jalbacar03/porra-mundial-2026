@@ -18,8 +18,8 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - `matches` — partidos con `home_score`, `away_score` (NULL hasta que se jueguen)
 - `predictions` — predicciones de usuarios: `predicted_home`, `predicted_away` (¡NO predicted_home_score!)
 - `profiles` — campos clave: `full_name` (NO display_name), `has_paid` (boolean), `is_admin` (boolean)
-- `special_challenges` — retos especiales del sistema de fichas
-- `challenge_entries` — participaciones en retos
+- `pre_tournament_bets` — catálogo de 20 apuestas pre-torneo (campeón, goleador, etc.)
+- `pre_tournament_entries` — respuestas de usuarios a apuestas pre-torneo (answer, points_awarded, is_resolved)
 
 ### RLS
 - Todas las tablas tienen RLS habilitado
@@ -31,7 +31,7 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - Scoring: 3 pts resultado exacto, 1 pt signo 1X2 correcto
 
 ### Vista
-- `leaderboard` — agrega puntos totales, aciertos exactos, aciertos de signo, fallos por usuario
+- `leaderboard` — agrega puntos totales (partidos + pre-torneo), aciertos exactos, aciertos de signo, fallos, pre_tournament_points por usuario
 
 ## Admin
 - ID del admin (Javier): `e2fc4937-cd8d-4cb1-8291-05fa8a66ce97`
@@ -62,9 +62,24 @@ Estilo inspirado en Bet365 (dark theme):
 ## Estructura de archivos clave
 ```
 src/
-├── components/    # PaymentWall, etc.
-├── hooks/         # useCountdown.js
-├── pages/         # Dashboard, Predictions, Leaderboard, Stats, Admin
+├── components/
+│   ├── PaymentWall.jsx
+│   └── bets/           # BetCard, TeamSelector, PlayerInput, GroupSelector, RangeSelector, YesNoSelector, BetProgress
+├── hooks/
+│   └── useCountdown.js
+├── pages/
+│   ├── Dashboard.jsx
+│   ├── Leaderboard.jsx
+│   ├── Stats.jsx
+│   ├── Admin.jsx
+│   ├── Rules.jsx
+│   └── Predictions/
+│       ├── PredictionsPage.jsx
+│       ├── BeforeWorldCup/
+│       │   ├── GroupMatchPredictions.jsx
+│       │   └── PreTournamentBets.jsx
+│       └── DuringWorldCup/
+│           └── DuringPlaceholder.jsx
 ├── App.jsx
 ├── App.css
 ├── index.css
@@ -83,17 +98,25 @@ public/
 - ✅ Fases 1-14: Setup, auth, DB, predictions, scoring, leaderboard, admin, diseño, pagos Bizum, countdowns, responsive móvil, PWA completa (iconos PNG, safe-area, nombre)
 - ✅ PWA polish: iconos nuevos "PORRA MUNDIAL 26" desplegados
 - ✅ Página Stats (Consenso de la porra): barras 1X2 por partido, pronóstico favorito, stats globales, tabs por grupo
+- ✅ Dashboard visual: Recharts, donut chart, grid de grupos, top 5 barras
+- ✅ Apuestas pre-torneo: 20 apuestas especiales (campeón, goleador, revelación, etc.)
+  - Tablas: `pre_tournament_bets` (catálogo) + `pre_tournament_entries` (respuestas)
+  - Componentes: BetCard, TeamSelector, PlayerInput, GroupSelector, RangeSelector, YesNoSelector, BetProgress
+  - Auto-save con debounce 600ms
+  - Vista leaderboard actualizada para sumar puntos pre-torneo
+- ✅ Reestructuración Predicciones: Antes del Mundial (partidos + apuestas) / Durante el Mundial (placeholder)
 
 ## Pendientes próximos
-1. **Panel admin profesional** — mejorar UX del panel de administración
-2. **Configurar nº Bizum real** en PaymentWall
-3. **Dashboard visual** — Recharts, perfil participante, mejoras visuales
-4. **Ver apuestas de otros** — después del cierre de un partido, ver cómo apostó cada persona
-5. **Apuestas especiales diarias** — retos especiales diarios durante el torneo
-6. **Predicciones eliminatorias** — equipos que llegan a cada fase, campeón, máximo goleador, etc.
-7. **Engagement** — tarjeta compartible, badges/logros, comparador H2H, feed actividad
-8. **Automatización** — API-Football para resultados automáticos, emails con Resend
-9. **Inteligencia** — Insights con Claude API
+1. **Stats pro** — tabs partidos + apuestas pre-torneo, gráficos difuminados con candado hasta cierre
+2. **Dashboard polish** — widget bote recaudado, simplificar posición card
+3. **Clasificación** — renombrar Ranking, tabs General + Last 3 Days
+4. **Normas** — nueva página con toda la info del torneo
+5. **Admin pro** — gestionar resolución de apuestas pre-torneo
+6. **Configurar nº Bizum real** en PaymentWall
+7. **Ver apuestas de otros** — después del cierre de un partido, ver cómo apostó cada persona
+8. **Engagement** — tarjeta compartible, badges/logros, comparador H2H, feed actividad
+9. **Automatización** — API-Football para resultados automáticos, emails con Resend
+10. **Inteligencia** — Insights con Claude API
 
 ## Notas de la sesión 23/03/2026
 - El problema de "barra descuadrada" en Inicio/Ranking en iPhone era por contenido corto (no llenaba la pantalla), NO por safe-area. Las páginas con más contenido (Predicciones, Admin) no tenían el problema.

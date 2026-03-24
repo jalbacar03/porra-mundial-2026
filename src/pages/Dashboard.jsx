@@ -11,6 +11,8 @@ export default function Dashboard({ session }) {
   const [groupProgress, setGroupProgress] = useState([])
   const [nextMatches, setNextMatches] = useState([])
   const [userPredictions, setUserPredictions] = useState({})
+  const [paidCount, setPaidCount] = useState(0)
+  const [totalUsers, setTotalUsers] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -71,11 +73,21 @@ export default function Dashboard({ session }) {
       .select('*')
 
     let rank = '-'
+    let rankingsTotal = 0
     if (rankings) {
+      rankingsTotal = rankings.length
       const idx = rankings.findIndex(r => r.user_id === session.user.id)
       if (idx !== -1) rank = idx + 1
       setTopRanking(rankings.slice(0, 5))
     }
+    setTotalUsers(rankingsTotal)
+
+    // Paid users for pot calculation
+    const { count: paidUserCount } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('has_paid', true)
+    setPaidCount(paidUserCount || 0)
 
     setStats({ total: totalMatches, completed, points, exactHits, signHits, rank })
     setLoading(false)
@@ -149,7 +161,7 @@ export default function Dashboard({ session }) {
             {stats.rank}
           </span>
           <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>
-            de {topRanking.length > 0 ? `${topRanking.length}+ participantes` : '...'}
+            de {totalUsers > 0 ? `${totalUsers} participantes` : '...'}
           </span>
         </div>
         <div style={{ display: 'flex', gap: '20px', marginTop: '12px' }}>
@@ -157,13 +169,42 @@ export default function Dashboard({ session }) {
             <span style={{ fontSize: '20px', fontWeight: '600', color: 'var(--gold)' }}>{stats.points}</span>
             <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginLeft: '4px' }}>pts</span>
           </div>
-          <div>
-            <span style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>{stats.exactHits}</span>
-            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginLeft: '4px' }}>exactos</span>
+        </div>
+      </div>
+
+      {/* ===== POT WIDGET ===== */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(255,204,0,0.10), rgba(255,204,0,0.03))',
+        border: '1px solid rgba(255,204,0,0.18)',
+        borderRadius: '10px',
+        padding: '16px 20px',
+        marginBottom: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div>
+          <div style={{
+            fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+            letterSpacing: '1px', fontWeight: '600', marginBottom: '4px'
+          }}>
+            💰 Bote acumulado
           </div>
-          <div>
-            <span style={{ fontSize: '20px', fontWeight: '600', color: '#fff' }}>{profile?.chips || 0}</span>
-            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginLeft: '4px' }}>fichas</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+            <span style={{ fontSize: '32px', fontWeight: '700', color: 'var(--gold)' }}>
+              {paidCount * 25 * 0.8}€
+            </span>
+            <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+              en premios
+            </span>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
+            {paidCount}
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
+            pagados
           </div>
         </div>
       </div>
@@ -272,8 +313,8 @@ export default function Dashboard({ session }) {
             border: '0.5px solid var(--border)', borderRadius: '8px', cursor: 'pointer', textAlign: 'center'
           }}
         >
-          <div style={{ fontSize: '14px', fontWeight: '600' }}>Ranking</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Clasificación</div>
+          <div style={{ fontSize: '14px', fontWeight: '600' }}>Clasificación</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Ver ranking</div>
         </button>
       </div>
 

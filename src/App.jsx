@@ -7,6 +7,7 @@ import Predictions from './pages/Predictions/PredictionsPage'
 import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 import Stats from './pages/Stats'
+import Rules from './pages/Rules'
 import PaymentWall from './components/PaymentWall'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 
@@ -203,6 +204,17 @@ function IconStats({ size = 22 }) {
     </svg>
   )
 }
+function IconRules({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  )
+}
 function IconAdmin({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -277,8 +289,9 @@ function TopNavbar({ isAdmin }) {
       <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
         <StyledNavLink to="/" end>Inicio</StyledNavLink>
         <StyledNavLink to="/predictions">Predicciones</StyledNavLink>
-        <StyledNavLink to="/leaderboard">Ranking</StyledNavLink>
+        <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
         <StyledNavLink to="/stats">Stats</StyledNavLink>
+        <StyledNavLink to="/rules">Normas</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
         <button
           onClick={() => supabase.auth.signOut()}
@@ -305,8 +318,9 @@ function BottomNavbar({ isAdmin }) {
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
     { to: '/predictions', label: 'Predic.', icon: IconPredictions },
-    { to: '/leaderboard', label: 'Ranking', icon: IconRanking },
+    { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
+    { to: '/rules', label: 'Normas', icon: IconRules },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
     { to: null, label: 'Salir', icon: IconLogout, action: () => supabase.auth.signOut() }
   ]
@@ -449,6 +463,7 @@ function AppLayout({ session }) {
           <Route path="/predictions" element={<Predictions session={session} />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/rules" element={<Rules />} />
           {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
         </Routes>
       </div>
