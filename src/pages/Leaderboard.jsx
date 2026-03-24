@@ -192,8 +192,8 @@ export default function Leaderboard() {
                   <YAxis
                     type="category"
                     dataKey="name"
-                    width={60}
-                    tick={{ fill: '#6b7080', fontSize: 11 }}
+                    width={75}
+                    tick={{ fill: '#6b7080', fontSize: 11, textAnchor: 'end' }}
                     axisLine={false}
                     tickLine={false}
                   />

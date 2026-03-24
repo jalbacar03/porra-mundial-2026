@@ -130,7 +130,7 @@ export default function Dashboard({ session }) {
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
-      {/* ===== POSITION CARD ===== */}
+      {/* ===== POSITION + POT (unified) ===== */}
       <div style={{
         background: 'linear-gradient(135deg, #00392a, #005e3a)',
         borderRadius: '10px',
@@ -150,61 +150,43 @@ export default function Dashboard({ session }) {
           border: '1px solid rgba(255,255,255,0.03)'
         }} />
 
-        <div style={{
-          fontSize: '10px', color: 'rgba(255,255,255,0.45)',
-          textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: '4px'
-        }}>
-          Tu posición
-        </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-          <span style={{ fontSize: '36px', fontWeight: '700', color: '#fff' }}>
-            {stats.rank}
-          </span>
-          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>
-            de {totalUsers > 0 ? `${totalUsers} participantes` : '...'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: '20px', marginTop: '12px' }}>
+        {/* Top row: position + points */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <span style={{ fontSize: '20px', fontWeight: '600', color: 'var(--gold)' }}>{stats.points}</span>
-            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginLeft: '4px' }}>pts</span>
+            <div style={{
+              fontSize: '10px', color: 'rgba(255,255,255,0.45)',
+              textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: '4px'
+            }}>
+              Tu posición
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span style={{ fontSize: '36px', fontWeight: '700', color: '#fff' }}>
+                {stats.rank}
+              </span>
+              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>
+                de {totalUsers > 0 ? totalUsers : '...'}
+              </span>
+            </div>
+            <div style={{ marginTop: '4px' }}>
+              <span style={{ fontSize: '18px', fontWeight: '600', color: 'var(--gold)' }}>{stats.points}</span>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginLeft: '4px' }}>pts</span>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* ===== POT WIDGET ===== */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(255,204,0,0.10), rgba(255,204,0,0.03))',
-        border: '1px solid rgba(255,204,0,0.18)',
-        borderRadius: '10px',
-        padding: '16px 20px',
-        marginBottom: '12px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <div>
-          <div style={{
-            fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
-            letterSpacing: '1px', fontWeight: '600', marginBottom: '4px'
-          }}>
-            💰 Bote acumulado
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-            <span style={{ fontSize: '32px', fontWeight: '700', color: 'var(--gold)' }}>
+          {/* Pot */}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{
+              fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+              letterSpacing: '0.8px', fontWeight: '600', marginBottom: '4px'
+            }}>
+              💰 Bote
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--gold)', lineHeight: 1 }}>
               {paidCount * 25 * 0.8}€
-            </span>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-              en premios
-            </span>
-          </div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
-            {paidCount}
-          </div>
-          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-            pagados
+            </div>
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '4px' }}>
+              {paidCount} pagados
+            </div>
           </div>
         </div>
       </div>

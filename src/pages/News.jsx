@@ -131,8 +131,7 @@ export default function News() {
             border: '0.5px solid var(--border)'
           }}
         >
-          <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>🔄</span>
-          {loading ? '' : 'Actualizar'}
+          <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none', fontSize: '16px' }}>🔄</span>
         </button>
       </div>
 

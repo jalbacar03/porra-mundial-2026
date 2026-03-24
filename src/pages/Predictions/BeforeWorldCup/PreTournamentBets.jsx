@@ -29,6 +29,7 @@ export default function PreTournamentBets({ session, deadline }) {
   const [loading, setLoading] = useState(true)
   const [savingBetId, setSavingBetId] = useState(null)
   const [message, setMessage] = useState('')
+  const [activeCategory, setActiveCategory] = useState('podium')
   const debounceTimers = useRef({})
 
   useEffect(() => {
@@ -280,40 +281,42 @@ export default function PreTournamentBets({ session, deadline }) {
         </div>
       )}
 
-      {/* Bets by category */}
-      {CATEGORY_ORDER.map(category => {
-        const categoryBets = betsByCategory[category]
-        if (!categoryBets?.length) return null
+      {/* Category tabs */}
+      <div className="group-tabs" style={{ marginBottom: '14px' }}>
+        {CATEGORY_ORDER.map(cat => {
+          const isActive = activeCategory === cat
+          const catBets = betsByCategory[cat] || []
+          const catCompleted = catBets.filter(b => entries[b.id]?.value).length
+          const allDone = catCompleted === catBets.length && catBets.length > 0
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                padding: '6px 12px', borderRadius: '4px', border: 'none',
+                background: isActive ? 'var(--green)' : allDone ? 'var(--green-light)' : 'var(--bg-secondary)',
+                color: isActive ? '#fff' : allDone ? 'var(--green)' : 'var(--text-muted)',
+                cursor: 'pointer', fontSize: '11px', fontWeight: isActive ? '600' : '400',
+                whiteSpace: 'nowrap', flexShrink: 0
+              }}
+            >
+              {CATEGORY_LABELS[cat]} <span style={{ opacity: 0.6, fontSize: '10px' }}>{catCompleted}/{catBets.length}</span>
+            </button>
+          )
+        })}
+      </div>
 
-        return (
-          <div key={category} style={{ marginBottom: '20px' }}>
-            {/* Category header */}
-            <div style={{
-              fontSize: '11px',
-              color: 'var(--text-dim)',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              fontWeight: '600',
-              padding: '12px 0 8px',
-              borderBottom: '0.5px solid var(--border-light)',
-              marginBottom: '10px'
-            }}>
-              {CATEGORY_LABELS[category] || category}
-            </div>
-
-            {categoryBets.map(bet => (
-              <BetCard
-                key={bet.id}
-                bet={bet}
-                entry={entries[bet.id]}
-                onSave={handleSave}
-                disabled={deadline.expired}
-                cascadeInfo={cascadeInfoMap[bet.id] || null}
-              />
-            ))}
-          </div>
-        )
-      })}
+      {/* Active category bets */}
+      {(betsByCategory[activeCategory] || []).map(bet => (
+        <BetCard
+          key={bet.id}
+          bet={bet}
+          entry={entries[bet.id]}
+          onSave={handleSave}
+          disabled={deadline.expired}
+          cascadeInfo={cascadeInfoMap[bet.id] || null}
+        />
+      ))}
     </div>
   )
 }
