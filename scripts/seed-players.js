@@ -36,14 +36,14 @@ const TEAM_API_IDS = {
   'Japón': 12,
   'Marruecos': 31,
   'México': 16,
-  'Nueva Zelanda': 2393,
+  'Nueva Zelanda': 4673,
   'Países Bajos': 1118,
-  'Panamá': 2395,
-  'Paraguay': 2381,
+  'Panamá': 11,
+  'Paraguay': 2380,
   'Portugal': 27,
-  'Senegal': 2385,
+  'Senegal': 13,
   'Suiza': 15,
-  'Uruguay': 2378
+  'Uruguay': 7
 }
 
 function mapPosition(pos) {
