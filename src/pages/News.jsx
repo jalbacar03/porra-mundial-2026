@@ -107,7 +107,8 @@ export default function News() {
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <div>
         <h2 style={{
           fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
           margin: '0 0 4px', letterSpacing: '0.3px'
@@ -117,6 +118,22 @@ export default function News() {
         <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
           Últimas noticias de fútbol internacional
         </p>
+        </div>
+        <button
+          onClick={fetchNews}
+          disabled={loading}
+          style={{
+            padding: '6px 12px', borderRadius: '6px', border: 'none',
+            background: 'var(--bg-secondary)', color: 'var(--text-muted)',
+            fontSize: '12px', cursor: loading ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: '4px',
+            opacity: loading ? 0.5 : 1, flexShrink: 0,
+            border: '0.5px solid var(--border)'
+          }}
+        >
+          <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>🔄</span>
+          {loading ? '' : 'Actualizar'}
+        </button>
       </div>
 
       {/* Source filter */}
