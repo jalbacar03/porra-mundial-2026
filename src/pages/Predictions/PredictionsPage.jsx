@@ -3,10 +3,11 @@ import { useCountdown, PREDICTIONS_DEADLINE, WORLD_CUP_START } from '../../hooks
 import GroupMatchPredictions from './BeforeWorldCup/GroupMatchPredictions'
 import PreTournamentBets from './BeforeWorldCup/PreTournamentBets'
 import DuringPlaceholder from './DuringWorldCup/DuringPlaceholder'
+import BracketView from '../../components/bracket/BracketView'
 
 export default function PredictionsPage({ session }) {
   const [activeBlock, setActiveBlock] = useState('before') // 'before' | 'during'
-  const [activeTab, setActiveTab] = useState('matches')    // 'matches' | 'bets'
+  const [activeTab, setActiveTab] = useState('matches')    // 'matches' | 'bets' | 'bracket'
   const deadline = useCountdown(PREDICTIONS_DEADLINE)
   const worldCupStart = useCountdown(WORLD_CUP_START)
 
@@ -194,15 +195,35 @@ export default function PredictionsPage({ session }) {
                 cursor: 'pointer'
               }}
             >
-              🏆 Apuestas Pre-Torneo
+              🎯 Apuestas
+            </button>
+            <button
+              onClick={() => setActiveTab('bracket')}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '4px',
+                border: 'none',
+                background: activeTab === 'bracket' ? 'var(--bg-secondary)' : 'transparent',
+                color: activeTab === 'bracket' ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontSize: '12px',
+                fontWeight: activeTab === 'bracket' ? '600' : '400',
+                cursor: 'pointer'
+              }}
+            >
+              🏆 Bracket
             </button>
           </div>
 
           {/* Tab content */}
-          {activeTab === 'matches' ? (
+          {activeTab === 'matches' && (
             <GroupMatchPredictions session={session} deadline={deadline} />
-          ) : (
+          )}
+          {activeTab === 'bets' && (
             <PreTournamentBets session={session} deadline={deadline} />
+          )}
+          {activeTab === 'bracket' && (
+            <BracketView session={session} />
           )}
         </>
       )}
