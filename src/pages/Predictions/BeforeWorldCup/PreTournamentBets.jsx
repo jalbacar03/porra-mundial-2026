@@ -6,22 +6,16 @@ import BetProgress from '../../../components/bets/BetProgress'
 // Bracket picks handled in BracketView component
 
 const CATEGORY_LABELS = {
-  eliminatorias: 'Eliminatorias',
   players: 'Jugadores',
   teams: 'Selecciones',
-  stats: 'Estadísticas',
   yesno: '¿Sí o No?'
 }
 
-const CATEGORY_ORDER = ['eliminatorias', 'players', 'teams', 'stats', 'yesno']
+const CATEGORY_ORDER = ['players', 'teams', 'yesno']
 
-// Knockout bets now handled in BracketView — only keep champion here
-const ELIMINATORIAS_SLUGS = ['my_champion']
-const ELIMINATORIAS_ORDER = ['my_champion']
-
-// Slugs to EXCLUDE from pre-tournament bets (moved to bracket)
-const BRACKET_SLUGS = [
-  'round_of_32', 'round_of_16', 'quarter_finalists', 'semi_finalists', 'finalists'
+// Slugs to EXCLUDE from specials (moved to bracket or removed)
+const EXCLUDED_SLUGS = [
+  'round_of_32', 'round_of_16', 'quarter_finalists', 'semi_finalists', 'finalists', 'my_champion'
 ]
 
 // Knockout cascade chain: higher tier flows into lower tiers
@@ -41,7 +35,7 @@ export default function PreTournamentBets({ session, deadline }) {
   const [loading, setLoading] = useState(true)
   const [savingBetId, setSavingBetId] = useState(null)
   const [message, setMessage] = useState('')
-  const [activeCategory, setActiveCategory] = useState('eliminatorias')
+  const [activeCategory, setActiveCategory] = useState('players')
   const debounceTimers = useRef({})
 
   useEffect(() => {
@@ -256,17 +250,17 @@ export default function PreTournamentBets({ session, deadline }) {
   const completedCount = bets.filter(b => entries[b.id]?.value).length
   const totalMaxPoints = bets.reduce((sum, b) => sum + b.max_points, 0)
 
-  // Group by category — exclude bracket slugs (handled in BracketView)
+  // Group by category — exclude bracket slugs + stats category
   const betsByCategory = {}
   bets.forEach(b => {
-    // Skip bets that are now in the bracket
-    if (BRACKET_SLUGS.includes(b.slug)) return
+    // Skip excluded bets (bracket + champion)
+    if (EXCLUDED_SLUGS.includes(b.slug)) return
+    // Skip stats category
+    if (b.category === 'stats') return
+    // Skip podium category (all moved to bracket)
+    if (b.category === 'podium') return
 
-    let cat = b.category
-    // Champion → eliminatorias
-    if (cat === 'podium') cat = 'eliminatorias'
-    if (cat === 'teams' && ELIMINATORIAS_SLUGS.includes(b.slug)) cat = 'eliminatorias'
-
+    const cat = b.category
     if (!betsByCategory[cat]) betsByCategory[cat] = []
     betsByCategory[cat].push(b)
   })
@@ -279,7 +273,7 @@ export default function PreTournamentBets({ session, deadline }) {
           fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)',
           margin: '0 0 4px'
         }}>
-          Apuestas Pre-Torneo
+          Apuestas Especiales
         </h3>
         <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
           20 apuestas especiales — hasta {totalMaxPoints} puntos extra
