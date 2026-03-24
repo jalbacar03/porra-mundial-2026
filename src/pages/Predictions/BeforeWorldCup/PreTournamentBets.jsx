@@ -15,8 +15,23 @@ const CATEGORY_ORDER = ['eliminatorias', 'players', 'teams', 'stats', 'yesno']
 
 // Slugs that belong to "eliminatorias" (merged from podium + knockout teams)
 const ELIMINATORIAS_SLUGS = [
-  'my_champion', 'finalists', 'semi_finalists', 'quarter_finalists', 'round_of_16'
+  'my_champion', 'finalists', 'semi_finalists', 'quarter_finalists', 'round_of_16', 'round_of_32'
 ]
+
+// Display order for eliminatorias: bottom-up (32avos → campeón)
+const ELIMINATORIAS_ORDER = [
+  'round_of_32', 'round_of_16', 'quarter_finalists', 'semi_finalists', 'finalists', 'my_champion'
+]
+
+// Points per correct pick in each knockout round
+const KNOCKOUT_POINTS = {
+  round_of_32: 0,
+  round_of_16: 1,
+  quarter_finalists: 2,
+  semi_finalists: 4,
+  finalists: 5,
+  my_champion: 8
+}
 
 // Knockout cascade chain: higher tier flows into lower tiers
 // Each entry: { slug, getTeamIds(value) }
@@ -25,7 +40,8 @@ const KNOCKOUT_CHAIN = [
   { slug: 'finalists', label: 'finalists', getTeamIds: v => v?.teams || [] },
   { slug: 'semi_finalists', label: 'semi_finalists', getTeamIds: v => v?.teams || [] },
   { slug: 'quarter_finalists', label: 'quarter_finalists', getTeamIds: v => v?.teams || [] },
-  { slug: 'round_of_16', label: 'round_of_16', getTeamIds: v => v?.teams || [] }
+  { slug: 'round_of_16', label: 'round_of_16', getTeamIds: v => v?.teams || [] },
+  { slug: 'round_of_32', label: 'round_of_32', getTeamIds: v => v?.teams || [] }
 ]
 
 export default function PreTournamentBets({ session, deadline }) {
@@ -261,6 +277,15 @@ export default function PreTournamentBets({ session, deadline }) {
     if (!betsByCategory[cat]) betsByCategory[cat] = []
     betsByCategory[cat].push(b)
   })
+
+  // Sort eliminatorias in bottom-up order (octavos → campeón)
+  if (betsByCategory.eliminatorias) {
+    betsByCategory.eliminatorias.sort((a, b) => {
+      const idxA = ELIMINATORIAS_ORDER.indexOf(a.slug)
+      const idxB = ELIMINATORIAS_ORDER.indexOf(b.slug)
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB)
+    })
+  }
 
   return (
     <div>
