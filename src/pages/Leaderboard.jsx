@@ -230,9 +230,7 @@ export default function Leaderboard() {
           }}>
             <span style={{ width: '36px' }}>#</span>
             <span style={{ flex: 1, minWidth: 0 }}>Nombre</span>
-            <span className="leaderboard-pts" style={{ width: '50px', textAlign: 'center' }}>Pts</span>
-            <span className="leaderboard-stat" style={{ width: '50px', textAlign: 'center' }}>Exact</span>
-            <span className="leaderboard-stat" style={{ width: '50px', textAlign: 'center' }}>1X2</span>
+            <span style={{ width: '55px', textAlign: 'center' }}>Puntos</span>
           </div>
 
           {/* Table rows */}
@@ -271,23 +269,11 @@ export default function Leaderboard() {
                   {user.full_name}{isMe ? ' (Tú)' : ''}
                 </span>
 
-                <span className="leaderboard-pts" style={{
-                  width: '50px', textAlign: 'center', fontSize: '14px', fontWeight: '600',
+                <span style={{
+                  width: '55px', textAlign: 'center', fontSize: '14px', fontWeight: '600',
                   color: index === 0 ? 'var(--gold)' : 'var(--text-primary)'
                 }}>
                   {user.total_points}
-                </span>
-
-                <span className="leaderboard-stat" style={{
-                  width: '50px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)'
-                }}>
-                  {user.exact_hits}
-                </span>
-
-                <span className="leaderboard-stat" style={{
-                  width: '50px', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)'
-                }}>
-                  {user.sign_hits}
                 </span>
               </div>
             )

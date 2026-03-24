@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 export default function Dashboard({ session }) {
   const navigate = useNavigate()
@@ -107,23 +106,6 @@ export default function Dashboard({ session }) {
     )
   }
 
-  const pct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
-  const finishedMatches = stats.exactHits + stats.signHits
-  const failedPreds = finishedMatches > 0 ? (finishedMatches - stats.exactHits - stats.signHits) : 0
-  // For donut: only show if there are finished matches with predictions scored
-  const hasResults = stats.exactHits > 0 || stats.signHits > 0
-  const totalScoredPreds = preds => {
-    // We need to count predictions that have been scored (match is finished)
-    return stats.exactHits + stats.signHits
-  }
-
-  // Donut data
-  const donutData = hasResults ? [
-    { name: 'Exactos', value: stats.exactHits, color: '#ffcc00' },
-    { name: 'Signo', value: stats.signHits, color: '#007a45' },
-    { name: 'Fallados', value: Math.max(0, stats.completed - stats.exactHits - stats.signHits), color: '#2a2d38' }
-  ].filter(d => d.value > 0) : []
-
   // Top 5 max points for bar scaling
   const maxPoints = topRanking.length > 0 ? Math.max(topRanking[0]?.total_points || 1, 1) : 1
 
@@ -209,86 +191,50 @@ export default function Dashboard({ session }) {
         </div>
       </div>
 
-      {/* ===== GROUP PROGRESS GRID ===== */}
+      {/* ===== DAILY BET WIDGET (blurred) ===== */}
       <div style={{
         background: 'var(--bg-secondary)',
-        borderRadius: '8px',
-        padding: '14px 16px',
+        borderRadius: '10px',
+        padding: '16px 20px',
         marginBottom: '12px',
-        border: '0.5px solid var(--border)'
+        border: '0.5px solid var(--border)',
+        position: 'relative',
+        overflow: 'hidden',
+        minHeight: '80px'
       }}>
+        {/* Blurred content behind */}
         <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'
+          filter: 'blur(5px)',
+          opacity: 0.4
         }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Predicciones por grupo
-          </span>
-          <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600' }}>
-            {stats.completed}/{stats.total}
-          </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
+              ¿Quién marcará el primer gol del día?
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ padding: '6px 14px', background: 'var(--green)', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>Mbappé</div>
+            <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Vini Jr</div>
+            <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Haaland</div>
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px' }}>
-          {groupProgress.map(g => {
-            const isComplete = g.done === g.total && g.total > 0
-            const hasStarted = g.done > 0
-            return (
-              <button
-                key={g.group}
-                onClick={() => navigate('/predictions')}
-                style={{
-                  padding: '8px 0',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  background: isComplete ? 'var(--green-light)' : hasStarted ? 'rgba(255,204,0,0.08)' : 'var(--bg-input)',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-              >
-                <div style={{
-                  fontSize: '11px', fontWeight: '600',
-                  color: isComplete ? 'var(--green)' : hasStarted ? 'var(--gold)' : 'var(--text-dim)'
-                }}>
-                  {g.group}
-                </div>
-                <div style={{
-                  fontSize: '9px', marginTop: '2px',
-                  color: isComplete ? 'var(--green)' : 'var(--text-dim)'
-                }}>
-                  {g.done}/{g.total}
-                </div>
-                {/* Progress bar at bottom */}
-                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px',
-                  background: 'rgba(255,255,255,0.03)'
-                }}>
-                  <div style={{
-                    height: '100%',
-                    width: g.total > 0 ? `${(g.done / g.total) * 100}%` : '0%',
-                    background: isComplete ? 'var(--green)' : 'var(--gold)',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Overall progress bar */}
+        {/* Overlay with lock */}
         <div style={{
-          height: '4px', background: 'var(--bg-input)', borderRadius: '2px',
-          overflow: 'hidden', marginTop: '10px'
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(26,29,38,0.6)',
+          backdropFilter: 'blur(2px)',
+          WebkitBackdropFilter: 'blur(2px)',
+          borderRadius: '10px'
         }}>
-          <div style={{
-            height: '100%', width: `${pct}%`,
-            background: pct === 100 ? 'var(--green)' : 'var(--gold)',
-            borderRadius: '2px', transition: 'width 0.4s ease'
-          }} />
-        </div>
-        <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '4px', textAlign: 'right' }}>
-          {pct === 100 ? 'Todas completadas' : `${pct}% completado`}
+          <span style={{ fontSize: '20px', marginBottom: '4px' }}>🎲</span>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)' }}>
+            Apuesta del día
+          </span>
+          <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+            Disponible durante el Mundial
+          </span>
         </div>
       </div>
 
@@ -302,8 +248,8 @@ export default function Dashboard({ session }) {
             border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'center'
           }}
         >
-          <div style={{ fontSize: '14px', fontWeight: '600', letterSpacing: '0.3px' }}>Predicciones</div>
-          <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>Fase de grupos</div>
+          <div style={{ fontSize: '14px', fontWeight: '600', letterSpacing: '0.3px' }}>Mis predicciones</div>
+          <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>Partidos y apuestas</div>
         </button>
         <button
           onClick={() => navigate('/leaderboard')}
@@ -316,92 +262,6 @@ export default function Dashboard({ session }) {
           <div style={{ fontSize: '14px', fontWeight: '600' }}>Clasificación</div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Ver ranking</div>
         </button>
-      </div>
-
-      {/* ===== PERFORMANCE DONUT ===== */}
-      <div style={{
-        background: 'var(--bg-secondary)',
-        borderRadius: '8px',
-        padding: '14px 16px',
-        marginBottom: '12px',
-        border: '0.5px solid var(--border)'
-      }}>
-        <div style={{
-          fontSize: '10px', color: 'var(--text-dim)',
-          textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '12px'
-        }}>
-          Tu rendimiento
-        </div>
-
-        {hasResults ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Donut */}
-            <div style={{ width: '90px', height: '90px', flexShrink: 0, position: 'relative' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={28}
-                    outerRadius={42}
-                    paddingAngle={2}
-                    dataKey="value"
-                    strokeWidth={0}
-                  >
-                    {donutData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Center label */}
-              <div style={{
-                position: 'absolute', top: '50%', left: '50%',
-                transform: 'translate(-50%, -50%)', textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: 1 }}>
-                  {stats.points}
-                </div>
-                <div style={{ fontSize: '8px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>pts</div>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffcc00' }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Exactos (3pts)</span>
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)' }}>{stats.exactHits}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#007a45' }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Signo (1pt)</span>
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--green)' }}>{stats.signHits}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2a2d38' }} />
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Fallados</span>
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-dim)' }}>
-                  {Math.max(0, stats.completed - stats.exactHits - stats.signHits)}
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{
-            padding: '20px', textAlign: 'center', color: 'var(--text-dim)',
-            fontSize: '12px', background: 'var(--bg-input)', borderRadius: '6px'
-          }}>
-            Disponible cuando empiecen los partidos
-          </div>
-        )}
       </div>
 
       {/* ===== NEXT MATCHES ===== */}

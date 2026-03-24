@@ -288,7 +288,7 @@ function TopNavbar({ isAdmin }) {
       {/* Links */}
       <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
         <StyledNavLink to="/" end>Inicio</StyledNavLink>
-        <StyledNavLink to="/predictions">Predicciones</StyledNavLink>
+        <StyledNavLink to="/predictions">Mis predicciones</StyledNavLink>
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
         <StyledNavLink to="/stats">Stats</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
@@ -317,7 +317,7 @@ function BottomNavbar({ isAdmin }) {
 
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
-    { to: '/predictions', label: 'Predic.', icon: IconPredictions },
+    { to: '/predictions', label: 'Mis pred.', icon: IconPredictions },
     { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/rules', label: 'Normas', icon: IconRules },
