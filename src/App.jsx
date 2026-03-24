@@ -9,6 +9,7 @@ import Admin from './pages/Admin'
 import Stats from './pages/Stats'
 import Rules from './pages/Rules'
 import News from './pages/News'
+import Forum from './pages/Forum'
 import PaymentWall from './components/PaymentWall'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 
@@ -215,6 +216,13 @@ function IconNews({ size = 22 }) {
     </svg>
   )
 }
+function IconForum({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
 function IconRules({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -303,6 +311,7 @@ function TopNavbar({ isAdmin }) {
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
         <StyledNavLink to="/stats">Stats</StyledNavLink>
         <StyledNavLink to="/news">Noticias</StyledNavLink>
+        <StyledNavLink to="/forum">Foro</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
         <button
@@ -333,6 +342,7 @@ function BottomNavbar({ isAdmin }) {
     { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
+    { to: '/forum', label: 'Foro', icon: IconForum },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
     { to: null, label: 'Salir', icon: IconLogout, action: () => supabase.auth.signOut() }
   ]
@@ -476,6 +486,7 @@ function AppLayout({ session }) {
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/news" element={<News />} />
+          <Route path="/forum" element={<Forum session={session} />} />
           <Route path="/rules" element={<Rules />} />
           {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
         </Routes>
