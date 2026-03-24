@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import BetCard from '../../../components/bets/BetCard'
 import BetProgress from '../../../components/bets/BetProgress'
+import GroupStandingsPreview from '../../../components/bets/GroupStandingsPreview'
 
 const CATEGORY_LABELS = {
   eliminatorias: 'Eliminatorias',
@@ -341,6 +342,19 @@ export default function PreTournamentBets({ session, deadline }) {
           )
         })}
       </div>
+
+      {/* Group standings preview for Eliminatorias tab */}
+      {activeCategory === 'eliminatorias' && (
+        <GroupStandingsPreview
+          session={session}
+          onAutoFillR32={(teamIds) => {
+            const r32BetId = slugToBetId['round_of_32']
+            if (r32BetId) {
+              handleSave(r32BetId, { teams: teamIds })
+            }
+          }}
+        />
+      )}
 
       {/* Active category bets */}
       {(betsByCategory[activeCategory] || []).map(bet => (
