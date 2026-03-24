@@ -317,7 +317,7 @@ function BottomNavbar({ isAdmin }) {
 
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
-    { to: '/predictions', label: 'Mis pred.', icon: IconPredictions },
+    { to: '/predictions', label: 'Pred.', icon: IconPredictions },
     { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/rules', label: 'Normas', icon: IconRules },

@@ -340,81 +340,110 @@ export default function Stats() {
                   </div>
                 )}
 
-                {/* Consensus */}
+                {/* Consensus — count always visible, details blurred until deadline */}
                 {consensus ? (
-                  <>
-                    {/* 1X2 Bar */}
-                    <div style={{ marginBottom: '10px' }}>
-                      <div style={{
-                        display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '10px', color: 'var(--text-dim)'
-                      }}>
-                        <span>Local</span>
-                        <span>Empate</span>
-                        <span>Visitante</span>
-                      </div>
-
-                      <div style={{
-                        display: 'flex', height: '28px', borderRadius: '4px', overflow: 'hidden'
-                      }}>
-                        {consensus.homePct > 0 && (
-                          <div style={{
-                            width: `${consensus.homePct}%`, background: '#007a45',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', fontWeight: '700', color: '#fff',
-                            minWidth: consensus.homePct > 10 ? 'auto' : '28px',
-                            transition: 'width 0.4s ease'
-                          }}>
-                            {consensus.homePct}%
-                          </div>
-                        )}
-                        {consensus.drawPct > 0 && (
-                          <div style={{
-                            width: `${consensus.drawPct}%`, background: '#4a4f5e',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', fontWeight: '700', color: '#fff',
-                            minWidth: consensus.drawPct > 10 ? 'auto' : '28px',
-                            transition: 'width 0.4s ease'
-                          }}>
-                            {consensus.drawPct}%
-                          </div>
-                        )}
-                        {consensus.awayPct > 0 && (
-                          <div style={{
-                            width: `${consensus.awayPct}%`, background: '#ffcc00',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', fontWeight: '700', color: '#1a1d26',
-                            minWidth: consensus.awayPct > 10 ? 'auto' : '28px',
-                            transition: 'width 0.4s ease'
-                          }}>
-                            {consensus.awayPct}%
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Popular result + count */}
+                  <div style={{ position: 'relative' }}>
+                    {/* Participation count (always visible) */}
                     <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center', marginBottom: '8px'
                     }}>
-                      <div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Pronóstico favorito</span>
+                      {consensus.total} predicciones
+                    </div>
+
+                    {betsLocked && (
+                      <div style={{
+                        position: 'absolute', inset: 0, zIndex: 2,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(26,29,38,0.7)',
+                        backdropFilter: 'blur(6px)',
+                        WebkitBackdropFilter: 'blur(6px)',
+                        borderRadius: '6px',
+                        marginTop: '24px'
+                      }}>
+                        <span style={{ fontSize: '24px', marginBottom: '4px' }}>🔒</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                          Visible al cerrar las apuestas
+                        </span>
+                      </div>
+                    )}
+
+                    <div style={{
+                      filter: betsLocked ? 'blur(4px)' : 'none',
+                      minHeight: '60px'
+                    }}>
+                      {/* 1X2 Bar */}
+                      <div style={{ marginBottom: '10px' }}>
                         <div style={{
-                          fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px'
+                          display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '10px', color: 'var(--text-dim)'
                         }}>
-                          {consensus.topResult}
+                          <span>Local</span>
+                          <span>Empate</span>
+                          <span>Visitante</span>
+                        </div>
+
+                        <div style={{
+                          display: 'flex', height: '28px', borderRadius: '4px', overflow: 'hidden'
+                        }}>
+                          {consensus.homePct > 0 && (
+                            <div style={{
+                              width: `${consensus.homePct}%`, background: '#007a45',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '11px', fontWeight: '700', color: '#fff',
+                              minWidth: consensus.homePct > 10 ? 'auto' : '28px',
+                              transition: 'width 0.4s ease'
+                            }}>
+                              {consensus.homePct}%
+                            </div>
+                          )}
+                          {consensus.drawPct > 0 && (
+                            <div style={{
+                              width: `${consensus.drawPct}%`, background: '#4a4f5e',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '11px', fontWeight: '700', color: '#fff',
+                              minWidth: consensus.drawPct > 10 ? 'auto' : '28px',
+                              transition: 'width 0.4s ease'
+                            }}>
+                              {consensus.drawPct}%
+                            </div>
+                          )}
+                          {consensus.awayPct > 0 && (
+                            <div style={{
+                              width: `${consensus.awayPct}%`, background: '#ffcc00',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '11px', fontWeight: '700', color: '#1a1d26',
+                              minWidth: consensus.awayPct > 10 ? 'auto' : '28px',
+                              transition: 'width 0.4s ease'
+                            }}>
+                              {consensus.awayPct}%
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Apostaron</span>
-                        <div style={{
-                          fontSize: '14px', fontWeight: '600', color: 'var(--gold)', marginTop: '2px'
-                        }}>
-                          {consensus.topResultCount}<span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>/{consensus.total}</span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-dim)', marginLeft: '4px' }}>({consensus.topResultPct}%)</span>
+
+                      {/* Popular result + count */}
+                      <div style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}>
+                        <div>
+                          <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Pronóstico favorito</span>
+                          <div style={{
+                            fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px'
+                          }}>
+                            {consensus.topResult}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Apostaron</span>
+                          <div style={{
+                            fontSize: '14px', fontWeight: '600', color: 'var(--gold)', marginTop: '2px'
+                          }}>
+                            {consensus.topResultCount}<span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>/{consensus.total}</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-dim)', marginLeft: '4px' }}>({consensus.topResultPct}%)</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div style={{
                     padding: '16px', textAlign: 'center', color: 'var(--text-dim)',
