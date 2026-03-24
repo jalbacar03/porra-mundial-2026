@@ -210,40 +210,45 @@ export default function Dashboard({ session }) {
       </div>
 
       {/* ===== DAILY INSIGHT (Gemini) ===== */}
-      {(dailyInsight || insightLoading) && (
+      <div style={{
+        background: 'var(--bg-secondary)',
+        borderRadius: '10px',
+        padding: '16px 18px',
+        marginBottom: '12px',
+        border: '0.5px solid var(--border)',
+        position: 'relative'
+      }}>
         <div style={{
-          background: 'var(--bg-secondary)',
-          borderRadius: '10px',
-          padding: '16px 18px',
-          marginBottom: '12px',
-          border: '0.5px solid var(--border)',
-          position: 'relative'
+          fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+          letterSpacing: '1px', fontWeight: '600', marginBottom: '10px',
+          display: 'flex', alignItems: 'center', gap: '6px'
         }}>
-          <div style={{
-            fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
-            letterSpacing: '1px', fontWeight: '600', marginBottom: '10px',
-            display: 'flex', alignItems: 'center', gap: '6px'
-          }}>
-            <span>✨</span> Crónica del día
-          </div>
-
-          {insightLoading ? (
-            <div style={{
-              padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
-              fontSize: '12px'
-            }}>
-              Generando crónica...
-            </div>
-          ) : (
-            <div style={{
-              fontSize: '13px', color: 'var(--text-secondary)',
-              lineHeight: '1.7', whiteSpace: 'pre-line'
-            }}>
-              {dailyInsight}
-            </div>
-          )}
+          <span>📰</span> Crónica del día
         </div>
-      )}
+
+        {insightLoading ? (
+          <div style={{
+            padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
+            fontSize: '12px'
+          }}>
+            Generando crónica...
+          </div>
+        ) : dailyInsight ? (
+          <div style={{
+            fontSize: '13px', color: 'var(--text-secondary)',
+            lineHeight: '1.7', whiteSpace: 'pre-line'
+          }}>
+            {dailyInsight}
+          </div>
+        ) : (
+          <div style={{
+            padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
+            fontSize: '12px', background: 'var(--bg-input)', borderRadius: '6px'
+          }}>
+            La crónica diaria se activará cuando empiece el Mundial
+          </div>
+        )}
+      </div>
 
       {/* ===== DAILY BET WIDGET (blurred) ===== */}
       <div style={{
