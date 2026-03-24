@@ -4,14 +4,19 @@ import BetCard from '../../../components/bets/BetCard'
 import BetProgress from '../../../components/bets/BetProgress'
 
 const CATEGORY_LABELS = {
-  podium: 'Podio y Campeón',
+  eliminatorias: 'Eliminatorias',
   players: 'Jugadores',
   teams: 'Selecciones',
   stats: 'Estadísticas',
   yesno: '¿Sí o No?'
 }
 
-const CATEGORY_ORDER = ['podium', 'players', 'teams', 'stats', 'yesno']
+const CATEGORY_ORDER = ['eliminatorias', 'players', 'teams', 'stats', 'yesno']
+
+// Slugs that belong to "eliminatorias" (merged from podium + knockout teams)
+const ELIMINATORIAS_SLUGS = [
+  'my_champion', 'finalists', 'semi_finalists', 'quarter_finalists', 'round_of_16'
+]
 
 // Knockout cascade chain: higher tier flows into lower tiers
 // Each entry: { slug, getTeamIds(value) }
@@ -29,7 +34,7 @@ export default function PreTournamentBets({ session, deadline }) {
   const [loading, setLoading] = useState(true)
   const [savingBetId, setSavingBetId] = useState(null)
   const [message, setMessage] = useState('')
-  const [activeCategory, setActiveCategory] = useState('podium')
+  const [activeCategory, setActiveCategory] = useState('eliminatorias')
   const debounceTimers = useRef({})
 
   useEffect(() => {
@@ -244,11 +249,17 @@ export default function PreTournamentBets({ session, deadline }) {
   const completedCount = bets.filter(b => entries[b.id]?.value).length
   const totalMaxPoints = bets.reduce((sum, b) => sum + b.max_points, 0)
 
-  // Group by category
+  // Group by category — merge podium + knockout teams into "eliminatorias"
   const betsByCategory = {}
   bets.forEach(b => {
-    if (!betsByCategory[b.category]) betsByCategory[b.category] = []
-    betsByCategory[b.category].push(b)
+    let cat = b.category
+    // Podium bets → eliminatorias
+    if (cat === 'podium') cat = 'eliminatorias'
+    // Knockout team bets (octavos, cuartos, semis) → eliminatorias
+    if (cat === 'teams' && ELIMINATORIAS_SLUGS.includes(b.slug)) cat = 'eliminatorias'
+
+    if (!betsByCategory[cat]) betsByCategory[cat] = []
+    betsByCategory[cat].push(b)
   })
 
   return (
