@@ -151,49 +151,35 @@ export default function Dashboard({ session }) {
           border: '1px solid rgba(255,255,255,0.03)'
         }} />
 
-        {/* Top row: position + pot */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{
-              fontSize: '11px', color: 'rgba(255,255,255,0.5)',
-              textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: '6px'
-            }}>
-              Tu posición
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <span style={{ fontSize: '40px', fontWeight: '700', color: '#fff', lineHeight: 1 }}>
-                {stats.rank}
-              </span>
-              <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>
-                / {totalUsers > 0 ? totalUsers : '...'}
-              </span>
-            </div>
-            <div style={{ marginTop: '8px' }}>
-              <span style={{ fontSize: '20px', fontWeight: '700', color: 'var(--gold)' }}>{stats.points}</span>
+        {/* Position + stats */}
+        <div>
+          <div style={{
+            fontSize: '11px', color: 'rgba(255,255,255,0.5)',
+            textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: '6px'
+          }}>
+            Tu posición
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span style={{ fontSize: '40px', fontWeight: '700', color: '#fff', lineHeight: 1 }}>
+              {stats.rank}
+            </span>
+            <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>
+              / {totalUsers > 0 ? totalUsers : '...'}
+            </span>
+          </div>
+          <div style={{ marginTop: '10px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontSize: '22px', fontWeight: '700', color: 'var(--gold)' }}>{stats.points}</span>
               <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>puntos</span>
             </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{
-            width: '1px', height: '60px',
-            background: 'rgba(255,255,255,0.1)',
-            margin: '0 16px'
-          }} />
-
-          {/* Participants */}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{
-              fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-              letterSpacing: '0.8px', fontWeight: '600', marginBottom: '6px'
-            }}>
-              🏟 Participantes
+            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
+            <div>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#4ade80' }}>{stats.exactHits}</span>
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginLeft: '3px' }}>exactos</span>
             </div>
-            <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--gold)', lineHeight: 1 }}>
-              {totalUsers > 0 ? totalUsers : '...'}
-            </div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '6px' }}>
-              en la porra
+            <div>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#fbbf24' }}>{stats.signHits}</span>
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginLeft: '3px' }}>signos</span>
             </div>
           </div>
         </div>
@@ -235,7 +221,7 @@ export default function Dashboard({ session }) {
             padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
             fontSize: '12px', background: 'var(--bg-input)', borderRadius: '6px'
           }}>
-            La crónica diaria se activará cuando empiece el Mundial
+            No hay crónica disponible hoy
           </div>
         )}
       </div>
@@ -279,7 +265,7 @@ export default function Dashboard({ session }) {
         }}>
           <span style={{ fontSize: '20px', marginBottom: '4px' }}>🎲</span>
           <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)' }}>
-            Apuesta del día
+            Órdago #1
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
             Disponible durante el Mundial

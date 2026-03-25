@@ -11,7 +11,7 @@ export default function PredictionsPage({ session }) {
   const deadline = useCountdown(PREDICTIONS_DEADLINE)
   const worldCupStart = useCountdown(WORLD_CUP_START)
 
-  const isDuringAvailable = worldCupStart.expired
+  const isDuringAvailable = true // Unlocked for development
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px' }}>
