@@ -75,59 +75,23 @@ export default function PaymentWall() {
               margin: '0 0 24px',
               lineHeight: '1.5'
             }}>
-              Para acceder a la porra, completa el pago de inscripción.
+              Para acceder a la porra, necesitas que el organizador confirme tu inscripción. Contacta con el admin para más info.
             </p>
 
-            {/* Tarjeta con datos de pago */}
+            {/* Info card */}
             <div style={{
               background: 'rgba(0,0,0,0.2)',
               borderRadius: '10px',
               padding: '18px 16px',
               border: '0.5px solid rgba(160, 60, 80, 0.15)',
-              textAlign: 'left',
+              textAlign: 'center',
               marginBottom: '22px'
             }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '14px',
-                paddingBottom: '12px',
-                borderBottom: '0.5px solid rgba(160, 60, 80, 0.12)'
-              }}>
-                <span style={{ fontSize: '12px', color: 'rgba(220,190,200,0.45)' }}>
-                  Cuota de inscripción
-                </span>
-                <span style={{ fontSize: '20px', fontWeight: '700', color: '#f0e4e8' }}>
-                  25 €
-                </span>
+              <div style={{ fontSize: '14px', color: '#f0e4e8', fontWeight: '500', marginBottom: '8px' }}>
+                ¿Ya has contactado con el organizador?
               </div>
-
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(220,190,200,0.4)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Método
-                </div>
-                <div style={{ fontSize: '14px', color: '#f0e4e8', fontWeight: '500' }}>
-                  Bizum
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(220,190,200,0.4)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Enviar a
-                </div>
-                <div style={{ fontSize: '14px', color: '#f0e4e8', fontWeight: '500' }}>
-                  Número por confirmar
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '11px', color: 'rgba(220,190,200,0.4)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Concepto
-                </div>
-                <div style={{ fontSize: '14px', color: '#f0e4e8', fontWeight: '500' }}>
-                  Porra Mundial 26 + tu nombre
-                </div>
+              <div style={{ fontSize: '12px', color: 'rgba(220,190,200,0.45)', lineHeight: '1.5' }}>
+                Pulsa el botón de abajo para confirmar tu inscripción. El admin la verificará lo antes posible.
               </div>
             </div>
 
@@ -150,7 +114,7 @@ export default function PaymentWall() {
               onMouseEnter={e => e.target.style.opacity = '0.85'}
               onMouseLeave={e => e.target.style.opacity = '1'}
             >
-              Ya he pagado
+              Ya me he inscrito
             </button>
 
             {/* Cerrar sesión */}
@@ -203,7 +167,7 @@ export default function PaymentWall() {
               margin: '0 0 24px',
               lineHeight: '1.6'
             }}>
-              Estamos revisando tu pago. En cuanto lo confirmemos, tendrás acceso completo a la porra. Normalmente tarda menos de 24 horas.
+              Estamos revisando tu inscripción. En cuanto la confirmemos, tendrás acceso completo a la porra. Normalmente tarda menos de 24 horas.
             </p>
 
             {/* Indicador de "en proceso" */}
@@ -227,7 +191,7 @@ export default function PaymentWall() {
                 animation: 'pulse 2s ease-in-out infinite'
               }} />
               <span style={{ fontSize: '13px', color: 'rgba(220,190,200,0.5)' }}>
-                Pago pendiente de revisión
+                Inscripción pendiente de revisión
               </span>
             </div>
 

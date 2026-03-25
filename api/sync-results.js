@@ -85,6 +85,11 @@ export default async function handler(req, res) {
     }
     log.push(`📊 Updated ${updatedCount} match scores`)
 
+    // 3b. Sync playoff/repechaje teams — update placeholder teams with real ones
+    log.push('🔄 Checking playoff teams...')
+    const playoffUpdated = await syncPlayoffTeams(apiMatches, ourTeams, log)
+    log.push(`   Updated ${playoffUpdated} playoff teams`)
+
     // 4. Fetch top scorers
     log.push('⚽ Fetching top scorers...')
     const scorersRes = await apiFetch(`/players/topscorers?league=${WORLD_CUP_ID}&season=${WORLD_CUP_SEASON}`)
@@ -116,6 +121,99 @@ export default async function handler(req, res) {
     console.error('Sync error:', err)
     return res.status(500).json({ error: err.message })
   }
+}
+
+/**
+ * Sync playoff/repechaje teams: match placeholder teams with real qualified teams
+ * Looks at API-Football's team list for the World Cup and updates our placeholder teams
+ */
+async function syncPlayoffTeams(apiMatches, ourTeams, log) {
+  let updated = 0
+
+  // Placeholder team patterns to match
+  const placeholders = ourTeams.filter(t =>
+    t.name.startsWith('Ganador Playoff') ||
+    t.name.startsWith('Ganador Repesca')
+  )
+
+  if (placeholders.length === 0) return 0
+
+  // Fetch the full team list from API-Football for the World Cup
+  const teamsRes = await apiFetch(`/teams?league=${WORLD_CUP_ID}&season=${WORLD_CUP_SEASON}`)
+  const apiTeams = teamsRes.response || []
+
+  if (apiTeams.length === 0) return 0
+
+  // Get all API-Football IDs we already have mapped
+  const mappedApiIds = new Set(ourTeams.filter(t => t.api_football_id).map(t => t.api_football_id))
+
+  // Find API teams that are NOT yet mapped — these are likely the playoff winners
+  const unmappedApiTeams = apiTeams.filter(t => !mappedApiIds.has(t.team.id))
+
+  if (unmappedApiTeams.length === 0) {
+    log.push('   No new teams found from API-Football')
+    return 0
+  }
+
+  // For each placeholder, check if there's a group match in the API that contains
+  // the placeholder's group but with a team we don't know yet
+  for (const placeholder of placeholders) {
+    // Find which group this placeholder is in
+    const placeholderGroup = ourTeams.find(t => t.id === placeholder.id)
+    if (!placeholderGroup) continue
+
+    // Look for API matches where one team is unmapped and plays in this placeholder's group
+    // Group matches have round like "Group A", "Group B", etc.
+    const groupName = placeholder.group_name // might not exist in teams table directly
+
+    // Alternative approach: check if any unmapped team appears in API group matches
+    // alongside teams we DO know from the same group
+    for (const unmapped of unmappedApiTeams) {
+      // Check if this unmapped team plays against known teams from placeholder's group
+      const teamGroupMatches = apiMatches.filter(m =>
+        (m.teams.home.id === unmapped.team.id || m.teams.away.id === unmapped.team.id) &&
+        m.league.round?.startsWith('Group')
+      )
+
+      if (teamGroupMatches.length === 0) continue
+
+      // Get the group letter from the round (e.g., "Group A - 1" → "A")
+      const roundStr = teamGroupMatches[0].league.round
+      const groupMatch = roundStr.match(/Group\s+([A-L])/)
+      if (!groupMatch) continue
+      const groupLetter = groupMatch[1]
+
+      // Check if our placeholder is in this group
+      // We need to find matches that contain this placeholder team ID
+      const ourGroupMatches = require ? null : null // can't require in serverless easily
+
+      // Simpler: just match by checking if placeholder has matches in this group
+      // Query matches for this placeholder's group
+      const matchesInGroup = await supaFetch(
+        `/rest/v1/matches?stage=eq.group&group_name=eq.${groupLetter}&or=(home_team_id.eq.${placeholder.id},away_team_id.eq.${placeholder.id})&limit=1`
+      )
+
+      if (matchesInGroup && matchesInGroup.length > 0) {
+        // This unmapped team belongs to this placeholder's group — update the placeholder
+        const apiTeam = unmapped.team
+        log.push(`   🎉 Playoff resolved: "${placeholder.name}" → ${apiTeam.name} (API ID: ${apiTeam.id})`)
+
+        await supaFetch(`/rest/v1/teams?id=eq.${placeholder.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: apiTeam.name,
+            code: apiTeam.code || apiTeam.name.substring(0, 3).toUpperCase(),
+            api_football_id: apiTeam.id,
+            flag_url: apiTeam.logo || null
+          })
+        })
+        updated++
+        break // Move to next placeholder
+      }
+    }
+  }
+
+  return updated
 }
 
 /**

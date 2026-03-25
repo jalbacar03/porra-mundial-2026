@@ -4,24 +4,14 @@ export default function Rules() {
       icon: '🎯',
       title: '¿Qué es la Porra Mundial 26?',
       content: [
-        'Una competición de predicciones entre amigos para el Mundial de Fútbol 2026.',
-        'Cada participante paga una cuota de entrada y compite por acertar los resultados de los partidos y otras apuestas especiales.',
-        'El que más puntos acumule al final del torneo se lleva el premio.'
-      ]
-    },
-    {
-      icon: '💰',
-      title: 'Cuota y premios',
-      items: [
-        { label: 'Cuota de entrada', value: '25€ (pago por Bizum)' },
-        { label: 'Bote total', value: '80% de la recaudación' },
-        { label: 'Comisión organizador', value: '20%' },
-        { label: 'Reparto', value: '60% para el 1º, 25% para el 2º, 15% para el 3º' }
+        'Una porra amistosa de predicciones entre amigos para el Mundial de Fútbol 2026.',
+        'Cada participante compite por acertar los resultados de los partidos, el cuadro eliminatorio y otras apuestas especiales.',
+        'El que más puntos acumule al final del torneo, gana.'
       ]
     },
     {
       icon: '⚽',
-      title: 'Predicciones de partidos',
+      title: 'Predicciones de partidos (fase de grupos)',
       content: [
         'Debes predecir el resultado exacto (goles de cada equipo) de los 48 partidos de la fase de grupos.',
         'Las predicciones deben realizarse antes de la fecha límite: 48 horas antes del inicio del Mundial.'
@@ -34,11 +24,34 @@ export default function Rules() {
     },
     {
       icon: '🏆',
-      title: 'Apuestas pre-torneo',
+      title: 'Cuadro eliminatorio',
       content: [
-        'Además de los partidos, hay 20 apuestas especiales que debes completar antes del inicio del Mundial.',
-        'Cubren temas como: campeón, finalistas, máximo goleador, selección revelación, clasificados por grupo, y más.',
-        'Cada apuesta tiene una puntuación máxima diferente, sumando hasta ~84 puntos posibles.'
+        'Predice el ganador de cada partido del cuadro eliminatorio, desde dieciseisavos hasta la final.',
+        'Los dieciseisavos se auto-rellenan desde tus predicciones de grupo (top 2 + 8 mejores terceros).',
+        'Si aciertas toda la cadena del campeón, sumas hasta 20 puntos extra.'
+      ],
+      items: [
+        { label: 'Dieciseisavos (R32)', value: '0 pts (auto-rellenado)' },
+        { label: 'Octavos de final', value: '1 pt por acierto (máx 16)' },
+        { label: 'Cuartos de final', value: '2 pts por acierto (máx 16)' },
+        { label: 'Semifinales', value: '4 pts por acierto (máx 16)' },
+        { label: 'Final', value: '5 pts por acierto (máx 10)' },
+        { label: 'Campeón', value: '8 pts' }
+      ]
+    },
+    {
+      icon: '🎲',
+      title: 'Apuestas especiales (pre-torneo)',
+      content: [
+        'Además de los partidos, hay apuestas especiales que debes completar antes del inicio del Mundial.',
+        'Cubren temas como: máximo goleador, selección revelación, selección decepción, y más.'
+      ],
+      items: [
+        { label: 'Revelación (llega a cuartos)', value: '4 puntos' },
+        { label: 'Decepción (cae en grupos)', value: '4 puntos' },
+        { label: 'Goleador, asistencias, portero...', value: 'Según categoría' },
+        { label: 'Más goleadora / Menos goleada', value: '3 puntos' },
+        { label: '¿Habrá hat-trick? ¿Goleada 5+?', value: 'Sí / No' }
       ]
     },
     {
@@ -56,7 +69,16 @@ export default function Rules() {
       content: [
         'La clasificación se actualiza automáticamente conforme se juegan los partidos.',
         'En caso de empate a puntos, gana quien tenga más resultados exactos.',
-        'Puedes ver la clasificación general y la de los últimos 3 días para seguir la emoción del momento.'
+        'La clasificación de los "últimos 3 días" es solo informativa — no cuenta para la puntuación final.'
+      ]
+    },
+    {
+      icon: '🤖',
+      title: 'Bot365',
+      content: [
+        'Bot365 es un participante ficticio cuyas predicciones se basan en las cuotas de las casas de apuestas.',
+        'Sirve como referencia — si le superas, vas mejor que lo que dicen las estadísticas.',
+        'No compite por la clasificación, solo está ahí para comparar.'
       ]
     },
     {
@@ -65,7 +87,7 @@ export default function Rules() {
       content: [
         'No se pueden modificar predicciones una vez cerrado el plazo.',
         'Las apuestas de otros participantes no son visibles hasta que cierre el plazo.',
-        'El pago debe realizarse antes del inicio del Mundial para que tus predicciones cuenten.',
+        'La inscripción debe estar confirmada antes del inicio del Mundial para que tus predicciones cuenten.',
         'El organizador se reserva el derecho de resolver disputas.'
       ]
     }

@@ -20,6 +20,7 @@ function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [nickname, setNickname] = useState('')
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -34,7 +35,7 @@ function Auth() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } }
+        options: { data: { full_name: fullName, nickname: nickname.trim() || fullName } }
       })
       if (error) setMessage(error.message)
       else setMessage('Revisa tu email para confirmar tu cuenta')
@@ -80,13 +81,22 @@ function Auth() {
           </h3>
 
           {!isLogin && (
-            <input
-              type="text"
-              placeholder="Nombre completo"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              style={inputStyle}
-            />
+            <>
+              <input
+                type="text"
+                placeholder="Nombre completo"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+                style={inputStyle}
+              />
+              <input
+                type="text"
+                placeholder="Nickname (cómo quieres aparecer)"
+                value={nickname}
+                onChange={e => setNickname(e.target.value)}
+                style={inputStyle}
+              />
+            </>
           )}
           <input
             type="email"
@@ -270,37 +280,37 @@ function TopNavbar({ isAdmin }) {
       top: 0,
       zIndex: 100
     }}>
-      {/* Logo */}
-      <NavLink to="/" style={{ textDecoration: 'none' }}>
-        <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '1.2px' }}>
-          PORRA MUNDIAL <span style={{ color: 'var(--gold)' }}>26</span>
-        </span>
-      </NavLink>
-
-      {/* Countdown junto al logo */}
-      {!countdown.expired && (
-        <div style={{
-          marginLeft: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          background: 'linear-gradient(135deg, rgba(107,24,42,0.5), rgba(74,21,32,0.5))',
-          padding: '4px 12px',
-          borderRadius: '4px',
-          border: '0.5px solid rgba(160,60,80,0.25)'
-        }}>
-          <span style={{ fontSize: '10px', color: 'rgba(255,180,180,0.5)' }}>⏱</span>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: '700',
-            color: '#ff8a8a',
-            letterSpacing: '0.5px',
-            fontVariantNumeric: 'tabular-nums'
-          }}>
-            {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m
+      {/* Logo + Countdown wrapper */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <NavLink to="/" style={{ textDecoration: 'none' }}>
+          <span style={{ fontSize: '14px', fontWeight: '700', color: '#fff', letterSpacing: '1.2px' }}>
+            PORRA MUNDIAL <span style={{ color: 'var(--gold)' }}>26</span>
           </span>
-        </div>
-      )}
+        </NavLink>
+
+        {!countdown.expired && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'linear-gradient(135deg, rgba(107,24,42,0.5), rgba(74,21,32,0.5))',
+            padding: '4px 12px',
+            borderRadius: '4px',
+            border: '0.5px solid rgba(160,60,80,0.25)'
+          }}>
+            <span style={{ fontSize: '10px', color: 'rgba(255,180,180,0.5)' }}>⏱</span>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              color: '#ff8a8a',
+              letterSpacing: '0.5px',
+              fontVariantNumeric: 'tabular-nums'
+            }}>
+              {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Links */}
       <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>

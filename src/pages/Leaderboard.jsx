@@ -60,10 +60,10 @@ export default function Leaderboard() {
     // Get all profiles for names
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, nickname')
 
     const profileMap = {}
-    profiles?.forEach(p => { profileMap[p.id] = p.full_name })
+    profiles?.forEach(p => { profileMap[p.id] = p.nickname || p.full_name })
 
     // Aggregate by user
     const userStats = {}
@@ -152,6 +152,23 @@ export default function Leaderboard() {
           🔥 Últimos 3 días
         </button>
       </div>
+
+      {/* Disclaimer for last 3 days tab */}
+      {activeTab === 'last3' && (
+        <div style={{
+          padding: '8px 12px',
+          marginBottom: '10px',
+          background: 'rgba(255,204,0,0.06)',
+          border: '0.5px solid rgba(255,204,0,0.15)',
+          borderRadius: '6px',
+          fontSize: '11px',
+          color: 'var(--gold)',
+          textAlign: 'center',
+          lineHeight: '1.4'
+        }}>
+          Solo a efectos informativos — no cuenta para la puntuación final
+        </div>
+      )}
 
       {isEmpty ? (
         <div style={{

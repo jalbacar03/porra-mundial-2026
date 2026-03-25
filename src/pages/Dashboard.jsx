@@ -10,7 +10,6 @@ export default function Dashboard({ session }) {
   const [groupProgress, setGroupProgress] = useState([])
   const [nextMatches, setNextMatches] = useState([])
   const [userPredictions, setUserPredictions] = useState({})
-  const [paidCount, setPaidCount] = useState(0)
   const [totalUsers, setTotalUsers] = useState(0)
   const [dailyInsight, setDailyInsight] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
@@ -84,10 +83,16 @@ export default function Dashboard({ session }) {
     const upcoming = allMatches?.filter(m => m.status !== 'finished' && new Date(m.match_date) > now).slice(0, 3) || []
     setNextMatches(upcoming)
 
-    // Leaderboard
+    // Leaderboard + profiles for nickname
     const { data: rankings } = await supabase
       .from('leaderboard')
       .select('*')
+    const { data: allProfiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, nickname')
+
+    const nicknameMap = {}
+    allProfiles?.forEach(p => { nicknameMap[p.id] = p.nickname || p.full_name })
 
     let rank = '-'
     let rankingsTotal = 0
@@ -95,16 +100,12 @@ export default function Dashboard({ session }) {
       rankingsTotal = rankings.length
       const idx = rankings.findIndex(r => r.user_id === session.user.id)
       if (idx !== -1) rank = idx + 1
-      setTopRanking(rankings.slice(0, 5))
+      setTopRanking(rankings.slice(0, 5).map(r => ({
+        ...r,
+        full_name: nicknameMap[r.user_id] || r.full_name
+      })))
     }
     setTotalUsers(rankingsTotal)
-
-    // Paid users for pot calculation
-    const { count: paidUserCount } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('has_paid', true)
-    setPaidCount(paidUserCount || 0)
 
     setStats({ total: totalMatches, completed, points, exactHits, signHits, rank })
     setLoading(false)
@@ -180,19 +181,19 @@ export default function Dashboard({ session }) {
             margin: '0 16px'
           }} />
 
-          {/* Pot */}
+          {/* Participants */}
           <div style={{ textAlign: 'right' }}>
             <div style={{
               fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
               letterSpacing: '0.8px', fontWeight: '600', marginBottom: '6px'
             }}>
-              💰 Bote
+              🏟 Participantes
             </div>
             <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--gold)', lineHeight: 1 }}>
-              {paidCount * 25 * 0.8}€
+              {totalUsers > 0 ? totalUsers : '...'}
             </div>
             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '6px' }}>
-              en premios
+              en la porra
             </div>
           </div>
         </div>

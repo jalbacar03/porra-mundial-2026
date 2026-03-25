@@ -77,15 +77,33 @@ async function gatherData() {
   ) || []
 
   const bot365 = leaderboard.find(r => r.user_id === BOT365_ID)
-  const paidParticipants = profiles.filter(p => p.has_paid).length
+
+  // Fetch latest news headlines for pre-tournament context
+  let newsHeadlines = []
+  try {
+    const newsFeeds = [
+      'https://e00-marca.uecdn.es/rss/futbol/mundial.xml',
+      'https://feeds.bbci.co.uk/sport/football/rss.xml'
+    ]
+    for (const feedUrl of newsFeeds) {
+      const feedRes = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
+      if (feedRes.ok) {
+        const feedData = await feedRes.json()
+        if (feedData.items) {
+          newsHeadlines.push(...feedData.items.slice(0, 5).map(i => i.title))
+        }
+      }
+    }
+  } catch (e) {
+    // News fetch failed — continue without
+  }
 
   return {
     leaderboard: leaderboard.slice(0, 15),
     recentMatches: matches,
     bot365,
     totalParticipants: profiles.length,
-    paidParticipants,
-    pot: paidParticipants * 25 * 0.8,
+    newsHeadlines: newsHeadlines.slice(0, 8),
     hasMatchesPlayed: matches.length > 0
   }
 }
@@ -110,11 +128,10 @@ async function generateWithGemini(data) {
       `${m.home_team?.name} ${m.home_score}-${m.away_score} ${m.away_team?.name}`
     ).join(', ')
 
-    prompt = `Eres el comentarista de una porra de fútbol del Mundial 2026 entre amigos. Tu estilo es divertido, cercano y con toques de humor deportivo. Hoy es ${today}.
+    prompt = `Eres el comentarista de una porra amistosa de fútbol del Mundial 2026 entre amigos. Tu estilo es divertido, cercano y con toques de humor deportivo. Hoy es ${today}.
 
 DATOS DE LA PORRA:
-- ${data.totalParticipants} participantes (${data.paidParticipants} pagados)
-- Bote en premios: ${data.pot}€
+- ${data.totalParticipants} participantes
 - ${bot365Line}
 
 TOP 5 CLASIFICACIÓN:
@@ -132,19 +149,23 @@ Genera una crónica diaria de la porra en español (máximo 200 palabras) que in
 
 Formato: texto plano con emojis, sin markdown ni HTML. Párrafos cortos.`
   } else {
-    prompt = `Eres el comentarista de una porra de fútbol del Mundial 2026 entre amigos. Tu estilo es divertido, cercano y con toques de humor deportivo. Hoy es ${today}.
+    const newsContext = data.newsHeadlines.length > 0
+      ? `\nÚLTIMAS NOTICIAS DEL MUNDO DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
+      : ''
+
+    prompt = `Eres el comentarista de una porra amistosa de fútbol del Mundial 2026 entre amigos. Tu estilo es divertido, cercano y con toques de humor deportivo. Hoy es ${today}.
 
 DATOS DE LA PORRA:
-- ${data.totalParticipants} participantes registrados (${data.paidParticipants} pagados)
-- Bote actual en premios: ${data.pot}€
+- ${data.totalParticipants} participantes registrados
 - El Mundial empieza el 11 de junio de 2026
-- Hay 20 apuestas pre-torneo abiertas (campeón, goleador, selección revelación, etc.)
+- Hay apuestas pre-torneo abiertas (campeón, goleador, selección revelación, etc.)
 - Bot365 🤖 ya ha completado todas sus apuestas — es la referencia a batir
+${newsContext}
 
 Genera una crónica pre-torneo en español (máximo 150 palabras) que incluya:
 1. Un titular llamativo con emoji
-2. Estado de la porra (cuántos van, cuántos faltan por pagar, bote)
-3. Hype sobre las apuestas pre-torneo que quedan por rellenar
+2. Comenta alguna noticia relevante del mundo del fútbol y cómo puede afectar a las apuestas
+3. Hype sobre las apuestas pre-torneo
 4. Mención a Bot365 como rival a batir
 5. Cierra con una frase motivadora tipo cuenta atrás
 

@@ -104,7 +104,7 @@ export default function News() {
   const sources = ['all', ...FEEDS.map(f => f.name)]
 
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -190,6 +190,11 @@ export default function News() {
       )}
 
       {/* Articles */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '10px'
+      }}>
       {!loading && filteredArticles.map((article, i) => (
         <a
           key={i}
@@ -200,7 +205,6 @@ export default function News() {
             display: 'block',
             background: 'var(--bg-secondary)',
             borderRadius: '8px',
-            marginBottom: '10px',
             border: '0.5px solid var(--border)',
             overflow: 'hidden',
             textDecoration: 'none',
@@ -263,6 +267,7 @@ export default function News() {
           </div>
         </a>
       ))}
+      </div>
 
       {/* Empty state */}
       {!loading && !error && filteredArticles.length === 0 && (

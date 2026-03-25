@@ -55,7 +55,7 @@ export default function Admin({ session }) {
   async function fetchProfiles() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, has_paid, created_at')
+      .select('id, full_name, nickname, has_paid, created_at')
       .order('created_at', { ascending: true })
 
     if (!error && data) setProfiles(data)
@@ -468,7 +468,7 @@ export default function Admin({ session }) {
                 color: profile.has_paid ? 'var(--text-primary)' : 'var(--text-muted)',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
               }}>
-                {profile.full_name || 'Sin nombre'}
+                {profile.nickname || profile.full_name || 'Sin nombre'}
               </span>
               <span style={{
                 width: '70px', textAlign: 'center', fontSize: '10px',
