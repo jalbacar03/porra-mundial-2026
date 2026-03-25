@@ -177,10 +177,6 @@ export default function Dashboard({ session }) {
               <span style={{ fontSize: '14px', fontWeight: '600', color: '#4ade80' }}>{stats.exactHits}</span>
               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginLeft: '3px' }}>exactos</span>
             </div>
-            <div>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#fbbf24' }}>{stats.signHits}</span>
-              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginLeft: '3px' }}>signos</span>
-            </div>
           </div>
         </div>
       </div>
@@ -268,7 +264,7 @@ export default function Dashboard({ session }) {
             Órdago #1
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
-            Disponible durante el Mundial
+            Disponible 48h antes del primer partido
           </span>
         </div>
       </div>
