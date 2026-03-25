@@ -98,6 +98,7 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - Clasificación
 - Stats
 - Noticias
+- Foro
 - Normas
 
 ### Predicciones — 3 sub-tabs
@@ -125,6 +126,12 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - Tabs: Partidos (1X2 por grupo) + Apuestas (stats pre-torneo)
 - Todo blurred con candado hasta que cierren las apuestas
 - Muestra cuánta gente ha apostado a cada apuesta
+
+### Foro
+- Chat en tiempo real con Supabase Realtime
+- Tabla `forum_messages` (user_id, message, created_at)
+- Scroll automático, mensajes con nombre y hora
+- Pestaña dedicada en bottom/top nav
 
 ### Normas
 - Página completa con todas las reglas del torneo
@@ -170,6 +177,7 @@ src/
 │   ├── Admin.jsx
 │   ├── Rules.jsx
 │   ├── News.jsx
+│   ├── Forum.jsx
 │   └── Predictions/
 │       ├── PredictionsPage.jsx
 │       ├── BeforeWorldCup/
@@ -220,9 +228,12 @@ vercel.json               # Cron config (sync cada 2h)
 - ✅ Player selector autocomplete (~925 jugadores)
 - ✅ Bot365: participante ficticio con predicciones basadas en favoritos
 - ✅ Crónica del día: Gemini AI genera resumen diario (cacheado)
-- ✅ Sync automático: API-Football → Supabase (Vercel Cron cada 2h + manual en Admin)
+- ✅ Sync automático: API-Football → Supabase (Vercel Cron diario + manual en Admin)
 - ✅ Resolución automática de TODAS las apuestas especiales
 - ✅ Admin pro: tabs Resultados / Pagos / Sync API
+- ✅ Foro: chat en tiempo real con Supabase Realtime
+- ✅ Vercel deploy fix: cron cambiado de cada 2h a diario (Hobby plan limit)
+- ✅ Countdown movido junto al logo (evita solape con menú desktop)
 
 ## Pendientes próximos
 1. **Completar seed de jugadores** — faltan ~17 equipos (necesitan IDs correctos de API-Football)
