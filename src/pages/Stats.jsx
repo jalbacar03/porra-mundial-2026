@@ -129,7 +129,8 @@ export default function Stats() {
   })()
 
   // Leaderboard stats
-  const lbSorted = [...leaderboard].sort((a, b) => b.total_points - a.total_points)
+  const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
+  const lbSorted = [...leaderboard].filter(u => u.user_id !== BOT365_ID).sort((a, b) => b.total_points - a.total_points)
   const avgPoints = lbSorted.length > 0 ? Math.round(lbSorted.reduce((s, u) => s + u.total_points, 0) / lbSorted.length) : 0
   const totalExacts = lbSorted.reduce((s, u) => s + (u.exact_hits || 0), 0)
   const totalSigns = lbSorted.reduce((s, u) => s + (u.sign_hits || 0), 0)

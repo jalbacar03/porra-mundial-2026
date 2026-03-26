@@ -73,12 +73,11 @@ export default function Rules() {
       ]
     },
     {
-      icon: '🤖',
-      title: 'Bot365',
+      icon: '📊',
+      title: 'Referencia: Casas de apuestas',
       content: [
-        'Bot365 es un participante ficticio cuyas predicciones se basan en las cuotas de las casas de apuestas.',
-        'Sirve como referencia — si le superas, vas mejor que lo que dicen las estadísticas.',
-        'No compite por la clasificación, solo está ahí para comparar.'
+        'En la clasificación verás una línea de referencia basada en las predicciones de las casas de apuestas.',
+        'Si estás por encima de esa línea, vas mejor que lo que dicen las estadísticas.'
       ]
     },
     {

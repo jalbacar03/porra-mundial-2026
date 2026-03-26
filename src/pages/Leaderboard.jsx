@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-// Top 10 chart removed
+const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 export default function Leaderboard() {
   const [rankings, setRankings] = useState([])
@@ -96,15 +96,17 @@ export default function Leaderboard() {
     'linear-gradient(135deg, #c0c0c0, #808080)',
     'linear-gradient(135deg, #cd7f32, #8b4513)'
   ]
-  const currentRankings = activeTab === 'general' ? rankings : last3Rankings
+  const allRankings = activeTab === 'general' ? rankings : last3Rankings
+  // Separate Bot365 from real participants
+  const bot365Entry = allRankings.find(u => u.user_id === BOT365_ID)
+  const currentRankings = allRankings.filter(u => u.user_id !== BOT365_ID)
   const isEmpty = currentRankings.length === 0
 
-  // Compute tied ranks: T2 if tied for 2nd, etc.
+  // Compute tied ranks (only among real participants)
   function getTiedRank(index) {
     if (index === 0) return { rank: 1, tied: false }
     const pts = currentRankings[index].total_points
     const exactHits = currentRankings[index].exact_hits || 0
-    // Find the first person with the same points and exact_hits
     let firstWithSame = index
     while (firstWithSame > 0 &&
       currentRankings[firstWithSame - 1].total_points === pts &&
@@ -112,13 +114,17 @@ export default function Leaderboard() {
       firstWithSame--
     }
     const rank = firstWithSame + 1
-    // Check if anyone else also has this rank (tied)
     const tied = firstWithSame < index ||
       (index + 1 < currentRankings.length &&
         currentRankings[index + 1].total_points === pts &&
         (currentRankings[index + 1].exact_hits || 0) === exactHits)
     return { rank, tied }
   }
+
+  // Find where Bot365 line should be inserted (after the last person with more points)
+  const bot365InsertAfter = bot365Entry
+    ? currentRankings.filter(u => u.total_points > bot365Entry.total_points).length
+    : -1
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
@@ -132,7 +138,7 @@ export default function Leaderboard() {
           Clasificación
         </h2>
         <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-          {rankings.length} participantes
+          {rankings.filter(u => u.user_id !== BOT365_ID).length} participantes
         </p>
       </div>
 
@@ -207,53 +213,101 @@ export default function Leaderboard() {
             <span style={{ width: '55px', textAlign: 'center' }}>Puntos</span>
           </div>
 
-          {/* Table rows */}
+          {/* Table rows with Bot365 reference line */}
           {currentRankings.map((user, index) => {
             const isMe = user.user_id === userId
             const { rank, tied } = getTiedRank(index)
             const rankLabel = tied ? `T${rank}` : `${rank}`
+            const showBot365Line = bot365Entry && index === bot365InsertAfter
+
             return (
-              <div key={user.user_id} style={{
-                display: 'flex', alignItems: 'center', padding: '10px 12px',
-                borderBottom: '0.5px solid var(--border-light)',
-                background: isMe ? 'rgba(255, 204, 0, 0.04)' : 'transparent',
-                borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent'
-              }}>
-                <div style={{ width: '36px' }}>
-                  {rank <= 3 ? (
-                    <div style={{
-                      width: '24px', height: '24px', borderRadius: '50%',
-                      background: medals[rank - 1],
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: tied ? '9px' : '11px', fontWeight: '700', color: '#1a1d26'
+              <div key={user.user_id}>
+                {/* Bot365 reference line — inserted at the right position */}
+                {showBot365Line && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', padding: '6px 12px',
+                    background: 'rgba(255, 204, 0, 0.04)',
+                    borderTop: '1.5px dashed var(--gold)',
+                    borderBottom: '1.5px dashed var(--gold)',
+                    margin: '2px 0'
+                  }}>
+                    <span style={{ fontSize: '11px', marginRight: '8px' }}>📊</span>
+                    <span style={{
+                      flex: 1, fontSize: '11px', fontWeight: '600', color: 'var(--gold)',
+                      textTransform: 'uppercase', letterSpacing: '0.8px'
                     }}>
-                      {rankLabel}
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                      {rankLabel}
+                      Casas de apuestas
                     </span>
-                  )}
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--gold)' }}>
+                      {bot365Entry.total_points} pts
+                    </span>
+                  </div>
+                )}
+
+                {/* Regular participant row */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', padding: '10px 12px',
+                  borderBottom: '0.5px solid var(--border-light)',
+                  background: isMe ? 'rgba(255, 204, 0, 0.04)' : 'transparent',
+                  borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent'
+                }}>
+                  <div style={{ width: '36px' }}>
+                    {rank <= 3 ? (
+                      <div style={{
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        background: medals[rank - 1],
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: tied ? '9px' : '11px', fontWeight: '700', color: '#1a1d26'
+                      }}>
+                        {rankLabel}
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                        {rankLabel}
+                      </span>
+                    )}
+                  </div>
+
+                  <span style={{
+                    flex: 1, fontSize: '13px',
+                    fontWeight: isMe ? '600' : '400',
+                    color: isMe ? 'var(--gold)' : 'var(--text-primary)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0
+                  }}>
+                    {user.full_name}{isMe ? ' (Tú)' : ''}
+                  </span>
+
+                  <span style={{
+                    width: '55px', textAlign: 'center', fontSize: '14px', fontWeight: '600',
+                    color: rank === 1 ? 'var(--gold)' : 'var(--text-primary)'
+                  }}>
+                    {user.total_points}
+                  </span>
                 </div>
-
-                <span style={{
-                  flex: 1, fontSize: '13px',
-                  fontWeight: isMe ? '600' : '400',
-                  color: isMe ? 'var(--gold)' : 'var(--text-primary)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0
-                }}>
-                  {user.full_name}{isMe ? ' (Tú)' : ''}
-                </span>
-
-                <span style={{
-                  width: '55px', textAlign: 'center', fontSize: '14px', fontWeight: '600',
-                  color: rank === 1 ? 'var(--gold)' : 'var(--text-primary)'
-                }}>
-                  {user.total_points}
-                </span>
               </div>
             )
           })}
+
+          {/* Bot365 line at the bottom if everyone is above it */}
+          {bot365Entry && bot365InsertAfter >= currentRankings.length && (
+            <div style={{
+              display: 'flex', alignItems: 'center', padding: '6px 12px',
+              background: 'rgba(255, 204, 0, 0.04)',
+              borderTop: '1.5px dashed var(--gold)',
+              margin: '2px 0'
+            }}>
+              <span style={{ fontSize: '11px', marginRight: '8px' }}>📊</span>
+              <span style={{
+                flex: 1, fontSize: '11px', fontWeight: '600', color: 'var(--gold)',
+                textTransform: 'uppercase', letterSpacing: '0.8px'
+              }}>
+                Casas de apuestas
+              </span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--gold)' }}>
+                {bot365Entry.total_points} pts
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>
