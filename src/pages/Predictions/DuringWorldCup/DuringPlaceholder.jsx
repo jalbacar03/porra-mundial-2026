@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import BracketResults from './BracketResults'
 
 export default function DuringPlaceholder() {
   const [activeTab, setActiveTab] = useState('bracket') // 'bracket' | 'ordagos'
@@ -39,62 +40,7 @@ export default function DuringPlaceholder() {
       </div>
 
       {/* Cuadro Real */}
-      {activeTab === 'bracket' && (
-        <div>
-          <div style={{
-            background: 'var(--bg-secondary)',
-            borderRadius: '8px',
-            padding: '16px',
-            border: '0.5px solid var(--border)',
-            marginBottom: '12px'
-          }}>
-            <div style={{
-              fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px'
-            }}>
-              Cuadro eliminatorio real
-            </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6', margin: 0 }}>
-              A partir de dieciseisavos, predice el ganador de cada partido del cuadro real.
-              La apuesta cierra 3 horas antes del inicio de cada partido.
-            </p>
-          </div>
-
-          {/* Rounds preview */}
-          {[
-            { name: 'Dieciseisavos', matches: 16, pts: '0 pts', status: 'Pendiente' },
-            { name: 'Octavos de final', matches: 8, pts: '1 pt/acierto', status: 'Pendiente' },
-            { name: 'Cuartos de final', matches: 4, pts: '2 pts/acierto', status: 'Pendiente' },
-            { name: 'Semifinales', matches: 2, pts: '4 pts/acierto', status: 'Pendiente' },
-            { name: 'Final', matches: 1, pts: '5 pts/acierto', status: 'Pendiente' }
-          ].map((round, i) => (
-            <div key={i} style={{
-              background: 'var(--bg-secondary)',
-              borderRadius: '6px',
-              padding: '12px 14px',
-              marginBottom: '6px',
-              border: '0.5px solid var(--border)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
-                  {round.name}
-                </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                  {round.matches} partidos · {round.pts}
-                </div>
-              </div>
-              <span style={{
-                fontSize: '10px', padding: '3px 8px', borderRadius: '4px',
-                background: 'var(--bg-input)', color: 'var(--text-dim)'
-              }}>
-                {round.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {activeTab === 'bracket' && <BracketResults />}
 
       {/* Órdagos */}
       {activeTab === 'ordagos' && (
@@ -117,7 +63,6 @@ export default function DuringPlaceholder() {
             </p>
           </div>
 
-          {/* Órdagos list */}
           {Array.from({ length: 10 }, (_, i) => (
             <div key={i} style={{
               background: 'var(--bg-secondary)',
