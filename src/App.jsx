@@ -10,6 +10,7 @@ import Stats from './pages/Stats'
 import Rules from './pages/Rules'
 import News from './pages/News'
 import Forum from './pages/Forum'
+import Bracket from './pages/Bracket'
 import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
@@ -318,6 +319,7 @@ function TopNavbar({ isAdmin }) {
         <StyledNavLink to="/" end>Inicio</StyledNavLink>
         <StyledNavLink to="/predictions">Mis predicciones</StyledNavLink>
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
+        <StyledNavLink to="/bracket">Cuadro</StyledNavLink>
         <StyledNavLink to="/stats">Stats</StyledNavLink>
         <StyledNavLink to="/news">Noticias</StyledNavLink>
         <StyledNavLink to="/forum">Foro</StyledNavLink>
@@ -349,6 +351,7 @@ function BottomNavbar({ isAdmin }) {
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
     { to: '/predictions', label: 'Pred.', icon: IconPredictions },
     { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
+    { to: '/bracket', label: 'Cuadro', icon: IconPredictions },
     { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
     { to: '/forum', label: 'Foro', icon: IconForum },
@@ -503,6 +506,7 @@ function AppLayout({ session }) {
           <Route path="/" element={<Dashboard session={session} />} />
           <Route path="/predictions" element={<Predictions session={session} />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/bracket" element={<Bracket />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/news" element={<News />} />
           <Route path="/forum" element={<Forum session={session} />} />
