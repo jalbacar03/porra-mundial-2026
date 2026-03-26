@@ -229,7 +229,7 @@ export default function PredictionsPage({ session }) {
       )}
 
       {activeBlock === 'during' && (
-        <DuringPlaceholder />
+        <DuringPlaceholder session={session} />
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import BracketResults from './BracketResults'
 
-export default function DuringPlaceholder() {
+export default function DuringPlaceholder({ session }) {
   const [activeTab, setActiveTab] = useState('bracket') // 'bracket' | 'ordagos'
 
   return (
@@ -40,7 +40,7 @@ export default function DuringPlaceholder() {
       </div>
 
       {/* Cuadro Real */}
-      {activeTab === 'bracket' && <BracketResults />}
+      {activeTab === 'bracket' && <BracketResults session={session} />}
 
       {/* Órdagos */}
       {activeTab === 'ordagos' && (
