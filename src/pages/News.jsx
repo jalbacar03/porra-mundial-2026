@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 
-// RSS feeds about football / World Cup
 const FEEDS = [
   {
     name: 'Marca',
@@ -19,7 +18,6 @@ const FEEDS = [
   }
 ]
 
-// Free RSS-to-JSON proxy (no signup needed)
 const RSS2JSON_BASE = 'https://api.rss2json.com/v1/api.json?rss_url='
 
 export default function News() {
@@ -45,7 +43,6 @@ export default function News() {
 
         if (data.status === 'ok' && data.items) {
           data.items.forEach(item => {
-            // Extract image from content or enclosure
             let image = item.thumbnail || item.enclosure?.link || null
             if (!image && item.description) {
               const imgMatch = item.description.match(/<img[^>]+src="([^"]+)"/)
@@ -59,7 +56,7 @@ export default function News() {
               source: feed.name,
               sourceIcon: feed.icon,
               image,
-              description: stripHtml(item.description || '').slice(0, 150)
+              description: stripHtml(item.description || '').slice(0, 200)
             })
           })
         }
@@ -68,7 +65,6 @@ export default function News() {
       }
     }
 
-    // Sort by date (newest first)
     allArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     setArticles(allArticles)
     setLoading(false)
@@ -103,32 +99,34 @@ export default function News() {
 
   const sources = ['all', ...FEEDS.map(f => f.name)]
 
+  const heroArticle = filteredArticles.length > 0 ? filteredArticles[0] : null
+  const gridArticles = filteredArticles.slice(1)
+
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
+    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div>
-        <h2 style={{
-          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
-          margin: '0 0 4px', letterSpacing: '0.3px'
-        }}>
-          Noticias del Mundial
-        </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-          Últimas noticias de fútbol internacional
-        </p>
+          <h2 style={{
+            fontSize: '18px', fontWeight: '700', color: '#e0e3ea',
+            margin: '0 0 4px', letterSpacing: '0.3px'
+          }}>
+            Noticias del Mundial
+          </h2>
+          <p style={{ fontSize: '12px', color: '#4a4f5e', margin: 0 }}>
+            Últimas noticias de fútbol internacional
+          </p>
         </div>
         <button
           onClick={fetchNews}
           disabled={loading}
           style={{
-            padding: '6px 12px', borderRadius: '6px', border: 'none',
-            background: 'var(--bg-secondary)', color: 'var(--text-muted)',
+            padding: '8px 14px', borderRadius: '8px', border: '0.5px solid #2a2d38',
+            background: '#22252f', color: '#6b7080',
             fontSize: '12px', cursor: loading ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', gap: '4px',
-            opacity: loading ? 0.5 : 1, flexShrink: 0,
-            border: '0.5px solid var(--border)'
+            opacity: loading ? 0.5 : 1, flexShrink: 0
           }}
         >
           <span style={{ display: 'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none', fontSize: '16px' }}>🔄</span>
@@ -137,8 +135,8 @@ export default function News() {
 
       {/* Source filter */}
       <div style={{
-        display: 'flex', gap: '4px', marginBottom: '16px',
-        padding: '3px', background: 'var(--bg-input)', borderRadius: '6px',
+        display: 'flex', gap: '4px', marginBottom: '20px',
+        padding: '3px', background: '#13151c', borderRadius: '8px',
         overflowX: 'auto'
       }}>
         {sources.map(source => (
@@ -146,11 +144,12 @@ export default function News() {
             key={source}
             onClick={() => setActiveSource(source)}
             style={{
-              padding: '7px 12px', borderRadius: '4px', border: 'none',
-              background: activeSource === source ? 'var(--bg-secondary)' : 'transparent',
-              color: activeSource === source ? 'var(--text-primary)' : 'var(--text-muted)',
+              padding: '8px 14px', borderRadius: '6px', border: 'none',
+              background: activeSource === source ? '#22252f' : 'transparent',
+              color: activeSource === source ? '#e0e3ea' : '#6b7080',
               fontSize: '12px', fontWeight: activeSource === source ? '600' : '400',
-              cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+              cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              transition: 'all 0.15s ease'
             }}
           >
             {source === 'all' ? '📡 Todas' : `${FEEDS.find(f => f.name === source)?.icon || ''} ${source}`}
@@ -161,7 +160,7 @@ export default function News() {
       {/* Loading */}
       {loading && (
         <div style={{
-          padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px'
+          padding: '60px 20px', textAlign: 'center', color: '#6b7080', fontSize: '14px'
         }}>
           Cargando noticias...
         </div>
@@ -170,17 +169,18 @@ export default function News() {
       {/* Error */}
       {error && !loading && (
         <div style={{
-          padding: '20px', textAlign: 'center', color: 'var(--text-dim)',
-          fontSize: '13px', background: 'var(--bg-secondary)', borderRadius: '8px',
-          border: '0.5px solid var(--border)'
+          padding: '24px', textAlign: 'center', color: '#4a4f5e',
+          fontSize: '13px', background: '#22252f', borderRadius: '10px',
+          border: '0.5px solid #2a2d38'
         }}>
           {error}
-          <div style={{ marginTop: '10px' }}>
+          <div style={{ marginTop: '12px' }}>
             <button
               onClick={fetchNews}
               style={{
-                padding: '8px 16px', background: 'var(--green)', color: '#fff',
-                border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px'
+                padding: '8px 20px', background: '#007a45', color: '#fff',
+                border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px',
+                fontWeight: '600'
               }}
             >
               Reintentar
@@ -189,91 +189,178 @@ export default function News() {
         </div>
       )}
 
-      {/* Articles */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '10px'
-      }}>
-      {!loading && filteredArticles.map((article, i) => (
+      {/* Hero Article */}
+      {!loading && heroArticle && (
         <a
-          key={i}
-          href={article.link}
+          href={heroArticle.link}
           target="_blank"
           rel="noopener noreferrer"
           style={{
             display: 'block',
-            background: 'var(--bg-secondary)',
-            borderRadius: '8px',
-            border: '0.5px solid var(--border)',
+            background: '#22252f',
+            borderRadius: '12px',
+            border: '0.5px solid #2a2d38',
             overflow: 'hidden',
             textDecoration: 'none',
+            marginBottom: '16px',
             transition: 'border-color 0.2s ease'
           }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = '#007a45'}
+          onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2d38'}
         >
-          {/* Image */}
-          {article.image && (
+          {heroArticle.image && (
             <div style={{
-              width: '100%', height: '160px', overflow: 'hidden',
-              background: 'var(--bg-input)'
+              width: '100%',
+              aspectRatio: '16 / 9',
+              overflow: 'hidden',
+              background: '#13151c',
+              position: 'relative'
             }}>
               <img
-                src={article.image}
+                src={heroArticle.image}
                 alt=""
                 style={{
-                  width: '100%', height: '100%', objectFit: 'cover'
+                  width: '100%', height: '100%', objectFit: 'cover',
+                  display: 'block'
                 }}
-                onError={e => { e.target.style.display = 'none' }}
+                onError={e => { e.target.parentElement.style.display = 'none' }}
               />
+              {/* Gradient overlay */}
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                height: '50%',
+                background: 'linear-gradient(transparent, rgba(26,29,38,0.9))',
+                pointerEvents: 'none'
+              }} />
             </div>
           )}
 
-          <div style={{ padding: '12px 14px' }}>
-            {/* Source + date */}
+          <div style={{ padding: '16px 20px 20px' }}>
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              marginBottom: '6px'
+              marginBottom: '10px'
             }}>
               <span style={{
-                fontSize: '10px', fontWeight: '600', color: 'var(--green)',
-                textTransform: 'uppercase', letterSpacing: '0.5px'
+                fontSize: '11px', fontWeight: '700', color: '#007a45',
+                textTransform: 'uppercase', letterSpacing: '0.8px'
               }}>
-                {article.sourceIcon} {article.source}
+                {heroArticle.sourceIcon} {heroArticle.source}
               </span>
-              <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                {formatDate(article.pubDate)}
+              <span style={{ fontSize: '11px', color: '#4a4f5e' }}>
+                {formatDate(heroArticle.pubDate)}
               </span>
             </div>
 
-            {/* Title */}
             <h3 style={{
-              fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)',
-              margin: '0 0 6px', lineHeight: '1.4'
+              fontSize: '20px', fontWeight: '700', color: '#e0e3ea',
+              margin: '0 0 10px', lineHeight: '1.35'
             }}>
-              {article.title}
+              {heroArticle.title}
             </h3>
 
-            {/* Description */}
-            {article.description && (
+            {heroArticle.description && (
               <p style={{
-                fontSize: '12px', color: 'var(--text-muted)',
-                margin: 0, lineHeight: '1.5',
+                fontSize: '14px', color: '#9da3b0',
+                margin: 0, lineHeight: '1.6',
                 overflow: 'hidden', textOverflow: 'ellipsis',
-                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+                display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical'
               }}>
-                {article.description}
+                {heroArticle.description}
               </p>
             )}
           </div>
         </a>
-      ))}
-      </div>
+      )}
+
+      {/* Grid Articles */}
+      {!loading && gridArticles.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '12px'
+        }}>
+          {gridArticles.map((article, i) => (
+            <a
+              key={i}
+              href={article.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                background: '#22252f',
+                borderRadius: '10px',
+                border: '0.5px solid #2a2d38',
+                overflow: 'hidden',
+                textDecoration: 'none',
+                transition: 'border-color 0.2s ease'
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#007a45'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2d38'}
+            >
+              {article.image && (
+                <div style={{
+                  width: '100%',
+                  aspectRatio: '16 / 10',
+                  overflow: 'hidden',
+                  background: '#13151c'
+                }}>
+                  <img
+                    src={article.image}
+                    alt=""
+                    style={{
+                      width: '100%', height: '100%', objectFit: 'cover',
+                      display: 'block'
+                    }}
+                    onError={e => { e.target.parentElement.style.display = 'none' }}
+                  />
+                </div>
+              )}
+
+              <div style={{ padding: '14px 16px 16px' }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  marginBottom: '8px'
+                }}>
+                  <span style={{
+                    fontSize: '10px', fontWeight: '700', color: '#007a45',
+                    textTransform: 'uppercase', letterSpacing: '0.6px'
+                  }}>
+                    {article.sourceIcon} {article.source}
+                  </span>
+                  <span style={{ fontSize: '10px', color: '#4a4f5e' }}>
+                    {formatDate(article.pubDate)}
+                  </span>
+                </div>
+
+                <h3 style={{
+                  fontSize: '15px', fontWeight: '600', color: '#e0e3ea',
+                  margin: '0 0 8px', lineHeight: '1.4'
+                }}>
+                  {article.title}
+                </h3>
+
+                {article.description && (
+                  <p style={{
+                    fontSize: '12px', color: '#6b7080',
+                    margin: 0, lineHeight: '1.55',
+                    overflow: 'hidden', textOverflow: 'ellipsis',
+                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'
+                  }}>
+                    {article.description}
+                  </p>
+                )}
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
 
       {/* Empty state */}
       {!loading && !error && filteredArticles.length === 0 && (
         <div style={{
-          padding: '30px', textAlign: 'center', color: 'var(--text-dim)',
-          fontSize: '13px', background: 'var(--bg-secondary)', borderRadius: '8px'
+          padding: '40px', textAlign: 'center', color: '#4a4f5e',
+          fontSize: '14px', background: '#22252f', borderRadius: '10px',
+          border: '0.5px solid #2a2d38'
         }}>
           No hay noticias de esta fuente
         </div>
