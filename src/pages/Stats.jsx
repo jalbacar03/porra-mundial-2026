@@ -8,11 +8,13 @@ export default function Stats() {
   const [loading, setLoading] = useState(true)
   const [activeGroup, setActiveGroup] = useState('A')
   const [totalUsers, setTotalUsers] = useState(0)
-  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'matches' | 'bets'
+  const [activeTab, setActiveTab] = useState('overview')
   const [bets, setBets] = useState([])
   const [betEntries, setBetEntries] = useState([])
   const [activeBetCategory, setActiveBetCategory] = useState('all')
   const [leaderboard, setLeaderboard] = useState([])
+  const [userId, setUserId] = useState(null)
+  const [myPredictions, setMyPredictions] = useState([])
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
   const betCategories = [
@@ -27,7 +29,10 @@ export default function Stats() {
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
-    const [matchesRes, predsRes, countRes, betsRes, entriesRes, lbRes] = await Promise.all([
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) setUserId(user.id)
+
+    const queries = [
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
         .eq('stage', 'group').order('match_date', { ascending: true }),
@@ -36,14 +41,26 @@ export default function Stats() {
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),
       supabase.from('pre_tournament_entries').select('bet_id, answer'),
       supabase.from('leaderboard').select('*')
-    ])
+    ]
 
-    setMatches(matchesRes.data || [])
-    setAllPredictions(predsRes.data || [])
-    setTotalUsers(countRes.count || 0)
-    setBets(betsRes.data || [])
-    setBetEntries(entriesRes.data || [])
-    setLeaderboard(lbRes.data || [])
+    // Fetch user's own predictions with points
+    if (user) {
+      queries.push(
+        supabase.from('predictions')
+          .select('match_id, predicted_home, predicted_away, points_earned')
+          .eq('user_id', user.id)
+      )
+    }
+
+    const results = await Promise.all(queries)
+
+    setMatches(results[0].data || [])
+    setAllPredictions(results[1].data || [])
+    setTotalUsers(results[2].count || 0)
+    setBets(results[3].data || [])
+    setBetEntries(results[4].data || [])
+    setLeaderboard(results[5].data || [])
+    if (results[6]) setMyPredictions(results[6].data || [])
     setLoading(false)
   }
 
@@ -225,13 +242,14 @@ export default function Stats() {
         }} />
       </div>
 
-      {/* 3-Tab switcher */}
+      {/* 4-Tab switcher */}
       <div style={{
         display: 'flex', gap: '4px', marginBottom: '18px',
         padding: '3px', background: 'var(--bg-input)', borderRadius: '8px'
       }}>
         {[
           { key: 'overview', label: '📊 Resumen' },
+          { key: 'me', label: '👤 Tú' },
           { key: 'matches', label: '⚽ Partidos' },
           { key: 'bets', label: '🎯 Apuestas' }
         ].map(tab => (
@@ -421,6 +439,206 @@ export default function Stats() {
           </div>
         </>
       )}
+
+      {/* ==================== PERSONAL TAB ==================== */}
+      {activeTab === 'me' && (() => {
+        const myLb = lbSorted.find(u => u.user_id === userId)
+        const myRank = lbSorted.findIndex(u => u.user_id === userId) + 1
+        const myExacts = myLb?.exact_hits || 0
+        const mySigns = myLb?.sign_hits || 0
+        const myMisses = myLb?.misses || 0
+        const myPoints = myLb?.total_points || 0
+        const myTotal = myExacts + mySigns + myMisses
+        const myAccuracy = myTotal > 0 ? Math.round(((myExacts + mySigns) / myTotal) * 100) : 0
+        const avgAcc = accuracyRate
+
+        // Best/worst groups
+        const groupPerf = groups.map(g => {
+          const gMatchIds = matches.filter(m => m.group_name === g).map(m => m.id)
+          const gPreds = myPredictions.filter(p => gMatchIds.includes(p.match_id) && p.points_earned !== null)
+          const pts = gPreds.reduce((s, p) => s + (p.points_earned || 0), 0)
+          return { group: g, points: pts, total: gPreds.length }
+        }).filter(g => g.total > 0).sort((a, b) => b.points - a.points)
+
+        // Score distribution
+        const scoreDist = [
+          { label: 'Exactos (3pts)', value: myExacts, color: 'var(--gold)' },
+          { label: 'Signos (1pt)', value: mySigns, color: 'var(--green)' },
+          { label: 'Fallos (0pts)', value: myMisses, color: 'var(--red)' }
+        ]
+
+        // Percentile
+        const percentile = lbSorted.length > 1
+          ? Math.round(((lbSorted.length - myRank) / (lbSorted.length - 1)) * 100)
+          : 100
+
+        // Points to next rank
+        const nextUp = myRank > 1 ? lbSorted[myRank - 2] : null
+        const ptsToNext = nextUp ? nextUp.total_points - myPoints : 0
+
+        return (
+          <>
+            {/* Position card */}
+            <div style={{
+              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '20px',
+              border: '0.5px solid var(--border)', marginBottom: '14px', textAlign: 'center',
+              position: 'relative', overflow: 'hidden'
+            }}>
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+                background: 'linear-gradient(90deg, var(--green), var(--gold))'
+              }} />
+              <div style={{ fontSize: '42px', fontWeight: '800', color: 'var(--gold)', lineHeight: 1 }}>
+                {myRank > 0 ? `#${myRank}` : '-'}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                de {lbSorted.length} participantes
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
+                Top {percentile}% · {myPoints} puntos
+              </div>
+              {nextUp && ptsToNext > 0 && (
+                <div style={{
+                  marginTop: '10px', padding: '6px 12px', background: 'var(--bg-input)',
+                  borderRadius: '6px', fontSize: '11px', color: 'var(--text-muted)', display: 'inline-block'
+                }}>
+                  A {ptsToNext} pts de {nextUp.full_name} ({myRank - 1}º)
+                </div>
+              )}
+            </div>
+
+            {/* Accuracy comparison */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px'
+            }}>
+              <StatCard value={`${myAccuracy}%`} label="Tu acierto" color={myAccuracy >= avgAcc ? 'var(--green)' : 'var(--red)'}
+                sub={myAccuracy >= avgAcc ? `+${myAccuracy - avgAcc}% vs media` : `${myAccuracy - avgAcc}% vs media`} />
+              <StatCard value={myExacts} label="Exactos" color="var(--gold)"
+                sub={`${mySigns} signos · ${myMisses} fallos`} />
+            </div>
+
+            {/* Score distribution bar */}
+            <div style={{
+              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
+              border: '0.5px solid var(--border)', marginBottom: '14px'
+            }}>
+              <div style={{
+                fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
+              }}>
+                Distribución de resultados
+              </div>
+
+              {/* Stacked bar */}
+              {myTotal > 0 && (
+                <div style={{ display: 'flex', height: '28px', borderRadius: '6px', overflow: 'hidden', marginBottom: '12px' }}>
+                  {scoreDist.map((s, i) => s.value > 0 && (
+                    <div key={i} style={{
+                      width: `${(s.value / myTotal) * 100}%`, background: s.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '11px', fontWeight: '700', color: i === 2 ? '#fff' : '#1a1d26',
+                      minWidth: '24px'
+                    }}>
+                      {Math.round((s.value / myTotal) * 100)}%
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                {scoreDist.map((s, i) => (
+                  <div key={i} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Performance by group */}
+            {groupPerf.length > 0 && (
+              <div style={{
+                background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
+                border: '0.5px solid var(--border)', marginBottom: '14px'
+              }}>
+                <div style={{
+                  fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                  letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
+                }}>
+                  Rendimiento por grupo
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {groupPerf.map((g, i) => (
+                    <div key={g.group} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        fontSize: '11px', fontWeight: '600', width: '28px',
+                        color: i === 0 ? 'var(--gold)' : i === groupPerf.length - 1 ? 'var(--red)' : 'var(--text-muted)'
+                      }}>
+                        Gr.{g.group}
+                      </span>
+                      <div style={{ flex: 1, height: '14px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: '3px',
+                          background: i === 0 ? 'var(--gold)' : 'var(--green)',
+                          width: `${groupPerf[0].points > 0 ? (g.points / groupPerf[0].points) * 100 : 0}%`
+                        }} />
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', width: '32px', textAlign: 'right' }}>
+                        {g.points}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Comparison vs average */}
+            <div style={{
+              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
+              border: '0.5px solid var(--border)', marginBottom: '14px'
+            }}>
+              <div style={{
+                fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
+              }}>
+                Tú vs la media
+              </div>
+              {[
+                { label: 'Puntos', mine: myPoints, avg: avgPoints },
+                { label: 'Exactos', mine: myExacts, avg: lbSorted.length > 0 ? Math.round(totalExacts / lbSorted.length) : 0 },
+                { label: 'Signos', mine: mySigns, avg: lbSorted.length > 0 ? Math.round(totalSigns / lbSorted.length) : 0 }
+              ].map((row, i) => {
+                const maxVal = Math.max(row.mine, row.avg, 1)
+                const better = row.mine >= row.avg
+                return (
+                  <div key={i} style={{ marginBottom: i < 2 ? '12px' : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{row.label}</span>
+                      <span style={{ fontSize: '11px', color: better ? 'var(--green)' : 'var(--red)', fontWeight: '600' }}>
+                        {better ? '+' : ''}{row.mine - row.avg} vs media
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ height: '8px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden', marginBottom: '2px' }}>
+                          <div style={{ height: '100%', borderRadius: '4px', background: 'var(--gold)', width: `${(row.mine / maxVal) * 100}%` }} />
+                        </div>
+                        <div style={{ height: '6px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: '3px', background: 'var(--text-dim)', width: `${(row.avg / maxVal) * 100}%` }} />
+                        </div>
+                      </div>
+                      <div style={{ width: '50px', textAlign: 'right' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--gold)', lineHeight: 1 }}>{row.mine}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dim)', lineHeight: 1, marginTop: '2px' }}>{row.avg}</div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )
+      })()}
 
       {/* ==================== MATCHES TAB ==================== */}
       {activeTab === 'matches' && (
