@@ -8,7 +8,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
 
-const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
+const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500' // kept for data filtering only
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -76,7 +76,8 @@ async function gatherData() {
     'matches?status=eq.finished&select=id,home_score,away_score,match_date,group_name,home_team:teams!matches_home_team_id_fkey(name),away_team:teams!matches_away_team_id_fkey(name)&order=match_date.desc&limit=10'
   ) || []
 
-  const bot365 = leaderboard.find(r => r.user_id === BOT365_ID)
+  // Filter out Bot365 from leaderboard
+  const filteredLeaderboard = leaderboard.filter(r => r.user_id !== BOT365_ID)
 
   // Fetch latest news headlines for pre-tournament context
   let newsHeadlines = []
@@ -99,10 +100,9 @@ async function gatherData() {
   }
 
   return {
-    leaderboard: leaderboard.slice(0, 15),
+    leaderboard: filteredLeaderboard.slice(0, 15),
     recentMatches: matches,
-    bot365,
-    totalParticipants: profiles.length,
+    totalParticipants: profiles.filter(p => p.id !== BOT365_ID).length,
     newsHeadlines: newsHeadlines.slice(0, 8),
     hasMatchesPlayed: matches.length > 0
   }
@@ -120,10 +120,6 @@ async function generateWithGemini(data) {
       `${i + 1}. ${r.full_name}: ${r.total_points} pts (${r.exact_hits} exactos, ${r.sign_hits} signos)`
     ).join('\n')
 
-    const bot365Line = data.bot365
-      ? `Bot365 🤖 tiene ${data.bot365.total_points} pts (posición ${data.leaderboard.findIndex(r => r.user_id === BOT365_ID) + 1})`
-      : 'Bot365 aún no tiene puntos'
-
     const recentResults = data.recentMatches.slice(0, 5).map(m =>
       `${m.home_team?.name} ${m.home_score}-${m.away_score} ${m.away_team?.name}`
     ).join(', ')
@@ -132,7 +128,6 @@ async function generateWithGemini(data) {
 
 DATOS DE LA PORRA:
 - ${data.totalParticipants} participantes
-- ${bot365Line}
 
 TOP 5 CLASIFICACIÓN:
 ${top5}
@@ -143,9 +138,8 @@ ${recentResults}
 Genera una crónica diaria de la porra en español (máximo 200 palabras) que incluya:
 1. Un titular llamativo con emoji
 2. Resumen de la jornada (quién subió, quién bajó, sorpresas)
-3. Comparación con Bot365 (¿la gente le está ganando o no?)
-4. Un dato curioso o predicción picante
-5. Cierra con una frase motivadora o graciosa
+3. Un dato curioso o predicción picante
+4. Cierra con una frase motivadora o graciosa
 
 Formato: texto plano con emojis, sin markdown ni HTML. Párrafos cortos.`
   } else {
@@ -159,15 +153,13 @@ DATOS DE LA PORRA:
 - ${data.totalParticipants} participantes registrados
 - El Mundial empieza el 11 de junio de 2026
 - Hay apuestas pre-torneo abiertas (campeón, goleador, selección revelación, etc.)
-- Bot365 🤖 ya ha completado todas sus apuestas — es la referencia a batir
 ${newsContext}
 
 Genera una crónica pre-torneo en español (máximo 150 palabras) que incluya:
 1. Un titular llamativo con emoji
 2. Comenta alguna noticia relevante del mundo del fútbol y cómo puede afectar a las apuestas
 3. Hype sobre las apuestas pre-torneo
-4. Mención a Bot365 como rival a batir
-5. Cierra con una frase motivadora tipo cuenta atrás
+4. Cierra con una frase motivadora tipo cuenta atrás
 
 Formato: texto plano con emojis, sin markdown ni HTML. Párrafos cortos.`
   }

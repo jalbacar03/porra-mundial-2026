@@ -225,21 +225,19 @@ export default function Leaderboard() {
                 {/* Bot365 reference line — inserted at the right position */}
                 {showBot365Line && (
                   <div style={{
-                    display: 'flex', alignItems: 'center', padding: '6px 12px',
-                    background: 'rgba(255, 204, 0, 0.04)',
-                    borderTop: '1.5px dashed var(--gold)',
-                    borderBottom: '1.5px dashed var(--gold)',
-                    margin: '2px 0'
+                    display: 'flex', alignItems: 'center', padding: '4px 12px',
+                    borderTop: '1px dashed var(--border)',
+                    borderBottom: '1px dashed var(--border)',
+                    margin: '1px 0'
                   }}>
-                    <span style={{ fontSize: '11px', marginRight: '8px' }}>📊</span>
                     <span style={{
-                      flex: 1, fontSize: '11px', fontWeight: '600', color: 'var(--gold)',
-                      textTransform: 'uppercase', letterSpacing: '0.8px'
+                      flex: 1, fontSize: '10px', fontWeight: '500', color: 'var(--text-dim)',
+                      textTransform: 'uppercase', letterSpacing: '0.6px'
                     }}>
-                      Casas de apuestas
+                      — casas de apuestas —
                     </span>
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--gold)' }}>
-                      {bot365Entry.total_points} pts
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)' }}>
+                      {bot365Entry.total_points}
                     </span>
                   </div>
                 )}
@@ -291,20 +289,18 @@ export default function Leaderboard() {
           {/* Bot365 line at the bottom if everyone is above it */}
           {bot365Entry && bot365InsertAfter >= currentRankings.length && (
             <div style={{
-              display: 'flex', alignItems: 'center', padding: '6px 12px',
-              background: 'rgba(255, 204, 0, 0.04)',
-              borderTop: '1.5px dashed var(--gold)',
-              margin: '2px 0'
+              display: 'flex', alignItems: 'center', padding: '4px 12px',
+              borderTop: '1px dashed var(--border)',
+              margin: '1px 0'
             }}>
-              <span style={{ fontSize: '11px', marginRight: '8px' }}>📊</span>
               <span style={{
-                flex: 1, fontSize: '11px', fontWeight: '600', color: 'var(--gold)',
-                textTransform: 'uppercase', letterSpacing: '0.8px'
+                flex: 1, fontSize: '10px', fontWeight: '500', color: 'var(--text-dim)',
+                textTransform: 'uppercase', letterSpacing: '0.6px'
               }}>
-                Casas de apuestas
+                — casas de apuestas —
               </span>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--gold)' }}>
-                {bot365Entry.total_points} pts
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)' }}>
+                {bot365Entry.total_points}
               </span>
             </div>
           )}
