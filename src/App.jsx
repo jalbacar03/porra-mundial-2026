@@ -11,6 +11,7 @@ import Rules from './pages/Rules'
 import News from './pages/News'
 import Forum from './pages/Forum'
 import PaymentWall from './components/PaymentWall'
+import RulesPopup from './components/RulesPopup'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 
 /* ============================
@@ -453,17 +454,19 @@ function StyledNavLink({ to, end, children }) {
 function AppLayout({ session }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [hasPaid, setHasPaid] = useState(null) // null = cargando
+  const [rulesAccepted, setRulesAccepted] = useState(null) // null = cargando
 
   useEffect(() => {
     async function checkProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('is_admin, has_paid')
+        .select('is_admin, has_paid, rules_accepted')
         .eq('id', session.user.id)
         .single()
       if (data) {
         setIsAdmin(!!data.is_admin)
         setHasPaid(!!data.has_paid)
+        setRulesAccepted(!!data.rules_accepted)
       }
     }
     checkProfile()
@@ -485,6 +488,14 @@ function AppLayout({ session }) {
     <div>
       {/* Si no ha pagado, mostrar el popup de pago encima de todo */}
       {!hasPaid && <PaymentWall />}
+
+      {/* Si ha pagado pero no ha aceptado normas, mostrar popup de normas */}
+      {hasPaid && !rulesAccepted && (
+        <RulesPopup
+          userId={session.user.id}
+          onAccepted={() => setRulesAccepted(true)}
+        />
+      )}
 
       <TopNavbar isAdmin={isAdmin} />
       <div className="app-content">

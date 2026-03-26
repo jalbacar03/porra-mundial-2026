@@ -4,7 +4,7 @@ export default function Rules() {
       icon: '🎯',
       title: '¿Qué es la Porra Mundial 26?',
       content: [
-        'Una porra amistosa de predicciones entre amigos para el Mundial de Fútbol 2026.',
+        'Una porra amistosa de predicciones entre amigos para el Mundial de Fútbol 2026. Se trata de un juego entre amigos sin ánimo de lucro — no es una casa de apuestas.',
         'Cada participante compite por acertar los resultados de los partidos, el cuadro eliminatorio y otras apuestas especiales.',
         'El que más puntos acumule al final del torneo, gana.'
       ]

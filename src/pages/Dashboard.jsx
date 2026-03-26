@@ -26,12 +26,36 @@ export default function Dashboard({ session }) {
       const res = await fetch('/api/generate-insight')
       if (res.ok) {
         const data = await res.json()
-        setDailyInsight(data.insight)
+        if (data.insight) {
+          setDailyInsight(data.insight)
+          setInsightLoading(false)
+          return
+        }
       }
     } catch (err) {
-      // Silently fail — insight is optional
-      console.warn('Insight not available:', err)
+      console.warn('Insight not available, falling back to RSS:', err)
     }
+    // Fallback: fetch RSS headlines
+    try {
+      const feeds = [
+        'https://e00-marca.uecdn.es/rss/futbol/mundial.xml',
+        'https://feeds.as.com/mrss-s/pages/as/site/as.com/section/futbol/subsection/mundial/',
+        'https://feeds.bbci.co.uk/sport/football/rss.xml'
+      ]
+      const headlines = []
+      for (const feedUrl of feeds) {
+        try {
+          const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
+          if (r.ok) {
+            const d = await r.json()
+            if (d.items) headlines.push(...d.items.slice(0, 3).map(i => i.title))
+          }
+        } catch { /* skip failed feed */ }
+      }
+      if (headlines.length > 0) {
+        setDailyInsight('📰 Últimas noticias del Mundial:\n\n' + headlines.slice(0, 5).map(h => `• ${h}`).join('\n'))
+      }
+    } catch { /* no fallback available */ }
     setInsightLoading(false)
   }
 
@@ -222,7 +246,7 @@ export default function Dashboard({ session }) {
         )}
       </div>
 
-      {/* ===== DAILY BET WIDGET (blurred) ===== */}
+      {/* ===== DAILY BET WIDGET ===== */}
       <div style={{
         background: 'var(--bg-secondary)',
         borderRadius: '10px',
@@ -233,39 +257,25 @@ export default function Dashboard({ session }) {
         overflow: 'hidden',
         minHeight: '80px'
       }}>
-        {/* Blurred content behind */}
         <div style={{
-          filter: 'blur(5px)',
-          opacity: 0.4
+          fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+          letterSpacing: '1px', fontWeight: '600', marginBottom: '10px',
+          display: 'flex', alignItems: 'center', gap: '6px'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-              ¿Quién marcará el primer gol del día?
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ padding: '6px 14px', background: 'var(--green)', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>Mbappé</div>
-            <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Vini Jr</div>
-            <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Haaland</div>
-          </div>
+          <span>🎲</span> Órdago #1
         </div>
-
-        {/* Overlay with lock */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(26,29,38,0.6)',
-          backdropFilter: 'blur(2px)',
-          WebkitBackdropFilter: 'blur(2px)',
-          borderRadius: '10px'
-        }}>
-          <span style={{ fontSize: '20px', marginBottom: '4px' }}>🎲</span>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)' }}>
-            Órdago #1
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            ¿Quién marcará el primer gol del día?
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
-            Disponible 48h antes del primer partido
-          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ padding: '6px 14px', background: 'var(--green)', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>Mbappé</div>
+          <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Vini Jr</div>
+          <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Haaland</div>
+        </div>
+        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '10px', textAlign: 'center' }}>
+          Próximamente — disponible durante el Mundial
         </div>
       </div>
 

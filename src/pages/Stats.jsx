@@ -153,7 +153,7 @@ export default function Stats() {
     : bets.filter(b => b.category === activeBetCategory)
 
   // Are pre-tournament bets still open?
-  const betsLocked = !deadline.expired
+  const betsLocked = false // Unlocked for testing — was: !deadline.expired
 
   function countGroupPreds(group) {
     const gMatchIds = matches.filter(m => m.group_name === group).map(m => m.id)

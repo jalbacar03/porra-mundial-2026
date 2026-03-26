@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts'
+// Top 10 chart removed
 
 export default function Leaderboard() {
   const [rankings, setRankings] = useState([])
@@ -96,17 +96,29 @@ export default function Leaderboard() {
     'linear-gradient(135deg, #c0c0c0, #808080)',
     'linear-gradient(135deg, #cd7f32, #8b4513)'
   ]
-  const barColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#007a45', '#007a45', '#007a45', '#007a45', '#007a45', '#007a45', '#007a45']
-
   const currentRankings = activeTab === 'general' ? rankings : last3Rankings
   const isEmpty = currentRankings.length === 0
 
-  // Chart data — top 10
-  const chartData = currentRankings.slice(0, 10).map((user, i) => ({
-    name: user.full_name?.split(' ')[0] || '?',
-    points: user.total_points,
-    isMe: user.user_id === userId
-  }))
+  // Compute tied ranks: T2 if tied for 2nd, etc.
+  function getTiedRank(index) {
+    if (index === 0) return { rank: 1, tied: false }
+    const pts = currentRankings[index].total_points
+    const exactHits = currentRankings[index].exact_hits || 0
+    // Find the first person with the same points and exact_hits
+    let firstWithSame = index
+    while (firstWithSame > 0 &&
+      currentRankings[firstWithSame - 1].total_points === pts &&
+      (currentRankings[firstWithSame - 1].exact_hits || 0) === exactHits) {
+      firstWithSame--
+    }
+    const rank = firstWithSame + 1
+    // Check if anyone else also has this rank (tied)
+    const tied = firstWithSame < index ||
+      (index + 1 < currentRankings.length &&
+        currentRankings[index + 1].total_points === pts &&
+        (currentRankings[index + 1].exact_hits || 0) === exactHits)
+    return { rank, tied }
+  }
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
@@ -183,61 +195,6 @@ export default function Leaderboard() {
         </div>
       ) : (
         <>
-          {/* ===== TOP 10 CHART ===== */}
-          {chartData.length > 1 && (
-            <div style={{
-              background: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              padding: '14px 12px 8px',
-              marginBottom: '14px',
-              border: '0.5px solid var(--border)'
-            }}>
-              <div style={{
-                fontSize: '10px', color: 'var(--text-dim)',
-                textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px',
-                paddingLeft: '4px'
-              }}>
-                Top {chartData.length} — Puntos
-              </div>
-              <ResponsiveContainer width="100%" height={chartData.length * 32 + 10}>
-                <BarChart
-                  data={chartData}
-                  layout="vertical"
-                  margin={{ top: 0, right: 30, left: 0, bottom: 0 }}
-                >
-                  <XAxis type="number" hide />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={75}
-                    tick={{ fill: '#6b7080', fontSize: 11, textAnchor: 'end' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Bar
-                    dataKey="points"
-                    radius={[0, 3, 3, 0]}
-                    barSize={14}
-                    label={{
-                      position: 'right',
-                      fill: '#9da3b0',
-                      fontSize: 11,
-                      fontWeight: 600
-                    }}
-                  >
-                    {chartData.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={entry.isMe ? '#ffcc00' : (barColors[i] || '#007a45')}
-                        fillOpacity={entry.isMe ? 1 : 0.85}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
           {/* ===== TABLE ===== */}
           {/* Table header */}
           <div style={{
@@ -253,6 +210,8 @@ export default function Leaderboard() {
           {/* Table rows */}
           {currentRankings.map((user, index) => {
             const isMe = user.user_id === userId
+            const { rank, tied } = getTiedRank(index)
+            const rankLabel = tied ? `T${rank}` : `${rank}`
             return (
               <div key={user.user_id} style={{
                 display: 'flex', alignItems: 'center', padding: '10px 12px',
@@ -261,18 +220,18 @@ export default function Leaderboard() {
                 borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent'
               }}>
                 <div style={{ width: '36px' }}>
-                  {index < 3 ? (
+                  {rank <= 3 ? (
                     <div style={{
                       width: '24px', height: '24px', borderRadius: '50%',
-                      background: medals[index],
+                      background: medals[rank - 1],
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '11px', fontWeight: '700', color: '#1a1d26'
+                      fontSize: tied ? '9px' : '11px', fontWeight: '700', color: '#1a1d26'
                     }}>
-                      {index + 1}
+                      {rankLabel}
                     </div>
                   ) : (
                     <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                      {index + 1}
+                      {rankLabel}
                     </span>
                   )}
                 </div>
@@ -288,7 +247,7 @@ export default function Leaderboard() {
 
                 <span style={{
                   width: '55px', textAlign: 'center', fontSize: '14px', fontWeight: '600',
-                  color: index === 0 ? 'var(--gold)' : 'var(--text-primary)'
+                  color: rank === 1 ? 'var(--gold)' : 'var(--text-primary)'
                 }}>
                   {user.total_points}
                 </span>
