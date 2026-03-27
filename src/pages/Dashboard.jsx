@@ -14,6 +14,7 @@ export default function Dashboard({ session, demoMode }) {
   const [totalUsers, setTotalUsers] = useState(0)
   const [dailyInsight, setDailyInsight] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
+  const [activeOrdago, setActiveOrdago] = useState(null)
   const [loading, setLoading] = useState(true)
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -28,7 +29,26 @@ export default function Dashboard({ session, demoMode }) {
   useEffect(() => {
     fetchAll()
     fetchInsight()
+    fetchActiveOrdago()
   }, [])
+
+  async function fetchActiveOrdago() {
+    try {
+      const { data } = await supabase.from('ordagos')
+        .select(`
+          *,
+          match:matches(
+            id, match_date, status,
+            home_team:teams!matches_home_team_id_fkey(name, flag_url),
+            away_team:teams!matches_away_team_id_fkey(name, flag_url)
+          )
+        `)
+        .in('status', ['open', 'locked'])
+        .order('number')
+        .limit(1)
+      if (data?.[0]) setActiveOrdago(data[0])
+    } catch { /* ordagos table may not exist yet */ }
+  }
 
   async function fetchInsight() {
     setInsightLoading(true)
@@ -182,7 +202,7 @@ export default function Dashboard({ session, demoMode }) {
   const displayTopRanking = demoMode && mockData ? mockData.rankings.slice(0, 5) : topRanking
   const displayTotalUsers = demoMode && mockData ? mockData.rankings.length : totalUsers
   const displayInsight = demoMode
-    ? 'Jornada 2 del Mundial completada. Espana goleo 3-0 a Croacia con un doblete de Pedri. Argentina empato 1-1 ante Senegal en un partido muy disputado. Brasil vencio a Panama por la minima (1-0) con gol de Vinicius en el 89\'. Japon dio la sorpresa al derrotar a Alemania 2-1 repitiendo la hazana de Qatar 2022.'
+    ? 'Jornada 2 del Mundial completada. España goleó 3-0 a Croacia con un doblete de Pedri. Argentina empató 1-1 ante Senegal en un partido muy disputado. Brasil venció a Panamá por la mínima (1-0) con gol de Vinicius en el 89\'. Japón dio la sorpresa al derrotar a Alemania 2-1 repitiendo la hazaña de Qatar 2022.'
     : dailyInsight
 
   // Top 5 max points for bar scaling
@@ -302,9 +322,50 @@ export default function Dashboard({ session, demoMode }) {
         }}>
           <span>🎲</span> Órdagos del Mundial
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 12px' }}>
-          6 apuestas especiales a partidos concretos. Se desbloquean durante el torneo. ¿Te atreves?
-        </p>
+
+        {/* Active ordago preview */}
+        {activeOrdago ? (
+          <div style={{
+            background: 'var(--bg-input)', borderRadius: '8px', padding: '12px',
+            marginBottom: '12px', border: '0.5px solid var(--border-light)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                Órdago #{activeOrdago.number}: {activeOrdago.title}
+              </span>
+              <span style={{
+                fontSize: '9px', padding: '2px 6px', borderRadius: '3px',
+                background: activeOrdago.status === 'open' ? 'rgba(255,204,0,0.1)' : 'var(--bg-secondary)',
+                color: activeOrdago.status === 'open' ? 'var(--gold)' : 'var(--text-dim)',
+                fontWeight: '600'
+              }}>
+                {activeOrdago.status === 'open' ? '⏱ ABIERTO' : '🔒 PRÓXIMO'}
+              </span>
+            </div>
+            {activeOrdago.match && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  {activeOrdago.match.home_team?.flag_url && (
+                    <img src={activeOrdago.match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
+                  )}
+                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.home_team?.name || 'TBD'}</span>
+                </div>
+                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>vs</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.away_team?.name || 'TBD'}</span>
+                  {activeOrdago.match.away_team?.flag_url && (
+                    <img src={activeOrdago.match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 12px' }}>
+            6 apuestas especiales a partidos concretos. Se desbloquean durante el torneo. ¿Te atreves?
+          </p>
+        )}
+
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={() => navigate('/predictions')}

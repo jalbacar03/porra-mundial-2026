@@ -63,10 +63,10 @@ export default function OrdagosView({ session }) {
     setLoading(false)
   }
 
-  // Deadline: 2h before match
+  // Deadline: 3h before match
   function getDeadline(match) {
     if (!match?.match_date) return null
-    return new Date(new Date(match.match_date).getTime() - 2 * 60 * 60 * 1000)
+    return new Date(new Date(match.match_date).getTime() - 3 * 60 * 60 * 1000)
   }
 
   function isOpen(ordago) {
@@ -91,15 +91,9 @@ export default function OrdagosView({ session }) {
     return `${mins}m`
   }
 
-  // Determine which ordagos to show:
-  // All resolved ones + the first non-resolved one
+  // Show ALL ordagos — locked ones are visible but disabled
   function getVisibleOrdagos() {
-    const visible = []
-    for (const o of ordagos) {
-      visible.push(o)
-      if (o.status !== 'resolved') break // Show up to (and including) first non-resolved
-    }
-    return visible
+    return ordagos
   }
 
   function updateScore(ordagoId, field, value) {
@@ -307,8 +301,8 @@ export default function OrdagosView({ session }) {
               </div>
             </div>
 
-            {/* Cost/Reward info */}
-            {ordago.status !== 'locked' && (
+            {/* Cost/Reward info — always visible */}
+            {(
               <div style={{
                 display: 'flex', gap: '6px', marginBottom: '10px',
                 fontSize: '10px', flexWrap: 'wrap'
@@ -336,7 +330,7 @@ export default function OrdagosView({ session }) {
               </div>
             )}
 
-            {/* Match + score input (when open or has entry) */}
+            {/* Match + score input (when not locked) */}
             {match && ordago.status !== 'locked' && (
               <div style={{
                 background: 'var(--bg-input)', borderRadius: '8px', padding: '12px',
@@ -486,28 +480,45 @@ export default function OrdagosView({ session }) {
               </div>
             )}
 
-            {/* Locked state info */}
-            {ordago.status === 'locked' && (
+            {/* Locked: show match preview if available, otherwise info text */}
+            {ordago.status === 'locked' && match && (
+              <div style={{
+                background: 'var(--bg-input)', borderRadius: '8px', padding: '12px',
+                border: '0.5px solid var(--border-light)', opacity: 0.5
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {match.home_team?.flag_url && (
+                      <img src={match.home_team.flag_url} alt="" style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
+                    )}
+                    <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{match.home_team?.name || 'TBD'}</span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>vs</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{match.away_team?.name || 'TBD'}</span>
+                    {match.away_team?.flag_url && (
+                      <img src={match.away_team.flag_url} alt="" style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
+                    )}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '10px', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                  🔒 Se desbloqueará cuando se resuelva el órdago anterior
+                </div>
+              </div>
+            )}
+            {ordago.status === 'locked' && !match && (
               <div style={{
                 padding: '12px', textAlign: 'center',
                 fontSize: '11px', color: 'var(--text-dim)', fontStyle: 'italic'
               }}>
-                Se desbloqueara cuando se resuelva el ordago anterior
+                🔒 Se desbloqueará cuando se resuelva el órdago anterior
               </div>
             )}
           </div>
         )
       })}
 
-      {/* Remaining locked count */}
-      {visibleOrdagos.length < totalOrdagos && (
-        <div style={{
-          textAlign: 'center', padding: '14px',
-          fontSize: '12px', color: 'var(--text-dim)'
-        }}>
-          {totalOrdagos - visibleOrdagos.length} ordago{totalOrdagos - visibleOrdagos.length > 1 ? 's' : ''} mas por desbloquear
-        </div>
-      )}
+      {/* All ordagos are now visible */}
     </div>
   )
 }

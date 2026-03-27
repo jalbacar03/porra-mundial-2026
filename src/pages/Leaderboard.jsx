@@ -7,11 +7,26 @@ export default function Leaderboard({ demoMode }) {
   const [rankings, setRankings] = useState([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState(null)
-  const [activeTab, setActiveTab] = useState('general') // 'general' | 'last3'
+  const [activeTab, setActiveTab] = useState('general')
   const [last3Rankings, setLast3Rankings] = useState([])
+  const [profileNames, setProfileNames] = useState({})
+
+  // Mock data for demo mode (hook must be before any return)
+  const mockRankings = useMemo(() => {
+    if (!demoMode || !userId) return []
+    return generateMockLeaderboard(userId)
+  }, [demoMode, userId])
 
   useEffect(() => {
     fetchData()
+    // Fetch nicknames
+    supabase.from('profiles').select('id, full_name, nickname').then(({ data }) => {
+      if (data) {
+        const map = {}
+        data.forEach(p => { map[p.id] = p.nickname || p.full_name || 'Participante' })
+        setProfileNames(map)
+      }
+    })
   }, [])
 
   async function fetchData() {
@@ -24,7 +39,6 @@ export default function Leaderboard({ demoMode }) {
 
     if (!error && data) setRankings(data)
 
-    // Last 3 days: get matches finished in last 3 days and compute rankings from those
     await fetchLast3Days(user?.id)
     setLoading(false)
   }
@@ -33,7 +47,6 @@ export default function Leaderboard({ demoMode }) {
     const threeDaysAgo = new Date()
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
 
-    // Get matches finished recently (using updated_at or we check status + date)
     const { data: recentMatches } = await supabase
       .from('matches')
       .select('id')
@@ -47,7 +60,6 @@ export default function Leaderboard({ demoMode }) {
 
     const matchIds = recentMatches.map(m => m.id)
 
-    // Get predictions for those matches
     const { data: preds } = await supabase
       .from('predictions')
       .select('user_id, points_earned, match_id')
@@ -58,7 +70,6 @@ export default function Leaderboard({ demoMode }) {
       return
     }
 
-    // Get all profiles for names
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, nickname')
@@ -66,7 +77,6 @@ export default function Leaderboard({ demoMode }) {
     const profileMap = {}
     profiles?.forEach(p => { profileMap[p.id] = p.nickname || p.full_name })
 
-    // Aggregate by user
     const userStats = {}
     preds.forEach(p => {
       if (!userStats[p.user_id]) {
@@ -97,33 +107,15 @@ export default function Leaderboard({ demoMode }) {
     'linear-gradient(135deg, #c0c0c0, #808080)',
     'linear-gradient(135deg, #cd7f32, #8b4513)'
   ]
-  // Mock data for demo mode
-  const mockRankings = useMemo(() => {
-    if (!demoMode || !userId) return []
-    return generateMockLeaderboard(userId)
-  }, [demoMode, userId])
-
-  // Fetch nicknames for general tab too
-  const [profileNames, setProfileNames] = useState({})
-  useEffect(() => {
-    supabase.from('profiles').select('id, full_name, nickname').then(({ data }) => {
-      if (data) {
-        const map = {}
-        data.forEach(p => { map[p.id] = p.nickname || p.full_name || 'Participante' })
-        setProfileNames(map)
-      }
-    })
-  }, [])
 
   const allRankings = demoMode ? mockRankings : (activeTab === 'general'
     ? rankings.map(r => ({ ...r, full_name: profileNames[r.user_id] || r.full_name || 'Participante' }))
     : last3Rankings)
-  // Separate Bot365 from real participants
+
   const bot365Entry = allRankings.find(u => u.user_id === BOT365_ID)
   const currentRankings = allRankings.filter(u => u.user_id !== BOT365_ID)
   const isEmpty = currentRankings.length === 0
 
-  // Compute tied ranks (only among real participants)
   function getTiedRank(index) {
     if (index === 0) return { rank: 1, tied: false }
     const pts = currentRankings[index].total_points
@@ -142,7 +134,6 @@ export default function Leaderboard({ demoMode }) {
     return { rank, tied }
   }
 
-  // Find where Bot365 line should be inserted (after the last person with more points)
   const bot365InsertAfter = bot365Entry
     ? currentRankings.filter(u => u.total_points > bot365Entry.total_points).length
     : -1
@@ -211,18 +202,17 @@ export default function Leaderboard({ demoMode }) {
 
       {isEmpty ? (
         <div style={{
-          padding: '40px 20px', textAlign: 'center', color: 'var(--text-dim)',
+          padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)',
           fontSize: '13px', background: 'var(--bg-secondary)', borderRadius: '8px',
           border: '0.5px solid var(--border)'
         }}>
           {activeTab === 'general'
-            ? 'Aún no hay datos de clasificación'
+            ? 'Aún no hay datos de clasificación. Se rellenará cuando empiecen los partidos.'
             : 'No hay partidos finalizados en los últimos 3 días'
           }
         </div>
       ) : (
         <>
-          {/* ===== TABLE ===== */}
           {/* Table header */}
           <div style={{
             display: 'flex', padding: '8px 12px', fontSize: '10px',
@@ -234,7 +224,7 @@ export default function Leaderboard({ demoMode }) {
             <span style={{ width: '55px', textAlign: 'center' }}>Puntos</span>
           </div>
 
-          {/* Table rows with Bot365 reference line */}
+          {/* Table rows */}
           {currentRankings.map((user, index) => {
             const isMe = user.user_id === userId
             const { rank, tied } = getTiedRank(index)
@@ -243,7 +233,6 @@ export default function Leaderboard({ demoMode }) {
 
             return (
               <div key={user.user_id}>
-                {/* Bot365 reference line — inserted at the right position */}
                 {showBot365Line && (
                   <div style={{
                     display: 'flex', alignItems: 'center', padding: '4px 12px',
@@ -263,7 +252,6 @@ export default function Leaderboard({ demoMode }) {
                   </div>
                 )}
 
-                {/* Regular participant row */}
                 <div style={{
                   display: 'flex', alignItems: 'center', padding: '10px 12px',
                   borderBottom: '0.5px solid var(--border-light)',
@@ -307,7 +295,7 @@ export default function Leaderboard({ demoMode }) {
             )
           })}
 
-          {/* Bot365 line at the bottom if everyone is above it */}
+          {/* Bot365 at the bottom */}
           {bot365Entry && bot365InsertAfter >= currentRankings.length && (
             <div style={{
               display: 'flex', alignItems: 'center', padding: '4px 12px',
