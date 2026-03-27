@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../supabase'
+import { generateMockLeaderboard } from '../hooks/useDemoMode'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
-export default function Leaderboard() {
+export default function Leaderboard({ demoMode }) {
   const [rankings, setRankings] = useState([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState(null)
@@ -96,7 +97,13 @@ export default function Leaderboard() {
     'linear-gradient(135deg, #c0c0c0, #808080)',
     'linear-gradient(135deg, #cd7f32, #8b4513)'
   ]
-  const allRankings = activeTab === 'general' ? rankings : last3Rankings
+  // Mock data for demo mode
+  const mockRankings = useMemo(() => {
+    if (!demoMode || !userId) return []
+    return generateMockLeaderboard(userId)
+  }, [demoMode, userId])
+
+  const allRankings = demoMode ? mockRankings : (activeTab === 'general' ? rankings : last3Rankings)
   // Separate Bot365 from real participants
   const bot365Entry = allRankings.find(u => u.user_id === BOT365_ID)
   const currentRankings = allRankings.filter(u => u.user_id !== BOT365_ID)

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import { generateMockLeaderboard } from '../hooks/useDemoMode'
 
-export default function Dashboard({ session }) {
+export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [stats, setStats] = useState({ total: 0, completed: 0, points: 0, exactHits: 0, signHits: 0, rank: '-' })
@@ -14,6 +15,15 @@ export default function Dashboard({ session }) {
   const [dailyInsight, setDailyInsight] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
   const [loading, setLoading] = useState(true)
+
+  // Stable mock data (regenerate only when demoMode changes)
+  const mockData = useMemo(() => {
+    if (!demoMode) return null
+    const mockRankings = generateMockLeaderboard(session.user.id)
+    const myMock = mockRankings.find(r => r.user_id === session.user.id)
+    const myIdx = mockRankings.indexOf(myMock)
+    return { rankings: mockRankings, myStats: myMock, myRank: myIdx + 1 }
+  }, [demoMode, session.user.id])
 
   useEffect(() => {
     fetchAll()
@@ -165,8 +175,18 @@ export default function Dashboard({ session }) {
     )
   }
 
+  // Use mock data in demo mode
+  const displayStats = demoMode && mockData
+    ? { ...stats, points: mockData.myStats?.total_points || 27, exactHits: mockData.myStats?.exact_hits || 5, rank: mockData.myRank }
+    : stats
+  const displayTopRanking = demoMode && mockData ? mockData.rankings.slice(0, 5) : topRanking
+  const displayTotalUsers = demoMode && mockData ? mockData.rankings.length : totalUsers
+  const displayInsight = demoMode
+    ? 'Jornada 2 del Mundial completada. Espana goleo 3-0 a Croacia con un doblete de Pedri. Argentina empato 1-1 ante Senegal en un partido muy disputado. Brasil vencio a Panama por la minima (1-0) con gol de Vinicius en el 89\'. Japon dio la sorpresa al derrotar a Alemania 2-1 repitiendo la hazana de Qatar 2022.'
+    : dailyInsight
+
   // Top 5 max points for bar scaling
-  const maxPoints = topRanking.length > 0 ? Math.max(topRanking[0]?.total_points || 1, 1) : 1
+  const maxPoints = displayTopRanking.length > 0 ? Math.max(displayTopRanking[0]?.total_points || 1, 1) : 1
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
@@ -201,20 +221,20 @@ export default function Dashboard({ session }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
             <span style={{ fontSize: '40px', fontWeight: '700', color: '#fff', lineHeight: 1 }}>
-              {stats.rank}
+              {displayStats.rank}
             </span>
             <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)' }}>
-              / {totalUsers > 0 ? totalUsers : '...'}
+              / {displayTotalUsers > 0 ? displayTotalUsers : '...'}
             </span>
           </div>
           <div style={{ marginTop: '10px', display: 'flex', gap: '16px', alignItems: 'center' }}>
             <div>
-              <span style={{ fontSize: '22px', fontWeight: '700', color: 'var(--gold)' }}>{stats.points}</span>
+              <span style={{ fontSize: '22px', fontWeight: '700', color: 'var(--gold)' }}>{displayStats.points}</span>
               <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginLeft: '4px' }}>puntos</span>
             </div>
             <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
             <div>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#4ade80' }}>{stats.exactHits}</span>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#4ade80' }}>{displayStats.exactHits}</span>
               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginLeft: '3px' }}>exactos</span>
             </div>
           </div>
@@ -250,12 +270,12 @@ export default function Dashboard({ session }) {
           }}>
             Generando crónica...
           </div>
-        ) : dailyInsight ? (
+        ) : displayInsight ? (
           <div style={{
             fontSize: '13px', color: 'var(--text-secondary)',
             lineHeight: '1.7', whiteSpace: 'pre-line'
           }}>
-            {dailyInsight}
+            {displayInsight}
           </div>
         ) : (
           <div style={{
@@ -399,7 +419,7 @@ export default function Dashboard({ session }) {
       )}
 
       {/* ===== TOP 5 RANKING (Visual bars) ===== */}
-      {topRanking.length > 0 && (
+      {displayTopRanking.length > 0 && (
         <div style={{
           background: 'var(--bg-secondary)',
           borderRadius: '8px',
@@ -423,7 +443,7 @@ export default function Dashboard({ session }) {
             </span>
           </div>
 
-          {topRanking.map((user, index) => {
+          {displayTopRanking.map((user, index) => {
             const isMe = user.user_id === session.user.id
             const barColors = [
               'linear-gradient(90deg, #ffd700, #b8860b)',
@@ -435,7 +455,7 @@ export default function Dashboard({ session }) {
             const barWidth = maxPoints > 0 ? Math.max((user.total_points / maxPoints) * 100, 8) : 8
 
             return (
-              <div key={user.user_id} style={{ marginBottom: index < topRanking.length - 1 ? '8px' : 0 }}>
+              <div key={user.user_id} style={{ marginBottom: index < displayTopRanking.length - 1 ? '8px' : 0 }}>
                 {/* Name row */}
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px'

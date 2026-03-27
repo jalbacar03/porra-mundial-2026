@@ -14,6 +14,7 @@ import Forum from './pages/Forum'
 import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
+import { useDemoMode } from './hooks/useDemoMode'
 
 /* ============================
    PANTALLA DE LOGIN / REGISTRO
@@ -267,7 +268,7 @@ function IconLogout({ size = 22 }) {
 /* ============================
    NAVBAR + LAYOUT PRINCIPAL
    ============================ */
-function TopNavbar({ isAdmin }) {
+function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
   const countdown = useCountdown(WORLD_CUP_START)
 
   return (
@@ -324,6 +325,25 @@ function TopNavbar({ isAdmin }) {
         <StyledNavLink to="/forum">Foro</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
+        {isAdmin && (
+          <button
+            onClick={onToggleDemo}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '4px',
+              border: demoMode ? '1px solid var(--gold)' : '1px solid var(--border)',
+              background: demoMode ? 'rgba(255,204,0,0.15)' : 'transparent',
+              color: demoMode ? 'var(--gold)' : 'var(--text-dim)',
+              fontSize: '10px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              letterSpacing: '0.5px',
+              marginLeft: '4px'
+            }}
+          >
+            {demoMode ? '🔴 DEMO' : '👁 Demo'}
+          </button>
+        )}
         <button
           onClick={() => supabase.auth.signOut()}
           style={{
@@ -343,7 +363,7 @@ function TopNavbar({ isAdmin }) {
   )
 }
 
-function BottomNavbar({ isAdmin }) {
+function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
   const location = useLocation()
 
   const navItems = [
@@ -456,6 +476,7 @@ function AppLayout({ session }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [hasPaid, setHasPaid] = useState(null) // null = cargando
   const [rulesAccepted, setRulesAccepted] = useState(null) // null = cargando
+  const { demoMode, toggle: toggleDemo } = useDemoMode(isAdmin)
 
   useEffect(() => {
     async function checkProfile() {
@@ -498,12 +519,29 @@ function AppLayout({ session }) {
         />
       )}
 
-      <TopNavbar isAdmin={isAdmin} />
+      <TopNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
+
+      {/* Demo mode banner */}
+      {demoMode && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(255,204,0,0.15), rgba(255,204,0,0.05))',
+          borderBottom: '1px solid rgba(255,204,0,0.2)',
+          padding: '6px 16px',
+          textAlign: 'center',
+          fontSize: '11px',
+          fontWeight: '600',
+          color: 'var(--gold)',
+          letterSpacing: '0.5px'
+        }}>
+          MODO DEMO — Datos simulados (solo visible para admins)
+        </div>
+      )}
+
       <div className="app-content">
         <Routes>
-          <Route path="/" element={<Dashboard session={session} />} />
+          <Route path="/" element={<Dashboard session={session} demoMode={demoMode} />} />
           <Route path="/predictions" element={<Predictions session={session} />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/news" element={<News />} />
           <Route path="/forum" element={<Forum session={session} />} />
@@ -511,7 +549,7 @@ function AppLayout({ session }) {
           {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
         </Routes>
       </div>
-      <BottomNavbar isAdmin={isAdmin} />
+      <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
     </div>
   )
 }
