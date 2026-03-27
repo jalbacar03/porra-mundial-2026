@@ -19,12 +19,15 @@ export default function Forum({ session }) {
 
   const myId = session.user.id
   const isAdmin = myId === ADMIN_ID
+  const [mutedUsers, setMutedUsers] = useState({}) // { userId: true }
+  const [isMuted, setIsMuted] = useState(false)
 
   useEffect(() => {
     fetchMessages()
     fetchAnnouncements()
     fetchProfiles()
     fetchAllReactions()
+    fetchMutedStatus()
 
     const generalChannel = supabase
       .channel('forum-general')
@@ -117,6 +120,56 @@ export default function Forum({ session }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, announcements, activeTab])
+
+  async function fetchMutedStatus() {
+    // Check if current user is muted
+    const { data: myProfile } = await supabase
+      .from('profiles')
+      .select('is_muted')
+      .eq('id', myId)
+      .single()
+    if (myProfile?.is_muted) setIsMuted(true)
+
+    // Admin: fetch all muted users
+    if (isAdmin) {
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('id, is_muted')
+        .eq('is_muted', true)
+      if (allProfiles) {
+        const map = {}
+        allProfiles.forEach(p => { map[p.id] = true })
+        setMutedUsers(map)
+      }
+    }
+  }
+
+  async function handleDeleteMessage(msgId) {
+    if (!isAdmin) return
+    if (!confirm('¿Eliminar este mensaje?')) return
+    const { error } = await supabase.from('forum_messages').delete().eq('id', msgId)
+    if (!error) {
+      setMessages(prev => prev.filter(m => m.id !== msgId))
+      setAnnouncements(prev => prev.filter(m => m.id !== msgId))
+    }
+  }
+
+  async function handleToggleMute(userId) {
+    if (!isAdmin || userId === ADMIN_ID) return
+    const currentlyMuted = mutedUsers[userId]
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_muted: !currentlyMuted })
+      .eq('id', userId)
+    if (!error) {
+      setMutedUsers(prev => {
+        const next = { ...prev }
+        if (currentlyMuted) delete next[userId]
+        else next[userId] = true
+        return next
+      })
+    }
+  }
 
   async function fetchMessages() {
     const { data } = await supabase
@@ -564,7 +617,7 @@ export default function Forum({ session }) {
                   {/* Reactions display */}
                   {renderReactions(msg)}
 
-                  {/* Action row: reply + add reaction */}
+                  {/* Action row: reply + add reaction + admin */}
                   {typeof msg.id === 'number' && (
                     <div style={{
                       display: 'flex',
@@ -586,6 +639,41 @@ export default function Forum({ session }) {
                       >
                         ↩ Responder
                       </button>
+                      {/* Admin: delete + mute */}
+                      {isAdmin && !isMine && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id) }}
+                            style={{
+                              background: 'none', border: 'none', padding: '2px 4px',
+                              fontSize: '11px', color: '#e74c3c', cursor: 'pointer', opacity: 0.7
+                            }}
+                          >
+                            🗑 Eliminar
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleMute(msg.user_id) }}
+                            style={{
+                              background: 'none', border: 'none', padding: '2px 4px',
+                              fontSize: '11px', color: mutedUsers[msg.user_id] ? '#4ade80' : '#e74c3c',
+                              cursor: 'pointer', opacity: 0.7
+                            }}
+                          >
+                            {mutedUsers[msg.user_id] ? '🔊 Desmutar' : '🔇 Silenciar'}
+                          </button>
+                        </>
+                      )}
+                      {isAdmin && isMine && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id) }}
+                          style={{
+                            background: 'none', border: 'none', padding: '2px 4px',
+                            fontSize: '11px', color: '#e74c3c', cursor: 'pointer', opacity: 0.7
+                          }}
+                        >
+                          🗑 Eliminar
+                        </button>
+                      )}
                       <div style={{ position: 'relative' }}>
                         <button
                           onClick={(e) => {
@@ -698,8 +786,23 @@ export default function Forum({ session }) {
         </div>
       )}
 
+      {/* Muted warning */}
+      {isMuted && (
+        <div style={{
+          padding: '12px 16px',
+          borderTop: '1px solid #2a2d38',
+          background: 'rgba(231,76,60,0.06)',
+          textAlign: 'center',
+          fontSize: '12px',
+          color: '#e74c3c',
+          fontWeight: '500'
+        }}>
+          🔇 Has sido silenciado por el administrador. No puedes escribir mensajes.
+        </div>
+      )}
+
       {/* Input area */}
-      {canPost ? (
+      {canPost && !isMuted ? (
         <div style={{
           padding: '10px 16px',
           borderTop: replyTo ? 'none' : '1px solid #2a2d38',
@@ -751,7 +854,7 @@ export default function Forum({ session }) {
             ➤
           </button>
         </div>
-      ) : (
+      ) : !isMuted ? (
         <div style={{
           padding: '14px 16px',
           borderTop: '1px solid #2a2d38',
@@ -761,7 +864,7 @@ export default function Forum({ session }) {
         }}>
           Solo el comité organizador puede publicar comunicados oficiales
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

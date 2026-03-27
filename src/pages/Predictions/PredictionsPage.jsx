@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCountdown, PREDICTIONS_DEADLINE, WORLD_CUP_START } from '../../hooks/useCountdown'
 import GroupMatchPredictions from './BeforeWorldCup/GroupMatchPredictions'
 import PreTournamentBets from './BeforeWorldCup/PreTournamentBets'
@@ -6,6 +7,7 @@ import DuringPlaceholder from './DuringWorldCup/DuringPlaceholder'
 import BracketView from '../../components/bracket/BracketView'
 
 export default function PredictionsPage({ session }) {
+  const navigate = useNavigate()
   const [activeBlock, setActiveBlock] = useState('before') // 'before' | 'during'
   const [activeTab, setActiveTab] = useState('matches')    // 'matches' | 'bets' | 'bracket'
   const deadline = useCountdown(PREDICTIONS_DEADLINE)
@@ -99,6 +101,23 @@ export default function PredictionsPage({ session }) {
           🔒 El plazo para predicciones pre-torneo ha finalizado
         </div>
       )}
+
+      {/* Quick access: normas */}
+      <div style={{
+        display: 'flex', gap: '8px', marginBottom: '12px'
+      }}>
+        <button
+          onClick={() => navigate('/rules')}
+          style={{
+            flex: 1, padding: '8px 12px', borderRadius: '6px',
+            border: '0.5px solid var(--border)', background: 'var(--bg-secondary)',
+            color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+          }}
+        >
+          📋 ¿Cómo funciona? Ver normas
+        </button>
+      </div>
 
       {/* Main block selector: Antes / Durante */}
       <div style={{

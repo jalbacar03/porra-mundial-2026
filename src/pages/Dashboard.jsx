@@ -287,36 +287,45 @@ export default function Dashboard({ session, demoMode }) {
         )}
       </div>
 
-      {/* ===== DAILY BET WIDGET ===== */}
+      {/* ===== ÓRDAGOS + NORMAS QUICK ACCESS ===== */}
       <div style={{
-        background: 'var(--bg-secondary)',
+        background: 'linear-gradient(135deg, rgba(255,204,0,0.06), rgba(255,204,0,0.02))',
         borderRadius: '10px',
-        padding: '16px 20px',
+        padding: '16px 18px',
         marginBottom: '12px',
-        border: '0.5px solid var(--border)',
-        position: 'relative',
-        overflow: 'hidden',
-        minHeight: '80px'
+        border: '0.5px solid rgba(255,204,0,0.12)'
       }}>
         <div style={{
           fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
           letterSpacing: '1px', fontWeight: '600', marginBottom: '10px',
           display: 'flex', alignItems: 'center', gap: '6px'
         }}>
-          <span>🎲</span> Órdago #1
+          <span>🎲</span> Órdagos del Mundial
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-            ¿Quién marcará el primer gol del día?
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <div style={{ padding: '6px 14px', background: 'var(--green)', borderRadius: '4px', fontSize: '12px', color: '#fff' }}>Mbappé</div>
-          <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Vini Jr</div>
-          <div style={{ padding: '6px 14px', background: 'var(--bg-input)', borderRadius: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>Haaland</div>
-        </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '10px', textAlign: 'center' }}>
-          Próximamente — disponible durante el Mundial
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 12px' }}>
+          6 apuestas especiales a partidos concretos. Se desbloquean durante el torneo. ¿Te atreves?
+        </p>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => navigate('/predictions')}
+            style={{
+              flex: 1, padding: '10px', borderRadius: '6px', border: 'none',
+              background: 'var(--gold)', color: '#1a1d26',
+              fontSize: '12px', fontWeight: '600', cursor: 'pointer'
+            }}
+          >
+            🎲 Ir a Órdagos
+          </button>
+          <button
+            onClick={() => navigate('/rules')}
+            style={{
+              flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,204,0,0.2)',
+              background: 'transparent', color: 'var(--gold)',
+              fontSize: '12px', fontWeight: '600', cursor: 'pointer'
+            }}
+          >
+            📋 Ver normas
+          </button>
         </div>
       </div>
 

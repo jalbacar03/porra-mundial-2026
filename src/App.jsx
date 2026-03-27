@@ -291,7 +291,7 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
           </span>
         </NavLink>
 
-        {!countdown.expired && (
+        {!countdown.expired ? (
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -310,6 +310,27 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
               fontVariantNumeric: 'tabular-nums'
             }}>
               {countdown.days}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m
+            </span>
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'linear-gradient(135deg, rgba(0,122,69,0.3), rgba(0,94,58,0.3))',
+            padding: '4px 12px',
+            borderRadius: '4px',
+            border: '0.5px solid rgba(0,122,69,0.25)'
+          }}>
+            <span style={{ fontSize: '10px' }}>⚽</span>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              color: '#4ade80',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase'
+            }}>
+              DÍA {Math.floor((Date.now() - WORLD_CUP_START.getTime()) / 86400000) + 1}
             </span>
           </div>
         )}

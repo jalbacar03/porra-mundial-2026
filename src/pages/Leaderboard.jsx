@@ -103,7 +103,21 @@ export default function Leaderboard({ demoMode }) {
     return generateMockLeaderboard(userId)
   }, [demoMode, userId])
 
-  const allRankings = demoMode ? mockRankings : (activeTab === 'general' ? rankings : last3Rankings)
+  // Fetch nicknames for general tab too
+  const [profileNames, setProfileNames] = useState({})
+  useEffect(() => {
+    supabase.from('profiles').select('id, full_name, nickname').then(({ data }) => {
+      if (data) {
+        const map = {}
+        data.forEach(p => { map[p.id] = p.nickname || p.full_name || 'Participante' })
+        setProfileNames(map)
+      }
+    })
+  }, [])
+
+  const allRankings = demoMode ? mockRankings : (activeTab === 'general'
+    ? rankings.map(r => ({ ...r, full_name: profileNames[r.user_id] || r.full_name || 'Participante' }))
+    : last3Rankings)
   // Separate Bot365 from real participants
   const bot365Entry = allRankings.find(u => u.user_id === BOT365_ID)
   const currentRankings = allRankings.filter(u => u.user_id !== BOT365_ID)
