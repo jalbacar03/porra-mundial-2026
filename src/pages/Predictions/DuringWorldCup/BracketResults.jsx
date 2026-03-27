@@ -6,21 +6,19 @@ const STAGE_LABELS = {
   r32: 'Dieciseisavos', r16: 'Octavos',
   quarter_final: 'Cuartos', semi_final: 'Semifinales', final: 'Final'
 }
-const STAGE_POINTS = {
-  r32: 0, r16: 1, quarter_final: 2, semi_final: 4, final: 5
-}
 
 export default function BracketResults({ session }) {
   const [matches, setMatches] = useState([])
-  const [picks, setPicks] = useState({}) // matchId → 'home' | 'away'
+  const [predictions, setPredictions] = useState({}) // matchId → { home, away }
+  const [savedPredictions, setSavedPredictions] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState({})
-  const [activeRound, setActiveRound] = useState('final')
+  const [activeRound, setActiveRound] = useState('r32')
   const [now, setNow] = useState(new Date())
 
   const userId = session?.user?.id
 
-  // Tick every minute for countdown timers
+  // Tick every minute
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000)
     return () => clearInterval(timer)
@@ -29,7 +27,7 @@ export default function BracketResults({ session }) {
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
-    const [matchesRes, picksRes] = await Promise.all([
+    const [matchesRes, predsRes] = await Promise.all([
       supabase.from('matches')
         .select('id, stage, status, home_score, away_score, match_date, home_team_id, away_team_id, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
         .neq('stage', 'group')
@@ -42,78 +40,136 @@ export default function BracketResults({ session }) {
 
     setMatches(matchesRes.data || [])
 
-    // Convert predictions to picks: predicted_home > predicted_away = 'home', else 'away'
-    const pickMap = {}
-    ;(picksRes.data || []).forEach(p => {
+    const predMap = {}
+    ;(predsRes.data || []).forEach(p => {
       if (p.predicted_home !== null && p.predicted_away !== null) {
-        pickMap[p.match_id] = p.predicted_home > p.predicted_away ? 'home' : 'away'
+        predMap[p.match_id] = { home: p.predicted_home, away: p.predicted_away }
       }
     })
-    setPicks(pickMap)
+    setPredictions(predMap)
+    setSavedPredictions(predMap)
     setLoading(false)
 
-    // Auto-select the most relevant round
+    // Auto-select most relevant round
     const m = matchesRes.data || []
     const firstOpen = STAGE_ORDER.find(s => m.some(match => match.stage === s && match.status !== 'finished'))
     if (firstOpen) setActiveRound(firstOpen)
   }
 
-  const handlePick = useCallback(async (matchId, side) => {
-    if (!userId) return
-    const prev = picks[matchId]
-    if (prev === side) return // already picked this
-
-    // Optimistic update
-    setPicks(p => ({ ...p, [matchId]: side }))
-    setSaving(s => ({ ...s, [matchId]: true }))
-
-    const predicted_home = side === 'home' ? 1 : 0
-    const predicted_away = side === 'away' ? 1 : 0
-
-    const { error } = await supabase.from('predictions').upsert({
-      user_id: userId,
-      match_id: matchId,
-      predicted_home,
-      predicted_away
-    }, { onConflict: 'user_id,match_id' })
-
-    if (error) {
-      // Revert on error
-      setPicks(p => ({ ...p, [matchId]: prev }))
-      console.error('Error saving pick:', error)
-    }
-
-    setSaving(s => ({ ...s, [matchId]: false }))
-  }, [userId, picks])
-
-  // Countdown helpers
-  function getBettingDeadline(matchDate) {
-    return new Date(new Date(matchDate).getTime() - 3 * 60 * 60 * 1000)
+  // Deadline: 2h before match
+  function getDeadline(matchDate) {
+    return new Date(new Date(matchDate).getTime() - 2 * 60 * 60 * 1000)
   }
 
   function isBettingOpen(match) {
     if (match.status === 'finished') return false
     if (!match.match_date) return false
-    return now < getBettingDeadline(match.match_date)
+    return now < getDeadline(match.match_date)
   }
 
   function formatCountdown(matchDate) {
-    const deadline = getBettingDeadline(matchDate)
+    const deadline = getDeadline(matchDate)
     const diff = deadline - now
     if (diff <= 0) return null
-
     const days = Math.floor(diff / 86400000)
     const hours = Math.floor((diff % 86400000) / 3600000)
     const mins = Math.floor((diff % 3600000) / 60000)
-
     if (days > 0) return `${days}d ${hours}h`
     if (hours > 0) return `${hours}h ${mins}m`
     return `${mins}m`
   }
 
-  function getWinner(m) {
-    if (!m || m.status !== 'finished') return null
-    return m.home_score > m.away_score ? m.home_team : m.away_team
+  function updatePrediction(matchId, field, value) {
+    if (value !== '' && (isNaN(value) || parseInt(value) < 0 || parseInt(value) > 99)) return
+    setPredictions(prev => ({
+      ...prev,
+      [matchId]: {
+        ...prev[matchId],
+        [field]: value === '' ? '' : parseInt(value)
+      }
+    }))
+  }
+
+  const handleSave = useCallback(async (matchId) => {
+    if (!userId) return
+    const pred = predictions[matchId]
+    if (!pred || pred.home === '' || pred.home === undefined ||
+        pred.away === '' || pred.away === undefined) return
+
+    setSaving(s => ({ ...s, [matchId]: true }))
+
+    const { error } = await supabase.from('predictions').upsert({
+      user_id: userId,
+      match_id: matchId,
+      predicted_home: pred.home,
+      predicted_away: pred.away
+    }, { onConflict: 'user_id,match_id' })
+
+    if (!error) {
+      setSavedPredictions(prev => ({ ...prev, [matchId]: { ...pred } }))
+    }
+
+    setSaving(s => ({ ...s, [matchId]: false }))
+  }, [userId, predictions])
+
+  // Save all predictions for active round
+  const handleSaveRound = useCallback(async () => {
+    if (!userId) return
+    const roundMatches = matches.filter(m => m.stage === activeRound)
+    const toSave = []
+
+    for (const match of roundMatches) {
+      const pred = predictions[match.id]
+      if (pred && pred.home !== '' && pred.home !== undefined &&
+          pred.away !== '' && pred.away !== undefined && isBettingOpen(match)) {
+        toSave.push({
+          user_id: userId,
+          match_id: match.id,
+          predicted_home: pred.home,
+          predicted_away: pred.away
+        })
+      }
+    }
+
+    if (toSave.length === 0) return
+
+    setSaving(s => ({ ...s, round: true }))
+    const { error } = await supabase
+      .from('predictions')
+      .upsert(toSave, { onConflict: 'user_id,match_id' })
+
+    if (!error) {
+      const newSaved = { ...savedPredictions }
+      toSave.forEach(p => {
+        newSaved[p.match_id] = { home: p.predicted_home, away: p.predicted_away }
+      })
+      setSavedPredictions(newSaved)
+    }
+    setSaving(s => ({ ...s, round: false }))
+  }, [userId, matches, predictions, activeRound, savedPredictions])
+
+  // Scoring helpers
+  function getMatchResult(match, pred) {
+    if (!match || match.status !== 'finished' || !pred) return null
+    if (match.home_score === null || match.away_score === null) return null
+    if (pred.home === '' || pred.home === undefined) return null
+
+    const isExact = pred.home === match.home_score && pred.away === match.away_score
+    const realSign = match.home_score > match.away_score ? '1' : match.home_score < match.away_score ? '2' : 'X'
+    const predSign = pred.home > pred.away ? '1' : pred.home < pred.away ? '2' : 'X'
+    const isSign = realSign === predSign
+
+    if (isExact) return { type: 'exact', points: 3 }
+    if (isSign) return { type: 'sign', points: 1 }
+    return { type: 'fallo', points: 0 }
+  }
+
+  function hasUnsavedChanges(matchId) {
+    const current = predictions[matchId]
+    const saved = savedPredictions[matchId]
+    if (!current || current.home === '' || current.home === undefined) return false
+    if (!saved) return true
+    return current.home !== saved.home || current.away !== saved.away
   }
 
   if (loading) {
@@ -121,16 +177,16 @@ export default function BracketResults({ session }) {
   }
 
   if (matches.length === 0) {
-    return <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Las eliminatorias aún no han comenzado</div>
+    return <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Las eliminatorias aun no han comenzado</div>
   }
 
   const roundMatches = STAGE_ORDER.map(stage => ({
-    stage, label: STAGE_LABELS[stage], points: STAGE_POINTS[stage],
+    stage, label: STAGE_LABELS[stage],
     matches: matches.filter(m => m.stage === stage)
   })).filter(r => r.matches.length > 0)
 
-  const finalMatch = matches.find(m => m.stage === 'final')
-  const semifinalists = matches.filter(m => m.stage === 'semi_final')
+  const activeRoundData = roundMatches.find(r => r.stage === activeRound)
+  const hasAnyUnsaved = activeRoundData?.matches.some(m => hasUnsavedChanges(m.id) && isBettingOpen(m))
 
   return (
     <div>
@@ -140,115 +196,19 @@ export default function BracketResults({ session }) {
           Cuadro de eliminatorias
         </h3>
         <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
-          Elige al ganador de cada partido. Apuestas cierran 3h antes del inicio.
+          Predice el resultado a 90 minutos. Apuestas cierran 2h antes del inicio.
         </p>
+        <div style={{
+          marginTop: '8px', display: 'flex', gap: '12px',
+          fontSize: '10px', color: 'var(--text-dim)'
+        }}>
+          <span><strong style={{ color: '#4ade80' }}>3 pts</strong> exacto</span>
+          <span><strong style={{ color: 'var(--gold)' }}>1 pt</strong> signo 1X2</span>
+          <span><strong style={{ color: 'var(--text-dim)' }}>0</strong> fallo</span>
+        </div>
       </div>
 
-      {/* ===== FINAL HERO ===== */}
-      {finalMatch && (
-        <div style={{
-          background: 'linear-gradient(135deg, #22252f, #1a2520)',
-          borderRadius: '12px', padding: '18px', marginBottom: '16px',
-          border: '1px solid var(--green)', position: 'relative', overflow: 'hidden'
-        }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, var(--gold), var(--green), var(--gold))' }} />
-          <div style={{ fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: '700', textAlign: 'center', marginBottom: '14px' }}>
-            🏆 Final del Mundial 2026
-          </div>
-
-          {finalMatch.status === 'finished' ? (
-            /* Finished final */
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  {finalMatch.home_team?.flag_url && <img src={finalMatch.home_team.flag_url} alt="" style={{ width: '40px', height: '28px', borderRadius: '3px', objectFit: 'cover', marginBottom: '4px', border: '1px solid var(--border)' }} />}
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>{finalMatch.home_team?.name}</div>
-                </div>
-                <div style={{ fontSize: '26px', fontWeight: '800', color: 'var(--gold)', letterSpacing: '3px' }}>
-                  {finalMatch.home_score} - {finalMatch.away_score}
-                </div>
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  {finalMatch.away_team?.flag_url && <img src={finalMatch.away_team.flag_url} alt="" style={{ width: '40px', height: '28px', borderRadius: '3px', objectFit: 'cover', marginBottom: '4px', border: '1px solid var(--border)' }} />}
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>{finalMatch.away_team?.name}</div>
-                </div>
-              </div>
-              {(() => { const c = getWinner(finalMatch); return c ? (
-                <div style={{ textAlign: 'center', marginTop: '12px', padding: '8px', background: 'rgba(255,204,0,0.08)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '20px' }}>🏆</div>
-                  <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--gold)' }}>{c.name}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>Campeón del Mundo 2026</div>
-                </div>
-              ) : null })()}
-            </>
-          ) : (
-            /* Betting on final */
-            <>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                {['home', 'away'].map(side => {
-                  const team = side === 'home' ? finalMatch.home_team : finalMatch.away_team
-                  const picked = picks[finalMatch.id] === side
-                  const open = isBettingOpen(finalMatch)
-                  return (
-                    <button key={side} onClick={() => open && handlePick(finalMatch.id, side)} disabled={!open} style={{
-                      flex: 1, padding: '14px 8px', borderRadius: '8px', border: 'none', cursor: open ? 'pointer' : 'default',
-                      background: picked ? 'rgba(0,122,69,0.15)' : 'var(--bg-input)',
-                      border: picked ? '2px solid var(--green)' : '2px solid transparent',
-                      opacity: !open && !picked ? 0.5 : 1, transition: 'all 0.2s'
-                    }}>
-                      {team?.flag_url && <img src={team.flag_url} alt="" style={{ width: '36px', height: '24px', borderRadius: '3px', objectFit: 'cover', marginBottom: '6px', border: '1px solid var(--border)' }} />}
-                      <div style={{ fontSize: '13px', fontWeight: picked ? '700' : '500', color: picked ? 'var(--green)' : 'var(--text-primary)' }}>
-                        {team?.name || 'TBD'}
-                      </div>
-                      {picked && <div style={{ fontSize: '10px', color: 'var(--green)', marginTop: '4px', fontWeight: '600' }}>✓ Tu apuesta</div>}
-                    </button>
-                  )
-                })}
-              </div>
-              {/* Timer */}
-              {finalMatch.match_date && (() => {
-                const countdown = formatCountdown(finalMatch.match_date)
-                const open = isBettingOpen(finalMatch)
-                return (
-                  <div style={{ textAlign: 'center', fontSize: '11px', color: open ? 'var(--gold)' : 'var(--red)' }}>
-                    {open ? `⏱ Cierre apuestas en ${countdown}` : '🔒 Apuestas cerradas'}
-                  </div>
-                )
-              })()}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ===== SEMIFINAL FLOW ===== */}
-      {semifinalists.length === 2 && (
-        <div style={{
-          background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px',
-          marginBottom: '16px', border: '0.5px solid var(--border)'
-        }}>
-          <div style={{ fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700', marginBottom: '10px', textAlign: 'center' }}>
-            Camino a la final
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {semifinalists.map((sf, i) => {
-              const winner = getWinner(sf)
-              return (
-                <div key={sf.id} style={{
-                  flex: 1, background: 'var(--bg-input)', borderRadius: '8px', padding: '8px', textAlign: 'center',
-                  border: winner ? '1px solid var(--green)' : '0.5px solid var(--border)'
-                }}>
-                  <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '4px' }}>SF {i + 1}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-primary)' }}>{sf.home_team?.name?.split(' ')[0]}</div>
-                  {sf.status === 'finished' && <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--green)', margin: '2px 0' }}>{sf.home_score}-{sf.away_score}</div>}
-                  <div style={{ fontSize: '11px', color: 'var(--text-primary)' }}>{sf.away_team?.name?.split(' ')[0]}</div>
-                  {winner && <div style={{ marginTop: '4px', fontSize: '9px', color: 'var(--green)', fontWeight: '600' }}>→ {winner.name}</div>}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ===== ROUND TABS ===== */}
+      {/* Round tabs */}
       <div style={{
         display: 'flex', gap: '4px', marginBottom: '14px',
         padding: '3px', background: 'var(--bg-input)', borderRadius: '8px', overflowX: 'auto'
@@ -256,6 +216,7 @@ export default function BracketResults({ session }) {
         {roundMatches.map(round => {
           const finished = round.matches.filter(m => m.status === 'finished').length
           const total = round.matches.length
+          const predicted = round.matches.filter(m => savedPredictions[m.id]).length
           return (
             <button key={round.stage} onClick={() => setActiveRound(round.stage)} style={{
               flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none',
@@ -266,148 +227,200 @@ export default function BracketResults({ session }) {
             }}>
               {round.label}
               {finished === total && total > 0 ? (
-                <span style={{ display: 'block', fontSize: '8px', color: 'var(--green)', marginTop: '1px' }}>✓</span>
-              ) : round.points > 0 ? (
-                <span style={{ display: 'block', fontSize: '8px', color: 'var(--text-dim)', marginTop: '1px' }}>{round.points}pt</span>
-              ) : null}
+                <span style={{ display: 'block', fontSize: '8px', color: 'var(--green)', marginTop: '1px' }}>✓ {finished}/{total}</span>
+              ) : (
+                <span style={{ display: 'block', fontSize: '8px', color: 'var(--text-dim)', marginTop: '1px' }}>{predicted}/{total}</span>
+              )}
             </button>
           )
         })}
       </div>
 
-      {/* ===== MATCH CARDS ===== */}
-      {roundMatches.filter(r => r.stage === activeRound).map(round => (
-        <div key={round.stage}>
-          {round.points > 0 && (
-            <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '8px', textAlign: 'center' }}>
-              {round.points} punto{round.points > 1 ? 's' : ''} por acierto
-            </div>
-          )}
-
-          {round.matches.map(match => {
+      {/* Match cards */}
+      {activeRoundData && (
+        <div>
+          {activeRoundData.matches.map(match => {
             const isFinished = match.status === 'finished'
-            const winner = getWinner(match)
-            const homeWon = winner?.name === match.home_team?.name
-            const awayWon = winner?.name === match.away_team?.name
             const open = isBettingOpen(match)
-            const myPick = picks[match.id]
+            const pred = predictions[match.id] || {}
+            const saved = savedPredictions[match.id]
             const countdown = match.match_date ? formatCountdown(match.match_date) : null
             const isSaving = saving[match.id]
-
-            // Did user's pick match the winner?
-            const pickCorrect = isFinished && myPick && (
-              (myPick === 'home' && homeWon) || (myPick === 'away' && awayWon)
-            )
-            const pickWrong = isFinished && myPick && !pickCorrect
+            const result = getMatchResult(match, saved)
+            const unsaved = hasUnsavedChanges(match.id)
 
             return (
               <div key={match.id} style={{
                 background: 'var(--bg-secondary)', borderRadius: '10px', padding: '12px 14px',
                 marginBottom: '8px',
-                border: isFinished ? '0.5px solid var(--green)' : '0.5px solid var(--border)',
-                borderLeft: pickCorrect ? '3px solid var(--gold)' : pickWrong ? '3px solid var(--red)' : isFinished ? '3px solid var(--green)' : '3px solid var(--border)'
+                borderLeft: result
+                  ? result.type === 'exact' ? '3px solid var(--gold)'
+                  : result.type === 'sign' ? '3px solid var(--green)'
+                  : '3px solid var(--red)'
+                  : isFinished ? '3px solid var(--green)' : '3px solid var(--border)',
+                border: result
+                  ? result.type === 'exact' ? '1px solid rgba(255,204,0,0.3)'
+                  : result.type === 'sign' ? '1px solid rgba(0,122,69,0.2)'
+                  : '1px solid rgba(231,76,60,0.2)'
+                  : '0.5px solid var(--border)'
               }}>
-                {/* Header row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <span style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    #{match.id} · {round.label}
+                    #{match.id} · {activeRoundData.label}
                   </span>
                   {isFinished && (
-                    <span style={{ fontSize: '9px', color: 'var(--green)', fontWeight: '600', textTransform: 'uppercase' }}>
-                      Finalizado
-                    </span>
+                    <span style={{ fontSize: '9px', color: 'var(--green)', fontWeight: '600' }}>Finalizado</span>
                   )}
                   {!isFinished && open && countdown && (
-                    <span style={{ fontSize: '9px', color: 'var(--gold)', fontWeight: '600' }}>
-                      ⏱ {countdown}
-                    </span>
+                    <span style={{ fontSize: '9px', color: 'var(--gold)', fontWeight: '600' }}>⏱ {countdown}</span>
                   )}
                   {!isFinished && !open && (
-                    <span style={{ fontSize: '9px', color: 'var(--red)', fontWeight: '600' }}>
-                      🔒 Cerrado
-                    </span>
+                    <span style={{ fontSize: '9px', color: 'var(--red)', fontWeight: '600' }}>🔒 Cerrado</span>
                   )}
                 </div>
 
-                {/* Finished match — show results */}
-                {isFinished && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{
-                      flex: 1, display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px', borderRadius: '6px',
-                      background: homeWon ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
-                      border: homeWon ? '0.5px solid var(--green)' : '0.5px solid transparent'
+                {/* Score row: Home [input] - [input] Away */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Home team */}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                    <span style={{
+                      fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)',
+                      textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '1px', objectFit: 'cover', flexShrink: 0 }} />}
-                      <span style={{ fontSize: '12px', fontWeight: homeWon ? '700' : '400', color: homeWon ? 'var(--green)' : 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {match.home_team?.name}
-                      </span>
-                      <span style={{ fontSize: '15px', fontWeight: '700', color: homeWon ? 'var(--green)' : 'var(--text-dim)' }}>{match.home_score}</span>
-                    </div>
-                    <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>—</span>
-                    <div style={{
-                      flex: 1, display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px', borderRadius: '6px',
-                      background: awayWon ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
-                      border: awayWon ? '0.5px solid var(--green)' : '0.5px solid transparent'
-                    }}>
-                      {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '1px', objectFit: 'cover', flexShrink: 0 }} />}
-                      <span style={{ fontSize: '12px', fontWeight: awayWon ? '700' : '400', color: awayWon ? 'var(--green)' : 'var(--text-muted)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {match.away_team?.name}
-                      </span>
-                      <span style={{ fontSize: '15px', fontWeight: '700', color: awayWon ? 'var(--green)' : 'var(--text-dim)' }}>{match.away_score}</span>
-                    </div>
+                      {match.home_team?.name || 'TBD'}
+                    </span>
+                    {match.home_team?.flag_url && (
+                      <img src={match.home_team.flag_url} alt="" style={{
+                        width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0
+                      }} />
+                    )}
                   </div>
-                )}
 
-                {/* Open match — pick winner */}
-                {!isFinished && (
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {['home', 'away'].map(side => {
-                      const team = side === 'home' ? match.home_team : match.away_team
-                      const picked = myPick === side
-                      return (
-                        <button key={side} onClick={() => open && handlePick(match.id, side)} disabled={!open} style={{
-                          flex: 1, padding: '10px 8px', borderRadius: '8px',
-                          background: picked ? 'rgba(0,122,69,0.12)' : 'var(--bg-input)',
-                          border: picked ? '2px solid var(--green)' : '2px solid transparent',
-                          cursor: open ? 'pointer' : 'default',
-                          opacity: !open && !picked ? 0.5 : 1,
-                          display: 'flex', alignItems: 'center', gap: '8px',
-                          transition: 'all 0.15s'
+                  {/* Score inputs or final result */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    {isFinished ? (
+                      <>
+                        <div style={{
+                          width: '32px', height: '32px', borderRadius: '6px',
+                          background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)'
                         }}>
-                          {team?.flag_url && <img src={team.flag_url} alt="" style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />}
-                          <span style={{
-                            fontSize: '12px', fontWeight: picked ? '700' : '500',
-                            color: picked ? 'var(--green)' : 'var(--text-primary)',
-                            flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                          }}>
-                            {team?.name || 'TBD'}
-                          </span>
-                          {picked && <span style={{ fontSize: '10px', color: 'var(--green)', fontWeight: '700' }}>✓</span>}
-                        </button>
-                      )
-                    })}
+                          {match.home_score}
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '700' }}>-</span>
+                        <div style={{
+                          width: '32px', height: '32px', borderRadius: '6px',
+                          background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '16px', fontWeight: '800', color: 'var(--text-primary)'
+                        }}>
+                          {match.away_score}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="number"
+                          min="0" max="99"
+                          value={pred.home ?? ''}
+                          onChange={e => updatePrediction(match.id, 'home', e.target.value)}
+                          disabled={!open}
+                          style={{
+                            width: '36px', height: '36px', borderRadius: '6px',
+                            border: unsaved ? '1.5px solid var(--gold)' : '1.5px solid var(--border)',
+                            background: 'var(--bg-input)', color: 'var(--text-primary)',
+                            fontSize: '16px', fontWeight: '700', textAlign: 'center',
+                            outline: 'none', opacity: open ? 1 : 0.5
+                          }}
+                        />
+                        <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '700' }}>-</span>
+                        <input
+                          type="number"
+                          min="0" max="99"
+                          value={pred.away ?? ''}
+                          onChange={e => updatePrediction(match.id, 'away', e.target.value)}
+                          disabled={!open}
+                          style={{
+                            width: '36px', height: '36px', borderRadius: '6px',
+                            border: unsaved ? '1.5px solid var(--gold)' : '1.5px solid var(--border)',
+                            background: 'var(--bg-input)', color: 'var(--text-primary)',
+                            fontSize: '16px', fontWeight: '700', textAlign: 'center',
+                            outline: 'none', opacity: open ? 1 : 0.5
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {/* Away team */}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {match.away_team?.flag_url && (
+                      <img src={match.away_team.flag_url} alt="" style={{
+                        width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0
+                      }} />
+                    )}
+                    <span style={{
+                      fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      {match.away_team?.name || 'TBD'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Result feedback for finished matches */}
+                {isFinished && saved && result && (
+                  <div style={{
+                    marginTop: '8px', textAlign: 'center', fontSize: '10px'
+                  }}>
+                    <span style={{ color: 'var(--text-dim)' }}>
+                      Tu prediccion: {saved.home}-{saved.away}
+                    </span>
+                    <span style={{
+                      marginLeft: '8px', fontWeight: '600',
+                      color: result.type === 'exact' ? 'var(--gold)' :
+                             result.type === 'sign' ? '#4ade80' : '#e74c3c'
+                    }}>
+                      {result.type === 'exact' ? `¡Exacto! +${result.points}` :
+                       result.type === 'sign' ? `Signo OK +${result.points}` :
+                       'Fallo'}
+                    </span>
+                  </div>
+                )}
+                {isFinished && !saved && (
+                  <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '10px', color: 'var(--text-dim)' }}>
+                    No predijiste este partido
                   </div>
                 )}
 
-                {/* Pick result feedback */}
-                {isFinished && myPick && (
-                  <div style={{
-                    textAlign: 'center', marginTop: '6px', fontSize: '10px',
-                    color: pickCorrect ? 'var(--gold)' : 'var(--red)', fontWeight: '600'
-                  }}>
-                    {pickCorrect ? `✓ Acertaste (+${round.points} pts)` : '✗ Fallaste'}
-                  </div>
-                )}
-                {isFinished && !myPick && (
-                  <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '10px', color: 'var(--text-dim)' }}>
-                    No apostaste
+                {/* Saved indicator */}
+                {!isFinished && saved && !unsaved && (
+                  <div style={{ marginTop: '6px', textAlign: 'center', fontSize: '10px', color: 'var(--green)', fontWeight: '600' }}>
+                    ✓ Guardado ({saved.home}-{saved.away})
                   </div>
                 )}
               </div>
             )
           })}
+
+          {/* Save all button */}
+          {hasAnyUnsaved && (
+            <button
+              onClick={handleSaveRound}
+              disabled={saving.round}
+              style={{
+                width: '100%', padding: '12px', marginTop: '8px',
+                borderRadius: '8px', border: 'none',
+                background: 'var(--green)', color: '#fff',
+                fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+                opacity: saving.round ? 0.6 : 1
+              }}
+            >
+              {saving.round ? 'Guardando...' : `Guardar predicciones — ${activeRoundData.label}`}
+            </button>
+          )}
         </div>
-      ))}
+      )}
     </div>
   )
 }
