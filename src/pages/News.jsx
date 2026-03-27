@@ -43,10 +43,24 @@ export default function News() {
 
         if (data.status === 'ok' && data.items) {
           data.items.forEach(item => {
-            let image = item.thumbnail || item.enclosure?.link || null
-            if (!image && item.description) {
-              const imgMatch = item.description.match(/<img[^>]+src="([^"]+)"/)
-              if (imgMatch) image = imgMatch[1]
+            // Try to get highest quality image available
+            let image = null
+            // 1. Try description/content for full-size images
+            const content = item.content || item.description || ''
+            const imgMatch = content.match(/<img[^>]+src="([^"]+)"/)
+            if (imgMatch) image = imgMatch[1]
+            // 2. Enclosure often has better quality than thumbnail
+            if (!image && item.enclosure?.link) image = item.enclosure.link
+            // 3. Fallback to thumbnail
+            if (!image && item.thumbnail) image = item.thumbnail
+            // 4. Try to upgrade known low-res patterns to high-res
+            if (image) {
+              // Marca: upgrade thumbnail to full size
+              image = image.replace(/\/clipping\/\d+\/\d+\//, '/clipping/0/0/')
+              image = image.replace(/_\d+x\d+\./, '.')
+              // AS: remove resize params
+              image = image.replace(/\?w=\d+.*$/, '')
+              image = image.replace(/&w=\d+.*$/, '')
             }
 
             allArticles.push({
@@ -219,9 +233,10 @@ export default function News() {
               <img
                 src={heroArticle.image}
                 alt=""
+                loading="eager"
                 style={{
                   width: '100%', height: '100%', objectFit: 'cover',
-                  display: 'block'
+                  display: 'block', imageRendering: 'auto'
                 }}
                 onError={e => { e.target.parentElement.style.display = 'none' }}
               />
@@ -307,9 +322,10 @@ export default function News() {
                   <img
                     src={article.image}
                     alt=""
+                    loading="lazy"
                     style={{
                       width: '100%', height: '100%', objectFit: 'cover',
-                      display: 'block'
+                      display: 'block', imageRendering: 'auto'
                     }}
                     onError={e => { e.target.parentElement.style.display = 'none' }}
                   />

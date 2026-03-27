@@ -402,7 +402,7 @@ export default function Forum({ session }) {
               fontSize: '12px', fontWeight: activeTab === 'announcements' ? '600' : '400', cursor: 'pointer'
             }}
           >
-            Comunicados
+            Comunicados Oficiales
           </button>
         </div>
       </div>
@@ -430,7 +430,7 @@ export default function Forum({ session }) {
             color: '#ffcc00',
             textAlign: 'center'
           }}>
-            Comunicados oficiales del comite organizador
+            Comunicados Oficiales del comité organizador
           </div>
         )}
 
@@ -442,7 +442,7 @@ export default function Forum({ session }) {
             marginTop: '40px'
           }}>
             {activeTab === 'announcements'
-              ? 'No hay comunicados todavia'
+              ? 'No hay comunicados todavía'
               : 'Se el primero en escribir!'
             }
           </div>
@@ -511,7 +511,7 @@ export default function Forum({ session }) {
                       fontWeight: '600',
                       color: isAnnouncement ? '#ffcc00' : '#6b7080'
                     }}>
-                      {isAnnouncement ? 'Comite Organizador' : name}
+                      {isAnnouncement ? 'Comité Organizador' : name}
                     </span>
                   </div>
                 )}
@@ -759,7 +759,7 @@ export default function Forum({ session }) {
           fontSize: '12px',
           color: '#4a4f5e'
         }}>
-          Solo el comite organizador puede publicar comunicados
+          Solo el comité organizador puede publicar comunicados oficiales
         </div>
       )}
     </div>

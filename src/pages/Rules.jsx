@@ -68,7 +68,7 @@ export default function Rules() {
       title: 'Clasificación',
       content: [
         'La clasificación se actualiza automáticamente conforme se juegan los partidos.',
-        'En caso de empate a puntos, gana quien tenga más resultados exactos.',
+        'En caso de empate a puntos en la clasificación general, desempatará el mayor número de resultados exactos conseguidos en la fase de grupos.',
         'La clasificación de los "últimos 3 días" es solo informativa — no cuenta para la puntuación final.'
       ]
     },

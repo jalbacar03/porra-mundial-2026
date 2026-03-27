@@ -108,6 +108,7 @@ export default function Dashboard({ session }) {
     setNextMatches(upcoming)
 
     // Leaderboard + profiles for nickname
+    const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
     const { data: rankings } = await supabase
       .from('leaderboard')
       .select('*')
@@ -121,10 +122,25 @@ export default function Dashboard({ session }) {
     let rank = '-'
     let rankingsTotal = 0
     if (rankings) {
-      rankingsTotal = rankings.length
-      const idx = rankings.findIndex(r => r.user_id === session.user.id)
-      if (idx !== -1) rank = idx + 1
-      setTopRanking(rankings.slice(0, 5).map(r => ({
+      // Filter out Bot365 for user-facing data
+      const realRankings = rankings.filter(r => r.user_id !== BOT365_ID)
+      rankingsTotal = realRankings.length
+
+      // Calculate tied position
+      const myIdx = realRankings.findIndex(r => r.user_id === session.user.id)
+      if (myIdx !== -1) {
+        const myPts = realRankings[myIdx].total_points
+        let firstWithSame = myIdx
+        while (firstWithSame > 0 && realRankings[firstWithSame - 1].total_points === myPts) {
+          firstWithSame--
+        }
+        const pos = firstWithSame + 1
+        const isTied = (firstWithSame < myIdx) ||
+          (myIdx + 1 < realRankings.length && realRankings[myIdx + 1].total_points === myPts)
+        rank = isTied ? `T${pos}` : pos
+      }
+
+      setTopRanking(realRankings.slice(0, 5).map(r => ({
         ...r,
         full_name: nicknameMap[r.user_id] || r.full_name
       })))
@@ -220,6 +236,11 @@ export default function Dashboard({ session }) {
           display: 'flex', alignItems: 'center', gap: '6px'
         }}>
           <span>📰</span> Crónica del día
+          <span style={{
+            fontSize: '8px', color: 'var(--text-dim)', background: 'var(--bg-input)',
+            padding: '2px 6px', borderRadius: '3px', fontWeight: '500',
+            letterSpacing: '0.5px', marginLeft: 'auto'
+          }}>GENERADA POR IA</span>
         </div>
 
         {insightLoading ? (

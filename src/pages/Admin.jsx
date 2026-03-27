@@ -137,8 +137,7 @@ export default function Admin({ session }) {
   const totalMatches = matches.length
   const finishedMatches = matches.filter(m => m.status === 'finished').length
   const totalUsers = profiles.length
-  const paidUsers = profiles.filter(p => p.has_paid).length
-  const totalRevenue = paidUsers * 25
+  const admittedUsers = profiles.filter(p => p.has_paid).length
 
   // Group matches
   const groupMatches = matches.filter(m => m.group_name === activeGroup)
@@ -167,7 +166,7 @@ export default function Admin({ session }) {
       </div>
 
       {/* Stats cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
         <div style={{
           background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
           border: '0.5px solid var(--border)', textAlign: 'center'
@@ -183,22 +182,11 @@ export default function Admin({ session }) {
           background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
           border: '0.5px solid var(--border)', textAlign: 'center'
         }}>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: paidUsers === totalUsers ? 'var(--green)' : 'var(--gold)' }}>
-            {paidUsers}/{totalUsers}
+          <div style={{ fontSize: '20px', fontWeight: '700', color: admittedUsers === totalUsers ? 'var(--green)' : 'var(--gold)' }}>
+            {admittedUsers}/{totalUsers}
           </div>
           <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px' }}>
-            Pagados
-          </div>
-        </div>
-        <div style={{
-          background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
-          border: '0.5px solid var(--border)', textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--green)' }}>
-            {totalRevenue}€
-          </div>
-          <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px' }}>
-            Recaudado
+            Admitidos
           </div>
         </div>
       </div>
@@ -225,7 +213,7 @@ export default function Admin({ session }) {
             color: activeTab === 'payments' ? '#fff' : 'var(--text-muted)'
           }}
         >
-          Pagos
+          Solicitudes
         </button>
         <button
           onClick={() => setActiveTab('sync')}
@@ -409,10 +397,10 @@ export default function Admin({ session }) {
         </>
       )}
 
-      {/* ========== PAYMENTS TAB ========== */}
+      {/* ========== SOLICITUDES TAB ========== */}
       {activeTab === 'payments' && (
         <>
-          {/* Payment summary */}
+          {/* Summary */}
           <div style={{
             background: 'linear-gradient(135deg, #00392a, #005e3a)',
             borderRadius: '8px', padding: '14px 16px', marginBottom: '14px'
@@ -420,18 +408,18 @@ export default function Admin({ session }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                  Recaudación
+                  Solicitudes
                 </div>
-                <div style={{ fontSize: '28px', fontWeight: '700', color: '#fff', marginTop: '2px' }}>
-                  {totalRevenue}€
+                <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--gold)', marginTop: '2px' }}>
+                  {admittedUsers}<span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)' }}>/{totalUsers}</span>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                  Pagados
+                  Pendientes
                 </div>
-                <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--gold)', marginTop: '2px' }}>
-                  {paidUsers}<span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)' }}>/{totalUsers}</span>
+                <div style={{ fontSize: '28px', fontWeight: '700', color: totalUsers - admittedUsers > 0 ? '#e74c3c' : 'var(--green)', marginTop: '2px' }}>
+                  {totalUsers - admittedUsers}
                 </div>
               </div>
             </div>
@@ -441,7 +429,7 @@ export default function Admin({ session }) {
               marginTop: '12px', overflow: 'hidden'
             }}>
               <div style={{
-                height: '100%', width: totalUsers > 0 ? `${(paidUsers / totalUsers) * 100}%` : '0%',
+                height: '100%', width: totalUsers > 0 ? `${(admittedUsers / totalUsers) * 100}%` : '0%',
                 background: 'var(--gold)', borderRadius: '2px', transition: 'width 0.3s ease'
               }} />
             </div>
@@ -454,7 +442,7 @@ export default function Admin({ session }) {
           }}>
             <span style={{ flex: 1 }}>Nombre</span>
             <span style={{ width: '70px', textAlign: 'center' }}>Estado</span>
-            <span style={{ width: '70px', textAlign: 'center' }}>Acción</span>
+            <span style={{ width: '90px', textAlign: 'center' }}>Acción</span>
           </div>
 
           {/* User list */}
@@ -473,26 +461,74 @@ export default function Admin({ session }) {
               <span style={{
                 width: '70px', textAlign: 'center', fontSize: '10px',
                 padding: '3px 8px', borderRadius: '3px',
-                background: profile.has_paid ? 'var(--green-light)' : 'var(--red-bg)',
-                color: profile.has_paid ? 'var(--green)' : 'var(--red)'
+                background: profile.has_paid ? 'var(--green-light)' : 'rgba(255,204,0,0.08)',
+                color: profile.has_paid ? 'var(--green)' : 'var(--gold)'
               }}>
-                {profile.has_paid ? 'Pagado' : 'Pendiente'}
+                {profile.has_paid ? 'Admitido' : 'Pendiente'}
               </span>
-              <div style={{ width: '70px', textAlign: 'center' }}>
-                <button
-                  onClick={() => togglePayment(profile.id, profile.has_paid)}
-                  style={{
-                    padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
-                    fontSize: '10px', fontWeight: '600', border: 'none',
-                    background: profile.has_paid ? 'var(--bg-secondary)' : 'var(--green)',
-                    color: profile.has_paid ? 'var(--text-dim)' : '#fff'
-                  }}
-                >
-                  {profile.has_paid ? 'Quitar' : 'Marcar'}
-                </button>
+              <div style={{ width: '90px', display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                {!profile.has_paid ? (
+                  <button
+                    onClick={() => togglePayment(profile.id, profile.has_paid)}
+                    style={{
+                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
+                      fontSize: '10px', fontWeight: '600', border: 'none',
+                      background: 'var(--green)', color: '#fff'
+                    }}
+                  >
+                    Admitir
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => togglePayment(profile.id, profile.has_paid)}
+                    style={{
+                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
+                      fontSize: '10px', fontWeight: '600', border: 'none',
+                      background: 'var(--bg-secondary)', color: 'var(--text-dim)'
+                    }}
+                  >
+                    Revocar
+                  </button>
+                )}
               </div>
             </div>
           ))}
+
+          {/* Clear Forum button */}
+          <div style={{
+            marginTop: '24px', padding: '16px',
+            background: 'var(--bg-secondary)', borderRadius: '8px',
+            border: '0.5px solid var(--border)'
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+              🗑 Gestión del foro
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '12px' }}>
+              Elimina todos los mensajes del foro general. Los comunicados oficiales no se borran.
+            </div>
+            <button
+              onClick={async () => {
+                if (!window.confirm('¿Estás seguro de que quieres borrar TODOS los mensajes del foro general? Esta acción no se puede deshacer.')) return
+                const { error } = await supabase
+                  .from('forum_messages')
+                  .delete()
+                  .or('channel.eq.general,channel.is.null')
+                if (error) {
+                  setMessage('Error al limpiar foro: ' + error.message)
+                } else {
+                  setMessage('Foro limpiado correctamente')
+                }
+                setTimeout(() => setMessage(''), 3000)
+              }}
+              style={{
+                padding: '10px 20px', borderRadius: '6px', border: 'none',
+                cursor: 'pointer', fontSize: '12px', fontWeight: '600',
+                background: '#e74c3c', color: '#fff'
+              }}
+            >
+              Limpiar foro general
+            </button>
+          </div>
         </>
       )}
 
