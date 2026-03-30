@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { generateDemoMatchStatuses } from '../hooks/useDemoMode'
 
-export default function Stats() {
+const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
+
+export default function Stats({ demoMode }) {
   const [matches, setMatches] = useState([])
   const [allPredictions, setAllPredictions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -15,6 +18,31 @@ export default function Stats() {
   const [leaderboard, setLeaderboard] = useState([])
   const [userId, setUserId] = useState(null)
   const [myPredictions, setMyPredictions] = useState([])
+
+  // H2H state
+  const [profiles, setProfiles] = useState([])
+  const [h2hUserA, setH2hUserA] = useState('')
+  const [h2hUserB, setH2hUserB] = useState('')
+  const [h2hPredictions, setH2hPredictions] = useState({})
+  const [h2hLoading, setH2hLoading] = useState(false)
+  const [h2hGroup, setH2hGroup] = useState('A')
+  const [h2hBetEntriesA, setH2hBetEntriesA] = useState([])
+  const [h2hBetEntriesB, setH2hBetEntriesB] = useState([])
+  const [h2hOrdagoEntriesA, setH2hOrdagoEntriesA] = useState([])
+  const [h2hOrdagoEntriesB, setH2hOrdagoEntriesB] = useState([])
+
+  // View others state
+  const [viewUser, setViewUser] = useState('')
+  const [viewPredictions, setViewPredictions] = useState([])
+  const [viewBetEntries, setViewBetEntries] = useState([])
+  const [viewOrdagoEntries, setViewOrdagoEntries] = useState([])
+  const [viewLoading, setViewLoading] = useState(false)
+  const [viewGroup, setViewGroup] = useState('A')
+
+  // Shared data
+  const [teams, setTeams] = useState([])
+  const [ordagos, setOrdagos] = useState([])
+  const [allPreTournamentEntries, setAllPreTournamentEntries] = useState([])
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
   const betCategories = [
@@ -37,10 +65,19 @@ export default function Stats() {
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
         .eq('stage', 'group').order('match_date', { ascending: true }),
       supabase.from('predictions').select('match_id, predicted_home, predicted_away'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('profiles').select('id, full_name, nickname'),
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),
-      supabase.from('pre_tournament_entries').select('bet_id, answer'),
-      supabase.from('leaderboard').select('*')
+      supabase.from('pre_tournament_entries').select('bet_id, user_id, value, points_awarded, is_resolved'),
+      supabase.from('leaderboard').select('*'),
+      supabase.from('teams').select('id, name, flag_url'),
+      supabase.from('ordagos').select(`
+        *,
+        match:matches(
+          id, match_date, status, home_score, away_score,
+          home_team:teams!matches_home_team_id_fkey(id, name, flag_url),
+          away_team:teams!matches_away_team_id_fkey(id, name, flag_url)
+        )
+      `).order('number')
     ]
 
     // Fetch user's own predictions with points
@@ -56,12 +93,94 @@ export default function Stats() {
 
     setMatches(results[0].data || [])
     setAllPredictions(results[1].data || [])
-    setTotalUsers(results[2].count || 0)
+    const profilesData = results[2].data || []
+    setProfiles(profilesData)
+    setTotalUsers(profilesData.length)
     setBets(results[3].data || [])
-    setBetEntries(results[4].data || [])
+    const allEntries = results[4].data || []
+    setBetEntries(allEntries)
+    setAllPreTournamentEntries(allEntries)
     setLeaderboard(results[5].data || [])
-    if (results[6]) setMyPredictions(results[6].data || [])
+    setTeams(results[6].data || [])
+    setOrdagos(results[7].data || [])
+    if (results[8]) setMyPredictions(results[8].data || [])
     setLoading(false)
+  }
+
+  // ========== H2H FETCH ==========
+  async function fetchH2hPredictions(userAId, userBId) {
+    if (!userAId || !userBId) return
+    setH2hLoading(true)
+    const [predsRes, betEntriesARes, betEntriesBRes, ordagoARes, ordagoBRes] = await Promise.all([
+      supabase.from('predictions')
+        .select('user_id, match_id, predicted_home, predicted_away, points_earned')
+        .in('user_id', [userAId, userBId]),
+      supabase.from('pre_tournament_entries')
+        .select('bet_id, value, points_awarded, is_resolved')
+        .eq('user_id', userAId),
+      supabase.from('pre_tournament_entries')
+        .select('bet_id, value, points_awarded, is_resolved')
+        .eq('user_id', userBId),
+      supabase.from('ordago_entries')
+        .select('ordago_id, predicted_home, predicted_away, points_awarded')
+        .eq('user_id', userAId),
+      supabase.from('ordago_entries')
+        .select('ordago_id, predicted_home, predicted_away, points_awarded')
+        .eq('user_id', userBId)
+    ])
+    const map = {}
+    ;(predsRes.data || []).forEach(p => {
+      if (!map[p.match_id]) map[p.match_id] = {}
+      map[p.match_id][p.user_id] = p
+    })
+    setH2hPredictions(map)
+    setH2hBetEntriesA(betEntriesARes.data || [])
+    setH2hBetEntriesB(betEntriesBRes.data || [])
+    setH2hOrdagoEntriesA(ordagoARes.data || [])
+    setH2hOrdagoEntriesB(ordagoBRes.data || [])
+    setH2hLoading(false)
+  }
+
+  // ========== VIEW OTHERS FETCH ==========
+  async function fetchViewUser(uid) {
+    if (!uid) return
+    setViewLoading(true)
+    const [predsRes, entriesRes, ordagoRes] = await Promise.all([
+      supabase.from('predictions')
+        .select('match_id, predicted_home, predicted_away, points_earned')
+        .eq('user_id', uid),
+      supabase.from('pre_tournament_entries')
+        .select('bet_id, value, points_awarded, is_resolved')
+        .eq('user_id', uid),
+      supabase.from('ordago_entries')
+        .select('ordago_id, predicted_home, predicted_away, points_awarded')
+        .eq('user_id', uid)
+    ])
+    setViewPredictions(predsRes.data || [])
+    setViewBetEntries(entriesRes.data || [])
+    setViewOrdagoEntries(ordagoRes.data || [])
+    setViewLoading(false)
+  }
+
+  function getProfileName(id) {
+    const p = profiles.find(pr => pr.id === id)
+    return p ? (p.nickname || p.full_name || 'Participante') : 'Participante'
+  }
+
+  function getTeamName(teamId) {
+    const t = teams.find(tm => tm.id === teamId)
+    return t ? t.name : `Equipo ${teamId}`
+  }
+
+  function formatBetValue(value, inputType) {
+    if (!value) return '-'
+    if (inputType === 'single_team') return getTeamName(value.team_id)
+    if (inputType === 'multi_team') return (value.teams || []).map(id => getTeamName(id)).join(', ')
+    if (inputType === 'single_player') return value.player_name || '-'
+    if (inputType === 'yes_no') return value.answer === 'yes' ? 'Si' : 'No'
+    if (inputType === 'range') return value.range || '-'
+    if (inputType === 'single_group') return `Grupo ${value.group}` || '-'
+    return JSON.stringify(value)
   }
 
   // ========== COMPUTED STATS ==========
@@ -95,8 +214,12 @@ export default function Stats() {
   function getBetStats(betId) {
     const entries = betEntries.filter(e => e.bet_id === betId)
     if (entries.length === 0) return { total: 0, topAnswers: [] }
+    const bet = bets.find(b => b.id === betId)
     const counts = {}
-    entries.forEach(e => { const a = e.answer || '?'; counts[a] = (counts[a] || 0) + 1 })
+    entries.forEach(e => {
+      const a = formatBetValue(e.value, bet?.input_type) || '?'
+      counts[a] = (counts[a] || 0) + 1
+    })
     const sorted = Object.entries(counts)
       .sort(([, a], [, b]) => b - a).slice(0, 5)
       .map(([answer, count]) => ({ answer, count, pct: Math.round((count / entries.length) * 100) }))
@@ -112,8 +235,14 @@ export default function Stats() {
 
   // ========== OVERVIEW COMPUTED ==========
 
-  const finishedMatches = matches.filter(m => m.status === 'finished')
-  const totalMatches = matches.length
+  // Demo mode: simulate some matches as finished
+  const displayMatches = useMemo(() => {
+    if (!demoMode || !matches.length) return matches
+    return generateDemoMatchStatuses(matches)
+  }, [demoMode, matches])
+
+  const finishedMatches = displayMatches.filter(m => m.status === 'finished')
+  const totalMatches = displayMatches.length
   const totalPredictions = allPredictions.length
 
   // Global 1X2 consensus across all matches
@@ -146,7 +275,6 @@ export default function Stats() {
   })()
 
   // Leaderboard stats
-  const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
   const lbSorted = [...leaderboard].filter(u => u.user_id !== BOT365_ID).sort((a, b) => b.total_points - a.total_points)
   const avgPoints = lbSorted.length > 0 ? Math.round(lbSorted.reduce((s, u) => s + u.total_points, 0) / lbSorted.length) : 0
   const totalExacts = lbSorted.reduce((s, u) => s + (u.exact_hits || 0), 0)
@@ -182,7 +310,7 @@ export default function Stats() {
     )
   }
 
-  const groupMatches = matches.filter(m => m.group_name === activeGroup)
+  const groupMatches = displayMatches.filter(m => m.group_name === activeGroup)
   const filteredBets = activeBetCategory === 'all' ? bets : bets.filter(b => b.category === activeBetCategory)
 
   // ========== STAT CARD COMPONENT ==========
@@ -226,6 +354,7 @@ export default function Stats() {
         </h2>
         <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
           {finishedMatches.length} de {totalMatches} partidos jugados
+          {demoMode && <span style={{ color: 'var(--gold)', marginLeft: '6px', fontSize: '10px', fontWeight: '600' }}>(DEMO)</span>}
         </p>
       </div>
 
@@ -242,25 +371,29 @@ export default function Stats() {
         }} />
       </div>
 
-      {/* 4-Tab switcher */}
+      {/* 6-Tab switcher */}
       <div style={{
-        display: 'flex', gap: '4px', marginBottom: '18px',
-        padding: '3px', background: 'var(--bg-input)', borderRadius: '8px'
+        display: 'flex', gap: '3px', marginBottom: '18px',
+        padding: '3px', background: 'var(--bg-input)', borderRadius: '8px',
+        overflowX: 'auto', WebkitOverflowScrolling: 'touch'
       }}>
         {[
           { key: 'overview', label: '📊 Resumen' },
           { key: 'me', label: '👤 Tú' },
           { key: 'matches', label: '⚽ Partidos' },
-          { key: 'bets', label: '🎯 Apuestas' }
+          { key: 'bets', label: '🎯 Apuestas' },
+          { key: 'h2h', label: '🤝 H2H' },
+          { key: 'view', label: '👁 Otros' }
         ].map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             style={{
-              flex: 1, padding: '9px 8px', borderRadius: '6px', border: 'none',
+              flex: '1 0 auto', padding: '9px 8px', borderRadius: '6px', border: 'none',
               background: activeTab === tab.key ? 'var(--bg-secondary)' : 'transparent',
               color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
-              fontSize: '12px', fontWeight: activeTab === tab.key ? '600' : '400', cursor: 'pointer'
+              fontSize: '11px', fontWeight: activeTab === tab.key ? '600' : '400', cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
           >
             {tab.label}
@@ -646,7 +779,7 @@ export default function Stats() {
           {/* Group selector */}
           <div className="group-tabs" style={{ marginBottom: '14px' }}>
             {groups.map(g => {
-              const groupMs = matches.filter(m => m.group_name === g)
+              const groupMs = displayMatches.filter(m => m.group_name === g)
               const finished = groupMs.filter(m => m.status === 'finished').length
               return (
                 <button
@@ -815,7 +948,7 @@ export default function Stats() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '3px' }}>
-                      {bet.question}
+                      {bet.name || bet.question}
                     </div>
                     <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
                       Máx. {bet.max_points} pts · {stats.total} respuestas
@@ -866,6 +999,745 @@ export default function Stats() {
           })}
         </>
       )}
+
+      {/* ==================== H2H TAB ==================== */}
+      {activeTab === 'h2h' && (() => {
+        const sortedProfiles = [...profiles].filter(p => p.id !== BOT365_ID).sort((a, b) =>
+          (a.nickname || a.full_name || '').localeCompare(b.nickname || b.full_name || '')
+        )
+
+        const selectStyle = {
+          width: '100%', padding: '10px 12px', borderRadius: '6px',
+          border: '0.5px solid var(--border)', background: 'var(--bg-input)',
+          color: 'var(--text-primary)', fontSize: '13px', outline: 'none',
+          appearance: 'auto'
+        }
+
+        const lbA = leaderboard.find(u => u.user_id === h2hUserA)
+        const lbB = leaderboard.find(u => u.user_id === h2hUserB)
+        const rankA = h2hUserA ? lbSorted.findIndex(u => u.user_id === h2hUserA) + 1 : 0
+        const rankB = h2hUserB ? lbSorted.findIndex(u => u.user_id === h2hUserB) + 1 : 0
+
+        const h2hGroupMatches = displayMatches.filter(m => m.group_name === h2hGroup && m.status === 'finished')
+
+        return (
+          <>
+            <div style={{
+              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+              border: '0.5px solid var(--border)', marginBottom: '14px'
+            }}>
+              <div style={{
+                fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
+              }}>
+                Comparador H2H
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '4px', display: 'block' }}>Jugador A</label>
+                  <select
+                    value={h2hUserA}
+                    onChange={e => {
+                      setH2hUserA(e.target.value)
+                      if (e.target.value && h2hUserB) fetchH2hPredictions(e.target.value, h2hUserB)
+                    }}
+                    style={selectStyle}
+                  >
+                    <option value="">Seleccionar...</option>
+                    {sortedProfiles.map(p => (
+                      <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '4px', display: 'block' }}>Jugador B</label>
+                  <select
+                    value={h2hUserB}
+                    onChange={e => {
+                      setH2hUserB(e.target.value)
+                      if (h2hUserA && e.target.value) fetchH2hPredictions(h2hUserA, e.target.value)
+                    }}
+                    style={selectStyle}
+                  >
+                    <option value="">Seleccionar...</option>
+                    {sortedProfiles.map(p => (
+                      <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* H2H Summary */}
+            {h2hUserA && h2hUserB && !h2hLoading && lbA && lbB && (
+              <>
+                {/* Side-by-side stats */}
+                <div style={{
+                  background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                  border: '0.5px solid var(--border)', marginBottom: '14px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)', marginBottom: '2px' }}>
+                        {getProfileName(h2hUserA)}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>#{rankA || '-'}</div>
+                    </div>
+                    <div style={{
+                      fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)',
+                      padding: '4px 10px', background: 'var(--bg-input)', borderRadius: '4px'
+                    }}>VS</div>
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--green)', marginBottom: '2px' }}>
+                        {getProfileName(h2hUserB)}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>#{rankB || '-'}</div>
+                    </div>
+                  </div>
+
+                  {/* Stat rows */}
+                  {[
+                    { label: 'Puntos', valA: lbA.total_points || 0, valB: lbB.total_points || 0 },
+                    { label: 'Exactos', valA: lbA.exact_hits || 0, valB: lbB.exact_hits || 0 },
+                    { label: 'Signos', valA: lbA.sign_hits || 0, valB: lbB.sign_hits || 0 },
+                    { label: 'Fallos', valA: lbA.misses || 0, valB: lbB.misses || 0 },
+                    { label: 'Pre-torneo', valA: lbA.pre_tournament_points || 0, valB: lbB.pre_tournament_points || 0 }
+                  ].map((row, i) => {
+                    const maxVal = Math.max(row.valA, row.valB, 1)
+                    const aWins = row.label === 'Fallos' ? row.valA < row.valB : row.valA > row.valB
+                    const bWins = row.label === 'Fallos' ? row.valB < row.valA : row.valB > row.valA
+                    return (
+                      <div key={i} style={{ marginBottom: '12px' }}>
+                        <div style={{ textAlign: 'center', fontSize: '10px', color: 'var(--text-dim)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {row.label}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            width: '32px', textAlign: 'right', fontSize: '14px', fontWeight: '700',
+                            color: aWins ? 'var(--gold)' : 'var(--text-muted)'
+                          }}>{row.valA}</span>
+                          <div style={{ flex: 1, display: 'flex', gap: '3px' }}>
+                            <div style={{ flex: 1, height: '10px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
+                              <div style={{
+                                height: '100%', borderRadius: '3px',
+                                background: aWins ? 'var(--gold)' : 'var(--text-dim)',
+                                width: `${(row.valA / maxVal) * 100}%`,
+                                transition: 'width 0.4s'
+                              }} />
+                            </div>
+                            <div style={{ flex: 1, height: '10px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{
+                                height: '100%', borderRadius: '3px',
+                                background: bWins ? 'var(--green)' : 'var(--text-dim)',
+                                width: `${(row.valB / maxVal) * 100}%`,
+                                transition: 'width 0.4s'
+                              }} />
+                            </div>
+                          </div>
+                          <span style={{
+                            width: '32px', textAlign: 'left', fontSize: '14px', fontWeight: '700',
+                            color: bWins ? 'var(--green)' : 'var(--text-muted)'
+                          }}>{row.valB}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Match-by-match comparison */}
+                <div style={{
+                  background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                  border: '0.5px solid var(--border)', marginBottom: '14px'
+                }}>
+                  <div style={{
+                    fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                    letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
+                  }}>
+                    Partido a partido
+                  </div>
+
+                  {/* Group selector */}
+                  <div className="group-tabs" style={{ marginBottom: '12px' }}>
+                    {groups.map(g => (
+                      <button
+                        key={g}
+                        onClick={() => setH2hGroup(g)}
+                        style={{
+                          padding: '5px 12px', borderRadius: '4px', border: 'none',
+                          background: h2hGroup === g ? 'var(--green)' : 'var(--bg-input)',
+                          color: h2hGroup === g ? '#fff' : 'var(--text-muted)',
+                          cursor: 'pointer', fontSize: '11px', fontWeight: h2hGroup === g ? '600' : '400',
+                          whiteSpace: 'nowrap', flexShrink: 0
+                        }}
+                      >{g}</button>
+                    ))}
+                  </div>
+
+                  {h2hGroupMatches.length === 0 ? (
+                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px' }}>
+                      No hay partidos finalizados en el Grupo {h2hGroup}
+                    </div>
+                  ) : (
+                    h2hGroupMatches.map(match => {
+                      const predA = h2hPredictions[match.id]?.[h2hUserA]
+                      const predB = h2hPredictions[match.id]?.[h2hUserB]
+                      return (
+                        <div key={match.id} style={{
+                          padding: '10px 0', borderBottom: '0.5px solid var(--border-light)'
+                        }}>
+                          {/* Match header */}
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500', textAlign: 'right', flex: 1 }}>
+                              {match.home_team?.name}
+                            </span>
+                            <span style={{
+                              padding: '2px 8px', background: 'var(--green-light)', borderRadius: '4px',
+                              fontSize: '13px', fontWeight: '700', color: 'var(--green)'
+                            }}>
+                              {match.home_score}-{match.away_score}
+                            </span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500', flex: 1 }}>
+                              {match.away_team?.name}
+                            </span>
+                          </div>
+                          {/* Predictions side by side */}
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{
+                              flex: 1, textAlign: 'center', padding: '6px 8px', borderRadius: '6px',
+                              background: predA?.points_earned === 3 ? 'rgba(0,122,69,0.15)' : predA?.points_earned === 1 ? 'rgba(255,204,0,0.08)' : 'var(--bg-input)',
+                              border: predA?.points_earned === 3 ? '0.5px solid var(--green)' : predA?.points_earned === 1 ? '0.5px solid var(--gold)' : '0.5px solid transparent'
+                            }}>
+                              <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '2px' }}>
+                                {getProfileName(h2hUserA)}
+                              </div>
+                              <div style={{
+                                fontSize: '15px', fontWeight: '700',
+                                color: predA?.points_earned === 3 ? 'var(--green)' : predA?.points_earned === 1 ? 'var(--gold)' : 'var(--text-muted)'
+                              }}>
+                                {predA ? `${predA.predicted_home}-${predA.predicted_away}` : '-'}
+                              </div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                {predA ? `${predA.points_earned || 0} pts` : ''}
+                              </div>
+                            </div>
+                            <div style={{
+                              flex: 1, textAlign: 'center', padding: '6px 8px', borderRadius: '6px',
+                              background: predB?.points_earned === 3 ? 'rgba(0,122,69,0.15)' : predB?.points_earned === 1 ? 'rgba(255,204,0,0.08)' : 'var(--bg-input)',
+                              border: predB?.points_earned === 3 ? '0.5px solid var(--green)' : predB?.points_earned === 1 ? '0.5px solid var(--gold)' : '0.5px solid transparent'
+                            }}>
+                              <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '2px' }}>
+                                {getProfileName(h2hUserB)}
+                              </div>
+                              <div style={{
+                                fontSize: '15px', fontWeight: '700',
+                                color: predB?.points_earned === 3 ? 'var(--green)' : predB?.points_earned === 1 ? 'var(--gold)' : 'var(--text-muted)'
+                              }}>
+                                {predB ? `${predB.predicted_home}-${predB.predicted_away}` : '-'}
+                              </div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                {predB ? `${predB.points_earned || 0} pts` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* H2H score tally */}
+                {(() => {
+                  let winsA = 0, winsB = 0, ties = 0
+                  const finishedIds = displayMatches.filter(m => m.status === 'finished').map(m => m.id)
+                  finishedIds.forEach(mId => {
+                    const pA = h2hPredictions[mId]?.[h2hUserA]
+                    const pB = h2hPredictions[mId]?.[h2hUserB]
+                    if (pA && pB) {
+                      if ((pA.points_earned || 0) > (pB.points_earned || 0)) winsA++
+                      else if ((pB.points_earned || 0) > (pA.points_earned || 0)) winsB++
+                      else ties++
+                    }
+                  })
+                  if (winsA + winsB + ties === 0) return null
+                  return (
+                    <div style={{
+                      background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                      border: '0.5px solid var(--border)', marginBottom: '14px', textAlign: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                        letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
+                      }}>
+                        Balance H2H
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
+                        <div>
+                          <div style={{ fontSize: '24px', fontWeight: '800', color: winsA > winsB ? 'var(--gold)' : 'var(--text-muted)' }}>{winsA}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Mejor pred.</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-dim)' }}>{ties}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Empates</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '24px', fontWeight: '800', color: winsB > winsA ? 'var(--green)' : 'var(--text-muted)' }}>{winsB}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Mejor pred.</div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Pre-tournament bet comparison */}
+                {bets.length > 0 && (h2hBetEntriesA.length > 0 || h2hBetEntriesB.length > 0) && (
+                  <div style={{
+                    background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                    border: '0.5px solid var(--border)', marginBottom: '14px'
+                  }}>
+                    <div style={{
+                      fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                      letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
+                    }}>
+                      Apuestas pre-torneo
+                    </div>
+                    {bets.map(bet => {
+                      const entryA = h2hBetEntriesA.find(e => e.bet_id === bet.id)
+                      const entryB = h2hBetEntriesB.find(e => e.bet_id === bet.id)
+                      if (!entryA && !entryB) return null
+                      const valA = formatBetValue(entryA?.value, bet.input_type)
+                      const valB = formatBetValue(entryB?.value, bet.input_type)
+                      const ptsA = entryA?.points_awarded || 0
+                      const ptsB = entryB?.points_awarded || 0
+                      const resolved = entryA?.is_resolved || entryB?.is_resolved
+                      return (
+                        <div key={bet.id} style={{ padding: '8px 0', borderBottom: '0.5px solid var(--border-light)' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px', textAlign: 'center' }}>
+                            {bet.name || bet.question}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{
+                              flex: 1, textAlign: 'center', padding: '6px 4px', borderRadius: '6px',
+                              background: resolved && ptsA > ptsB ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
+                              border: resolved && ptsA > ptsB ? '0.5px solid var(--green)' : '0.5px solid transparent'
+                            }}>
+                              <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {valA}
+                              </div>
+                              {resolved && <div style={{ fontSize: '10px', color: ptsA > 0 ? 'var(--green)' : 'var(--text-dim)', marginTop: '2px' }}>{ptsA} pts</div>}
+                            </div>
+                            <div style={{
+                              flex: 1, textAlign: 'center', padding: '6px 4px', borderRadius: '6px',
+                              background: resolved && ptsB > ptsA ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
+                              border: resolved && ptsB > ptsA ? '0.5px solid var(--green)' : '0.5px solid transparent'
+                            }}>
+                              <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {valB}
+                              </div>
+                              {resolved && <div style={{ fontSize: '10px', color: ptsB > 0 ? 'var(--green)' : 'var(--text-dim)', marginTop: '2px' }}>{ptsB} pts</div>}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Ordago comparison */}
+                {ordagos.length > 0 && (h2hOrdagoEntriesA.length > 0 || h2hOrdagoEntriesB.length > 0) && (
+                  <div style={{
+                    background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                    border: '0.5px solid var(--border)', marginBottom: '14px'
+                  }}>
+                    <div style={{
+                      fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                      letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
+                    }}>
+                      Ordagos
+                    </div>
+                    {ordagos.map(ord => {
+                      const oA = h2hOrdagoEntriesA.find(e => e.ordago_id === ord.id)
+                      const oB = h2hOrdagoEntriesB.find(e => e.ordago_id === ord.id)
+                      if (!oA && !oB) return null
+                      const isResolved = ord.status === 'resolved'
+                      const ptsA = oA?.points_awarded || 0
+                      const ptsB = oB?.points_awarded || 0
+                      return (
+                        <div key={ord.id} style={{ padding: '8px 0', borderBottom: '0.5px solid var(--border-light)' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px', textAlign: 'center' }}>
+                            {ord.title || `Ordago #${ord.number}`}
+                            {ord.match && (
+                              <span style={{ color: 'var(--text-dim)' }}>
+                                {' '}({ord.match.home_team?.name} vs {ord.match.away_team?.name})
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{
+                              flex: 1, textAlign: 'center', padding: '6px', borderRadius: '6px',
+                              background: isResolved && ptsA > ptsB ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
+                              border: isResolved && ptsA > ptsB ? '0.5px solid var(--green)' : '0.5px solid transparent'
+                            }}>
+                              <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                {oA ? `${oA.predicted_home}-${oA.predicted_away}` : '-'}
+                              </div>
+                              {isResolved && <div style={{ fontSize: '10px', color: ptsA > 0 ? 'var(--green)' : 'var(--text-dim)', marginTop: '2px' }}>{ptsA} pts</div>}
+                            </div>
+                            <div style={{
+                              flex: 1, textAlign: 'center', padding: '6px', borderRadius: '6px',
+                              background: isResolved && ptsB > ptsA ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
+                              border: isResolved && ptsB > ptsA ? '0.5px solid var(--green)' : '0.5px solid transparent'
+                            }}>
+                              <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                {oB ? `${oB.predicted_home}-${oB.predicted_away}` : '-'}
+                              </div>
+                              {isResolved && <div style={{ fontSize: '10px', color: ptsB > 0 ? 'var(--green)' : 'var(--text-dim)', marginTop: '2px' }}>{ptsB} pts</div>}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {h2hLoading && (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                Cargando comparacion...
+              </div>
+            )}
+
+            {h2hUserA && h2hUserB && !h2hLoading && (!lbA || !lbB) && (
+              <div style={{
+                padding: '30px 20px', textAlign: 'center', color: 'var(--text-dim)',
+                fontSize: '12px', background: 'var(--bg-secondary)', borderRadius: '8px',
+                border: '0.5px solid var(--border)'
+              }}>
+                Aun no hay datos en el leaderboard para estos usuarios.
+              </div>
+            )}
+
+            {(!h2hUserA || !h2hUserB) && (
+              <div style={{
+                padding: '30px 20px', textAlign: 'center', color: 'var(--text-dim)',
+                fontSize: '12px', background: 'var(--bg-secondary)', borderRadius: '8px',
+                border: '0.5px solid var(--border)'
+              }}>
+                Selecciona dos participantes para comparar sus predicciones
+              </div>
+            )}
+          </>
+        )
+      })()}
+
+      {/* ==================== VIEW OTHERS TAB ==================== */}
+      {activeTab === 'view' && (() => {
+        // Bets close when World Cup starts: June 11, 2026
+        const betsClosedDate = new Date('2026-06-11T00:00:00Z')
+        const betsClosed = new Date() >= betsClosedDate
+
+        const sortedProfiles = [...profiles].filter(p => p.id !== BOT365_ID).sort((a, b) =>
+          (a.nickname || a.full_name || '').localeCompare(b.nickname || b.full_name || '')
+        )
+
+        const viewGroupMatches = displayMatches.filter(m => m.group_name === viewGroup)
+
+        return (
+          <>
+            {!betsClosed ? (
+              <div style={{
+                padding: '40px 20px', textAlign: 'center',
+                background: 'var(--bg-secondary)', borderRadius: '10px',
+                border: '0.5px solid var(--border)'
+              }}>
+                <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>
+                  Disponible cuando cierren las apuestas
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: '1.5' }}>
+                  Podras ver las predicciones de todos los participantes una vez empiece el Mundial (11 junio 2026).
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{
+                  background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                  border: '0.5px solid var(--border)', marginBottom: '14px'
+                }}>
+                  <div style={{
+                    fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                    letterSpacing: '1px', fontWeight: '700', marginBottom: '10px'
+                  }}>
+                    Ver predicciones de otros
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px', lineHeight: '1.4' }}>
+                    Todas las predicciones de cada participante
+                  </div>
+                  <select
+                    value={viewUser}
+                    onChange={e => {
+                      setViewUser(e.target.value)
+                      if (e.target.value) fetchViewUser(e.target.value)
+                    }}
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '6px',
+                      border: '0.5px solid var(--border)', background: 'var(--bg-input)',
+                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none',
+                      appearance: 'auto'
+                    }}
+                  >
+                    <option value="">Seleccionar participante...</option>
+                    {sortedProfiles.map(p => (
+                      <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {viewLoading && (
+                  <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    Cargando...
+                  </div>
+                )}
+
+                {viewUser && !viewLoading && (
+                  <>
+                    {/* Summary card */}
+                    {(() => {
+                      const totalPts = viewPredictions.reduce((s, p) => s + (p.points_earned || 0), 0)
+                      const exacts = viewPredictions.filter(p => p.points_earned === 3).length
+                      const signs = viewPredictions.filter(p => p.points_earned === 1).length
+                      return (
+                        <div style={{
+                          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px'
+                        }}>
+                          <div style={{
+                            background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
+                            border: '0.5px solid var(--border)', textAlign: 'center'
+                          }}>
+                            <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>{totalPts}</div>
+                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Puntos</div>
+                          </div>
+                          <div style={{
+                            background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
+                            border: '0.5px solid var(--border)', textAlign: 'center'
+                          }}>
+                            <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--gold)' }}>{exacts}</div>
+                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Exactos</div>
+                          </div>
+                          <div style={{
+                            background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
+                            border: '0.5px solid var(--border)', textAlign: 'center'
+                          }}>
+                            <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--green)' }}>{signs}</div>
+                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Signos</div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Match predictions */}
+                    <div style={{
+                      background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                      border: '0.5px solid var(--border)', marginBottom: '14px'
+                    }}>
+                      <div style={{
+                        fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                        letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
+                      }}>
+                        Predicciones de partidos
+                      </div>
+
+                      {/* Group selector */}
+                      <div className="group-tabs" style={{ marginBottom: '12px' }}>
+                        {groups.map(g => (
+                          <button
+                            key={g}
+                            onClick={() => setViewGroup(g)}
+                            style={{
+                              padding: '5px 12px', borderRadius: '4px', border: 'none',
+                              background: viewGroup === g ? 'var(--green)' : 'var(--bg-input)',
+                              color: viewGroup === g ? '#fff' : 'var(--text-muted)',
+                              cursor: 'pointer', fontSize: '11px', fontWeight: viewGroup === g ? '600' : '400',
+                              whiteSpace: 'nowrap', flexShrink: 0
+                            }}
+                          >{g}</button>
+                        ))}
+                      </div>
+
+                      {viewGroupMatches.length === 0 ? (
+                        <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px' }}>
+                          No hay partidos en el Grupo {viewGroup}
+                        </div>
+                      ) : (
+                        viewGroupMatches.map(match => {
+                          const pred = viewPredictions.find(p => p.match_id === match.id)
+                          const isFinished = match.status === 'finished'
+                          return (
+                            <div key={match.id} style={{
+                              padding: '10px 0', borderBottom: '0.5px solid var(--border-light)'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                                  <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                                    {match.home_team?.name}
+                                  </span>
+                                  {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', minWidth: '60px' }}>
+                                  {isFinished ? (
+                                    <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--green)' }}>
+                                      {match.home_score}-{match.away_score}
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>vs</span>
+                                  )}
+                                  {pred ? (
+                                    <span style={{
+                                      fontSize: '12px', fontWeight: '600',
+                                      padding: '1px 8px', borderRadius: '4px',
+                                      background: isFinished ? (pred.points_earned === 3 ? 'rgba(0,122,69,0.15)' : pred.points_earned === 1 ? 'rgba(255,204,0,0.08)' : 'var(--bg-input)') : 'var(--bg-input)',
+                                      color: isFinished ? (pred.points_earned === 3 ? 'var(--green)' : pred.points_earned === 1 ? 'var(--gold)' : 'var(--text-dim)') : 'var(--text-primary)'
+                                    }}>
+                                      {pred.predicted_home}-{pred.predicted_away}
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>-</span>
+                                  )}
+                                </div>
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />}
+                                  <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                                    {match.away_team?.name}
+                                  </span>
+                                </div>
+                              </div>
+                              {isFinished && pred && (
+                                <div style={{ textAlign: 'center' }}>
+                                  <span style={{
+                                    fontSize: '10px', fontWeight: '600',
+                                    color: pred.points_earned === 3 ? 'var(--green)' : pred.points_earned === 1 ? 'var(--gold)' : 'var(--text-dim)'
+                                  }}>
+                                    {pred.points_earned === 3 ? 'Exacto (+3)' : pred.points_earned === 1 ? 'Signo (+1)' : 'Fallo (0)'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+
+                    {/* Pre-tournament bets */}
+                    {viewBetEntries.length > 0 && (
+                      <div style={{
+                        background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                        border: '0.5px solid var(--border)', marginBottom: '14px'
+                      }}>
+                        <div style={{
+                          fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                          letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
+                        }}>
+                          Apuestas pre-torneo
+                        </div>
+                        {bets.map(bet => {
+                          const entry = viewBetEntries.find(e => e.bet_id === bet.id)
+                          if (!entry) return null
+                          const resolved = entry.is_resolved
+                          return (
+                            <div key={bet.id} style={{
+                              padding: '10px 0', borderBottom: '0.5px solid var(--border-light)'
+                            }}>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                                {bet.name || bet.question}
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{
+                                  fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)',
+                                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%'
+                                }}>
+                                  {formatBetValue(entry.value, bet.input_type)}
+                                </span>
+                                {resolved && (
+                                  <span style={{
+                                    fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px',
+                                    background: (entry.points_awarded || 0) > 0 ? 'rgba(0,122,69,0.15)' : 'var(--bg-input)',
+                                    color: (entry.points_awarded || 0) > 0 ? 'var(--green)' : 'var(--text-dim)'
+                                  }}>
+                                    {entry.points_awarded || 0} pts
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* Ordagos */}
+                    {viewOrdagoEntries.length > 0 && ordagos.length > 0 && (
+                      <div style={{
+                        background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
+                        border: '0.5px solid var(--border)', marginBottom: '14px'
+                      }}>
+                        <div style={{
+                          fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+                          letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
+                        }}>
+                          Ordagos
+                        </div>
+                        {ordagos.map(ord => {
+                          const entry = viewOrdagoEntries.find(e => e.ordago_id === ord.id)
+                          if (!entry) return null
+                          const isResolved = ord.status === 'resolved'
+                          return (
+                            <div key={ord.id} style={{
+                              padding: '10px 0', borderBottom: '0.5px solid var(--border-light)'
+                            }}>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                                {ord.title || `Ordago #${ord.number}`}
+                                {ord.match && (
+                                  <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>
+                                    {' '}({ord.match.home_team?.name} vs {ord.match.away_team?.name})
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                  {entry.predicted_home}-{entry.predicted_away}
+                                </span>
+                                {isResolved && (
+                                  <span style={{
+                                    fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px',
+                                    background: (entry.points_awarded || 0) > 0 ? 'rgba(0,122,69,0.15)' : 'var(--bg-input)',
+                                    color: (entry.points_awarded || 0) > 0 ? 'var(--green)' : 'var(--text-dim)'
+                                  }}>
+                                    {entry.points_awarded > 0 ? '+' : ''}{entry.points_awarded || 0} pts
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {!viewUser && (
+                  <div style={{
+                    padding: '30px 20px', textAlign: 'center', color: 'var(--text-dim)',
+                    fontSize: '12px', background: 'var(--bg-secondary)', borderRadius: '8px',
+                    border: '0.5px solid var(--border)'
+                  }}>
+                    Selecciona un participante para ver sus predicciones
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }

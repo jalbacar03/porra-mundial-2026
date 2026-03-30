@@ -6,12 +6,17 @@ import PreTournamentBets from './BeforeWorldCup/PreTournamentBets'
 import DuringPlaceholder from './DuringWorldCup/DuringPlaceholder'
 import BracketView from '../../components/bracket/BracketView'
 
-export default function PredictionsPage({ session }) {
+export default function PredictionsPage({ session, demoMode }) {
   const navigate = useNavigate()
   const [activeBlock, setActiveBlock] = useState('before') // 'before' | 'during'
   const [activeTab, setActiveTab] = useState('matches')    // 'matches' | 'bets' | 'bracket'
-  const deadline = useCountdown(PREDICTIONS_DEADLINE)
+  const realDeadline = useCountdown(PREDICTIONS_DEADLINE)
   const worldCupStart = useCountdown(WORLD_CUP_START)
+
+  // In demo mode, pretend deadline has expired (tournament already started)
+  const deadline = demoMode
+    ? { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true }
+    : realDeadline
 
   const isDuringAvailable = true // Unlocked for development
 
@@ -19,7 +24,21 @@ export default function PredictionsPage({ session }) {
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px' }}>
 
       {/* Countdown deadline */}
-      {!deadline.expired && (
+      {demoMode ? (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(0,122,69,0.12), rgba(0,122,69,0.04))',
+          border: '1px solid rgba(0,122,69,0.2)',
+          borderRadius: '10px',
+          padding: '14px 18px',
+          marginBottom: '16px',
+          textAlign: 'center',
+          fontSize: '13px',
+          color: '#4ade80',
+          fontWeight: '500'
+        }}>
+          ⚽ Mundial en curso — Jornada 2 de fase de grupos. Tus predicciones ya estan registradas.
+        </div>
+      ) : !deadline.expired ? (
         <div style={{
           background: 'linear-gradient(135deg, rgba(255,204,0,0.08), rgba(255,204,0,0.03))',
           border: '1px solid rgba(255,204,0,0.15)',
@@ -84,9 +103,7 @@ export default function PredictionsPage({ session }) {
             del inicio del Mundial
           </div>
         </div>
-      )}
-
-      {deadline.expired && (
+      ) : (
         <div style={{
           background: 'var(--red-bg)',
           border: '1px solid rgba(226,75,74,0.2)',
@@ -236,10 +253,10 @@ export default function PredictionsPage({ session }) {
 
           {/* Tab content */}
           {activeTab === 'matches' && (
-            <GroupMatchPredictions session={session} deadline={deadline} />
+            <GroupMatchPredictions session={session} deadline={deadline} demoMode={demoMode} />
           )}
           {activeTab === 'bets' && (
-            <PreTournamentBets session={session} deadline={deadline} />
+            <PreTournamentBets session={session} deadline={deadline} demoMode={demoMode} />
           )}
           {activeTab === 'bracket' && (
             <BracketView session={session} />

@@ -4,15 +4,37 @@ export default function Rules() {
 
       {/* Header */}
       <div style={{ marginBottom: '20px' }}>
-        <h2 style={{
-          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
-          margin: '0 0 4px', letterSpacing: '0.3px'
-        }}>
-          Normas del torneo
-        </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-          Todo lo que necesitas saber para participar
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{
+              fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
+              margin: '0 0 4px', letterSpacing: '0.3px'
+            }}>
+              Normas del torneo
+            </h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+              Todo lo que necesitas saber para participar
+            </p>
+          </div>
+          <a
+            href="/docs/normas-porra-mundial-2026.docx"
+            download
+            style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              padding: '8px 14px',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-muted)',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '500',
+              textDecoration: 'none',
+              border: '0.5px solid var(--border)',
+              flexShrink: 0
+            }}
+          >
+            📄 Word
+          </a>
+        </div>
       </div>
 
       {/* ===== INTRO ===== */}
@@ -39,7 +61,7 @@ export default function Rules() {
           {[
             { label: '1. Fase de grupos', detail: '72 partidos', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'antes' },
             { label: '2. Cuadro ciego', detail: 'Quién avanza cada ronda', pts: 'Hasta +20 pts (cadena campeón)', phase: 'antes' },
-            { label: '3. Especiales', detail: 'Goleador, revelación...', pts: 'Hasta +4 pts por apuesta', phase: 'antes' },
+            { label: '3. Especiales', detail: 'Goleador, revelación...', pts: '+2 pts por apuesta', phase: 'antes' },
             { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'durante' },
             { label: '5. Órdagos', detail: '6 apuestas opcionales', pts: 'Hasta +9 pero con coste', phase: 'durante' }
           ].map((row, i) => (
@@ -108,15 +130,14 @@ export default function Rules() {
       <Section icon="🎲" title="3. Apuestas especiales" badge="Pre-torneo">
         <P last>Predicciones extra sobre el torneo. Se rellenan antes del inicio del Mundial.</P>
         <ItemTable items={[
-          { label: 'Selección revelación (llega a cuartos)', value: '+4 pts', color: '#4ade80' },
-          { label: 'Selección decepción (cae en grupos)', value: '+4 pts', color: '#4ade80' },
-          { label: 'Máximo goleador del torneo', value: '+4 pts', color: '#4ade80' },
-          { label: 'Máximo asistente del torneo', value: '+3 pts', color: '#4ade80' },
-          { label: 'Mejor portero (menos goles encajados)', value: '+3 pts', color: '#4ade80' },
-          { label: 'Autor del primer gol del Mundial', value: '+4 pts', color: '#4ade80' },
+          { label: 'Selección revelación (llega a cuartos)', value: '+2 pts', color: '#4ade80' },
+          { label: 'Selección decepción (cae en grupos)', value: '+2 pts', color: '#4ade80' },
+          { label: 'Máximo goleador del torneo', value: '+2 pts', color: '#4ade80' },
+          { label: 'Máximo asistente del torneo', value: '+2 pts', color: '#4ade80' },
+          { label: 'Mejor portero (menos goles encajados)', value: '+2 pts', color: '#4ade80' },
           { label: 'Jugador con 3+ goles en el torneo', value: '+2 pts', color: '#4ade80' },
-          { label: 'Selección más goleadora en grupos', value: '+3 pts', color: '#4ade80' },
-          { label: 'Selección menos goleada en grupos', value: '+3 pts', color: '#4ade80' },
+          { label: 'Selección más goleadora en grupos', value: '+2 pts', color: '#4ade80' },
+          { label: 'Selección menos goleada en grupos', value: '+2 pts', color: '#4ade80' },
           { label: '¿Habrá hat-trick en el torneo?', value: '+2 pts', color: '#4ade80' },
           { label: '¿Habrá goleada de 5+ goles?', value: '+2 pts', color: '#4ade80' }
         ]} />
@@ -176,10 +197,10 @@ export default function Rules() {
         </div>
 
         <Highlight>
-          Ejemplo — Órdago #4 (un octavo de final, coste 2 pts):{'\n'}
-          Predices Francia 2-1 Brasil.{'\n'}
+          Ejemplo — Órdago #4 (2º partido de octavos, coste 2 pts):{'\n'}
+          Predices 2-1 para el equipo local.{'\n'}
           → Si es exacto: ganas +6, pagas -2 = neto <span style={{color:'#4ade80',fontWeight:600}}>+4</span>{'\n'}
-          → Si Francia gana por otro marcador: ganas +4, pagas -2 = neto <span style={{color:'#4ade80',fontWeight:600}}>+2</span>{'\n'}
+          → Si el local gana por otro marcador: ganas +4, pagas -2 = neto <span style={{color:'#4ade80',fontWeight:600}}>+2</span>{'\n'}
           → Si fallas: ganas 0, pagas -2 = neto <span style={{color:'#e74c3c',fontWeight:600}}>-2</span>
         </Highlight>
 
@@ -198,12 +219,12 @@ export default function Rules() {
             <span style={{ textAlign: 'center' }}>1X2</span>
           </div>
           {[
-            { n: 1, match: 'España (1er partido)', cost: 'GRATIS', exact: '+2', sign: '+1', free: true },
-            { n: 2, match: 'Mejor partido J3', cost: '-1', exact: '+3', sign: '+2' },
-            { n: 3, match: 'Un dieciseisavo', cost: '-1', exact: '+3', sign: '+2' },
-            { n: 4, match: 'Un octavo de final', cost: '-2', exact: '+6', sign: '+4' },
-            { n: 5, match: 'Un cuarto de final', cost: '-2', exact: '+6', sign: '+4' },
-            { n: 6, match: 'Una semifinal', cost: '-3', exact: '+9', sign: '+6' }
+            { n: 1, match: 'Inglaterra vs Croacia', detail: '17 jun 22:00h — Grupo L', cost: 'GRATIS', exact: '+2', sign: '+1', free: true },
+            { n: 2, match: 'Uruguay vs España', detail: '27 jun — Grupo H', cost: '-1', exact: '+3', sign: '+2' },
+            { n: 3, match: '1er partido de dieciseisavos', detail: '28 jun 21:00h', cost: '-1', exact: '+3', sign: '+2' },
+            { n: 4, match: '2º partido de octavos', detail: '4 jul 23:00h', cost: '-2', exact: '+6', sign: '+4' },
+            { n: 5, match: '1er partido de cuartos', detail: '9 jul 22:00h', cost: '-2', exact: '+6', sign: '+4' },
+            { n: 6, match: '2ª semifinal', detail: '15 jul 21:00h', cost: '-3', exact: '+9', sign: '+6' }
           ].map((o, i) => (
             <div key={i} style={{
               display: 'grid', gridTemplateColumns: '28px 1fr 55px 55px 55px',
@@ -212,7 +233,10 @@ export default function Rules() {
               background: o.free ? 'rgba(0,122,69,0.04)' : 'transparent'
             }}>
               <span style={{ fontWeight: '700', color: 'var(--text-dim)' }}>{o.n}</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{o.match}</span>
+              <div>
+                <div style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{o.match}</div>
+                {o.detail && <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>{o.detail}</div>}
+              </div>
               <span style={{ textAlign: 'center', fontWeight: '600', color: o.free ? '#4ade80' : '#e74c3c' }}>{o.cost}</span>
               <span style={{ textAlign: 'center', fontWeight: '600', color: '#4ade80' }}>{o.exact}</span>
               <span style={{ textAlign: 'center', fontWeight: '600', color: '#4ade80' }}>{o.sign}</span>
@@ -265,7 +289,7 @@ export default function Rules() {
         ]} />
       </Section>
 
-      <div style={{ height: '20px' }} />
+      <div style={{ height: '100px' }} />
     </div>
   )
 }

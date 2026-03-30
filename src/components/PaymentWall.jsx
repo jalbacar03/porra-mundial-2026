@@ -43,7 +43,7 @@ export default function PaymentWall() {
 
         {!confirmed ? (
           <>
-            {/* Estado: Pendiente de pago */}
+            {/* Estado: Inscripción pendiente */}
             <div style={{
               width: '56px',
               height: '56px',
@@ -135,7 +135,7 @@ export default function PaymentWall() {
           </>
         ) : (
           <>
-            {/* Estado: Pago enviado, esperando confirmación */}
+            {/* Estado: Inscripción enviada, esperando confirmación */}
             <div style={{
               width: '56px',
               height: '56px',

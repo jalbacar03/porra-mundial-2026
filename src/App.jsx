@@ -291,7 +291,28 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
           </span>
         </NavLink>
 
-        {!countdown.expired ? (
+        {demoMode ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'linear-gradient(135deg, rgba(0,122,69,0.3), rgba(0,94,58,0.3))',
+            padding: '4px 12px',
+            borderRadius: '4px',
+            border: '0.5px solid rgba(0,122,69,0.25)'
+          }}>
+            <span style={{ fontSize: '10px' }}>⚽</span>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              color: '#4ade80',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase'
+            }}>
+              DÍA 4
+            </span>
+          </div>
+        ) : !countdown.expired ? (
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -395,6 +416,7 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
     { to: '/news', label: 'Noticias', icon: IconNews },
     { to: '/forum', label: 'Foro', icon: IconForum },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
+    ...(isAdmin ? [{ to: null, label: demoMode ? '🔴' : '👁', icon: () => null, action: onToggleDemo, isDemo: true }] : []),
     { to: null, label: 'Salir', icon: IconLogout, action: () => supabase.auth.signOut() }
   ]
 
@@ -425,19 +447,26 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
               key={i}
               onClick={item.action}
               style={{
-                background: 'none',
-                border: 'none',
+                background: item.isDemo && demoMode ? 'rgba(255,204,0,0.15)' : 'none',
+                border: item.isDemo && demoMode ? '1px solid rgba(255,204,0,0.3)' : 'none',
+                borderRadius: item.isDemo ? '6px' : '0',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '2px',
                 padding: '6px 12px',
                 cursor: 'pointer',
-                color: 'var(--text-dim)'
+                color: item.isDemo && demoMode ? 'var(--gold)' : 'var(--text-dim)'
               }}
             >
-              <Icon size={20} />
-              <span style={{ fontSize: '10px', letterSpacing: '0.3px' }}>{item.label}</span>
+              {item.isDemo ? (
+                <span style={{ fontSize: '16px', lineHeight: '20px' }}>{item.label}</span>
+              ) : (
+                <>
+                  <Icon size={20} />
+                  <span style={{ fontSize: '10px', letterSpacing: '0.3px' }}>{item.label}</span>
+                </>
+              )}
             </button>
           )
         }
@@ -529,7 +558,7 @@ function AppLayout({ session }) {
 
   return (
     <div>
-      {/* Si no ha pagado, mostrar el popup de pago encima de todo */}
+      {/* Si no está admitido, mostrar popup de inscripción */}
       {!hasPaid && <PaymentWall />}
 
       {/* Si ha pagado pero no ha aceptado normas, mostrar popup de normas */}
@@ -561,9 +590,9 @@ function AppLayout({ session }) {
       <div className="app-content">
         <Routes>
           <Route path="/" element={<Dashboard session={session} demoMode={demoMode} />} />
-          <Route path="/predictions" element={<Predictions session={session} />} />
+          <Route path="/predictions" element={<Predictions session={session} demoMode={demoMode} />} />
           <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
-          <Route path="/stats" element={<Stats />} />
+          <Route path="/stats" element={<Stats demoMode={demoMode} />} />
           <Route path="/news" element={<News />} />
           <Route path="/forum" element={<Forum session={session} />} />
           <Route path="/rules" element={<Rules />} />

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import BetCard from '../../../components/bets/BetCard'
 import BetProgress from '../../../components/bets/BetProgress'
+import { generateMockBetEntries } from '../../../hooks/useDemoMode'
 // GroupStandingsPreview removed — standings now shown in GroupMatchPredictions
 // Bracket picks handled in BracketView component
 
@@ -29,7 +30,7 @@ const KNOCKOUT_CHAIN = [
   { slug: 'round_of_32', label: 'round_of_32', getTeamIds: v => v?.teams || [] }
 ]
 
-export default function PreTournamentBets({ session, deadline }) {
+export default function PreTournamentBets({ session, deadline, demoMode }) {
   const [bets, setBets] = useState([])
   const [entries, setEntries] = useState({}) // { bet_id: entry }
   const [loading, setLoading] = useState(true)
@@ -239,6 +240,14 @@ export default function PreTournamentBets({ session, deadline }) {
     }
   }
 
+  // Demo mode: generate mock entries for all bets
+  const demoEntries = useMemo(() => {
+    if (!demoMode || !bets.length) return null
+    return generateMockBetEntries(bets)
+  }, [demoMode, bets])
+
+  const displayEntries = demoMode && demoEntries ? demoEntries : entries
+
   if (loading) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
@@ -247,7 +256,7 @@ export default function PreTournamentBets({ session, deadline }) {
     )
   }
 
-  const completedCount = bets.filter(b => entries[b.id]?.value).length
+  const completedCount = bets.filter(b => displayEntries[b.id]?.value).length
   const totalMaxPoints = bets.reduce((sum, b) => sum + b.max_points, 0)
 
   // Group by category — exclude bracket slugs + stats category
@@ -300,7 +309,7 @@ export default function PreTournamentBets({ session, deadline }) {
         {CATEGORY_ORDER.map(cat => {
           const isActive = activeCategory === cat
           const catBets = betsByCategory[cat] || []
-          const catCompleted = catBets.filter(b => entries[b.id]?.value).length
+          const catCompleted = catBets.filter(b => displayEntries[b.id]?.value).length
           const allDone = catCompleted === catBets.length && catBets.length > 0
           return (
             <button
@@ -325,9 +334,9 @@ export default function PreTournamentBets({ session, deadline }) {
         <BetCard
           key={bet.id}
           bet={bet}
-          entry={entries[bet.id]}
-          onSave={handleSave}
-          disabled={deadline.expired}
+          entry={displayEntries[bet.id]}
+          onSave={demoMode ? () => {} : handleSave}
+          disabled={deadline.expired || demoMode}
           cascadeInfo={cascadeInfoMap[bet.id] || null}
         />
       ))}

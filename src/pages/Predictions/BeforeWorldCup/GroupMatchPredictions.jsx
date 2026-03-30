@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import { calculateGroupStandings } from '../../../utils/groupStandings'
+import { generateMockPredictions, generateDemoMatchStatuses } from '../../../hooks/useDemoMode'
 
-export default function GroupMatchPredictions({ session, deadline }) {
+export default function GroupMatchPredictions({ session, deadline, demoMode }) {
   const [matches, setMatches] = useState([])
   const [predictions, setPredictions] = useState({})
   const [savedPredictions, setSavedPredictions] = useState({})
@@ -155,8 +156,33 @@ export default function GroupMatchPredictions({ session, deadline }) {
     return calculateGroupStandings(matches, allPreds)
   }, [matches, savedPredictions, predictions])
 
-  const currentGroupStandings = groupStandings[activeGroup] || []
-  const groupHasPredictions = currentGroupStandings.some(t => t.played > 0)
+  // Demo mode: generate mock predictions and match statuses
+  const demoPredictions = useMemo(() => {
+    if (!demoMode || !matches.length) return null
+    return generateMockPredictions(matches)
+  }, [demoMode, matches])
+
+  const demoMatches = useMemo(() => {
+    if (!demoMode || !matches.length) return null
+    return generateDemoMatchStatuses(matches)
+  }, [demoMode, matches])
+
+  // Use demo data if active, otherwise real data
+  const displayPredictions = demoMode && demoPredictions ? demoPredictions : predictions
+  const displaySavedPredictions = demoMode && demoPredictions ? demoPredictions : savedPredictions
+  const displayMatches = demoMode && demoMatches ? demoMatches : matches
+
+  // Recalculate standings with display data
+  const { groupStandings: demoGroupStandings } = useMemo(() => {
+    if (!demoMode || !demoMatches?.length || !demoPredictions) return { groupStandings: {} }
+    return calculateGroupStandings(demoMatches, demoPredictions)
+  }, [demoMode, demoMatches, demoPredictions])
+
+  const activeGroupStandings = demoMode && demoGroupStandings
+    ? (demoGroupStandings[activeGroup] || [])
+    : (groupStandings[activeGroup] || [])
+  const currentGroupStandings = activeGroupStandings
+  const groupHasPredictions = currentGroupStandings.some(t => t.played > 0) || demoMode
 
   if (loading) {
     return (
@@ -166,9 +192,9 @@ export default function GroupMatchPredictions({ session, deadline }) {
     )
   }
 
-  const groupMatches = matches.filter(m => m.group_name === activeGroup)
+  const groupMatches = displayMatches.filter(m => m.group_name === activeGroup)
   const groupTotal = groupMatches.length
-  const groupDone = countGroupPredictions(activeGroup)
+  const groupDone = demoMode ? groupTotal : countGroupPredictions(activeGroup)
 
   const matchesByMatchday = {}
   groupMatches.forEach(m => {
@@ -195,8 +221,8 @@ export default function GroupMatchPredictions({ session, deadline }) {
       {/* Group tabs */}
       <div className="group-tabs" style={{ marginBottom: '16px' }}>
         {groups.map(g => {
-          const total = matches.filter(m => m.group_name === g).length
-          const done = countGroupPredictions(g)
+          const total = displayMatches.filter(m => m.group_name === g).length
+          const done = demoMode ? total : countGroupPredictions(g)
           const isActive = activeGroup === g
           const isComplete = done === total && total > 0
           return (
@@ -249,21 +275,69 @@ export default function GroupMatchPredictions({ session, deadline }) {
           </div>
 
           {mdMatches.map(match => {
-            const pred = predictions[match.id] || {}
-            const unsaved = hasUnsavedChanges(match.id)
-            const saved = isSaved(match.id)
+            const pred = demoMode ? (displayPredictions[match.id] || {}) : (predictions[match.id] || {})
+            const unsaved = demoMode ? false : hasUnsavedChanges(match.id)
+            const saved = demoMode ? true : isSaved(match.id)
+            const isFinished = match.status === 'finished'
+            const isLive = match.status === 'live'
+
+            // In demo mode, calculate points for finished matches
+            let demoPoints = null
+            if (demoMode && isFinished && pred.home_score !== undefined) {
+              const predSign = Math.sign(pred.home_score - pred.away_score)
+              const realSign = Math.sign(match.home_score - match.away_score)
+              if (pred.home_score === match.home_score && pred.away_score === match.away_score) {
+                demoPoints = 3
+              } else if (predSign === realSign) {
+                demoPoints = 1
+              } else {
+                demoPoints = 0
+              }
+            }
 
             return (
               <div key={match.id} style={{
                 padding: '12px 0',
                 borderBottom: '0.5px solid var(--border-light)'
               }}>
+                {/* Date + status badge */}
                 <div style={{
                   fontSize: '11px', color: 'var(--text-dim)',
-                  marginBottom: '10px', textAlign: 'center'
+                  marginBottom: '10px', textAlign: 'center',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                 }}>
-                  {formatDate(match.match_date)}
+                  <span>{formatDate(match.match_date)}</span>
+                  {demoMode && isFinished && (
+                    <span style={{
+                      fontSize: '9px', padding: '1px 6px', borderRadius: '3px',
+                      background: 'rgba(0,122,69,0.1)', color: 'var(--green)', fontWeight: '600'
+                    }}>FINAL</span>
+                  )}
+                  {demoMode && isLive && (
+                    <span style={{
+                      fontSize: '9px', padding: '1px 6px', borderRadius: '3px',
+                      background: 'rgba(226,75,74,0.15)', color: '#ff6b6b', fontWeight: '600',
+                      animation: 'pulse 2s infinite'
+                    }}>EN VIVO</span>
+                  )}
                 </div>
+
+                {/* Actual result for finished/live demo matches */}
+                {demoMode && (isFinished || isLive) && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    marginBottom: '6px', padding: '4px 0'
+                  }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Resultado:</span>
+                    <span style={{
+                      fontSize: '16px', fontWeight: '700',
+                      color: isLive ? '#ff6b6b' : 'var(--text-primary)',
+                      fontVariantNumeric: 'tabular-nums'
+                    }}>
+                      {match.home_score} - {match.away_score}
+                    </span>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <div style={{
@@ -285,32 +359,32 @@ export default function GroupMatchPredictions({ session, deadline }) {
                     <input
                       type="number" min="0" max="99"
                       value={pred.home_score ?? ''}
-                      onChange={e => updatePrediction(match.id, 'home_score', e.target.value)}
-                      disabled={deadline.expired}
+                      onChange={e => !demoMode && updatePrediction(match.id, 'home_score', e.target.value)}
+                      disabled={deadline.expired || demoMode}
                       style={{
                         width: '36px', height: '32px', textAlign: 'center',
                         fontSize: '15px', fontWeight: '600', borderRadius: '4px',
-                        border: unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
+                        border: demoMode ? '1px solid var(--border)' : unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
                         background: 'var(--bg-input)',
                         color: pred.home_score !== '' && pred.home_score !== undefined ? 'var(--gold)' : 'var(--text-dim)',
                         outline: 'none',
-                        opacity: deadline.expired ? 0.5 : 1
+                        opacity: demoMode ? 0.8 : deadline.expired ? 0.5 : 1
                       }}
                     />
                     <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>:</span>
                     <input
                       type="number" min="0" max="99"
                       value={pred.away_score ?? ''}
-                      onChange={e => updatePrediction(match.id, 'away_score', e.target.value)}
-                      disabled={deadline.expired}
+                      onChange={e => !demoMode && updatePrediction(match.id, 'away_score', e.target.value)}
+                      disabled={deadline.expired || demoMode}
                       style={{
                         width: '36px', height: '32px', textAlign: 'center',
                         fontSize: '15px', fontWeight: '600', borderRadius: '4px',
-                        border: unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
+                        border: demoMode ? '1px solid var(--border)' : unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
                         background: 'var(--bg-input)',
                         color: pred.away_score !== '' && pred.away_score !== undefined ? 'var(--gold)' : 'var(--text-dim)',
                         outline: 'none',
-                        opacity: deadline.expired ? 0.5 : 1
+                        opacity: demoMode ? 0.8 : deadline.expired ? 0.5 : 1
                       }}
                     />
                   </div>
@@ -331,8 +405,24 @@ export default function GroupMatchPredictions({ session, deadline }) {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
-                  {unsaved ? (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', gap: '6px' }}>
+                  {demoMode && isFinished && demoPoints !== null ? (
+                    <span style={{
+                      padding: '2px 10px', borderRadius: '3px', fontSize: '10px', fontWeight: '600',
+                      background: demoPoints === 3 ? 'rgba(0,122,69,0.15)' : demoPoints === 1 ? 'rgba(255,204,0,0.1)' : 'rgba(226,75,74,0.1)',
+                      color: demoPoints === 3 ? 'var(--green)' : demoPoints === 1 ? 'var(--gold)' : '#e74c3c'
+                    }}>
+                      {demoPoints === 3 ? 'Exacto +3' : demoPoints === 1 ? 'Signo +1' : 'Fallo 0'}
+                    </span>
+                  ) : demoMode && isLive ? (
+                    <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'rgba(226,75,74,0.1)', color: '#ff6b6b' }}>
+                      En juego...
+                    </span>
+                  ) : demoMode ? (
+                    <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--green-light)', color: 'var(--green)' }}>
+                      Guardado
+                    </span>
+                  ) : unsaved ? (
                     <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--gold-dim)', color: 'var(--gold)' }}>
                       Sin guardar
                     </span>
@@ -365,7 +455,7 @@ export default function GroupMatchPredictions({ session, deadline }) {
       )}
 
       {/* Save button */}
-      {!deadline.expired && (
+      {!deadline.expired && !demoMode && (
         <button
           onClick={savePredictions}
           disabled={saving}

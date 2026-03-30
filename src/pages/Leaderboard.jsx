@@ -46,45 +46,65 @@ export default function Leaderboard({ demoMode }) {
   async function fetchLast3Days(currentUserId) {
     const threeDaysAgo = new Date()
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+    const cutoff = threeDaysAgo.toISOString()
 
-    const { data: recentMatches } = await supabase
-      .from('matches')
-      .select('id')
-      .eq('status', 'finished')
-      .gte('match_date', threeDaysAgo.toISOString())
+    // Fetch all 3 point sources in parallel
+    const [matchesRes, predsRes, preTournamentRes, ordagosRes, profilesRes] = await Promise.all([
+      supabase.from('matches').select('id').eq('status', 'finished').gte('match_date', cutoff),
+      null, // filled below after we have matchIds
+      supabase.from('pre_tournament_entries').select('user_id, points_awarded').eq('is_resolved', true).gte('updated_at', cutoff),
+      supabase.from('ordago_entries').select('user_id, points_awarded').not('points_awarded', 'is', null).gte('updated_at', cutoff),
+      supabase.from('profiles').select('id, full_name, nickname')
+    ])
 
-    if (!recentMatches || recentMatches.length === 0) {
-      setLast3Rankings([])
-      return
-    }
-
+    const recentMatches = matchesRes?.data || []
     const matchIds = recentMatches.map(m => m.id)
 
-    const { data: preds } = await supabase
-      .from('predictions')
-      .select('user_id, points_earned, match_id')
-      .in('match_id', matchIds)
+    // Fetch match predictions (needs matchIds)
+    let preds = []
+    if (matchIds.length > 0) {
+      const { data } = await supabase
+        .from('predictions')
+        .select('user_id, points_earned, match_id')
+        .in('match_id', matchIds)
+      preds = data || []
+    }
 
-    if (!preds || preds.length === 0) {
+    const preTournament = preTournamentRes?.data || []
+    const ordagos = ordagosRes?.data || []
+
+    // If no points earned anywhere in last 3 days, show empty
+    if (preds.length === 0 && preTournament.length === 0 && ordagos.length === 0) {
       setLast3Rankings([])
       return
     }
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, nickname')
-
     const profileMap = {}
-    profiles?.forEach(p => { profileMap[p.id] = p.nickname || p.full_name })
+    profilesRes?.data?.forEach(p => { profileMap[p.id] = p.nickname || p.full_name })
 
     const userStats = {}
+    function ensure(uid) {
+      if (!userStats[uid]) userStats[uid] = { user_id: uid, total_points: 0, exact_hits: 0, sign_hits: 0 }
+    }
+
+    // Match prediction points
     preds.forEach(p => {
-      if (!userStats[p.user_id]) {
-        userStats[p.user_id] = { user_id: p.user_id, total_points: 0, exact_hits: 0, sign_hits: 0 }
-      }
+      ensure(p.user_id)
       userStats[p.user_id].total_points += (p.points_earned || 0)
       if (p.points_earned === 3) userStats[p.user_id].exact_hits++
       if (p.points_earned === 1) userStats[p.user_id].sign_hits++
+    })
+
+    // Pre-tournament bet points resolved in last 3 days
+    preTournament.forEach(e => {
+      ensure(e.user_id)
+      userStats[e.user_id].total_points += (e.points_awarded || 0)
+    })
+
+    // Ordago points resolved in last 3 days
+    ordagos.forEach(e => {
+      ensure(e.user_id)
+      userStats[e.user_id].total_points += (e.points_awarded || 0)
     })
 
     const sorted = Object.values(userStats)

@@ -48,10 +48,10 @@ button, a {
     padding-bottom: 34px;
     padding-bottom: env(safe-area-inset-bottom, 34px);
   }
-  /* Espacio inferior para que el contenido no quede tapado */
+  /* Espacio inferior para que el contenido no quede tapado por bottom nav */
   .app-content {
-    padding-bottom: 98px;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 34px));
+    padding-bottom: 110px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 34px));
   }
   /* Leaderboard columnas más compactas */
   .leaderboard-stat {

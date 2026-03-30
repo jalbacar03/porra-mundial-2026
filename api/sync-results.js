@@ -107,12 +107,24 @@ export default async function handler(req, res) {
     )
     log.push(`   Resolved ${resolvedBets} bets`)
 
-    // 7. Summary
+    // 7. Sync knockout match teams from API-Football
+    log.push('🏆 Syncing knockout match teams...')
+    const knockoutSynced = await syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, log)
+    log.push(`   Updated ${knockoutSynced} knockout match teams`)
+
+    // 8. Auto-resolve órdagos for finished matches
+    log.push('🎲 Checking órdagos...')
+    const ordagosResolved = await resolveFinishedOrdagos(log)
+    log.push(`   Resolved ${ordagosResolved} órdagos`)
+
+    // 9. Summary
     const summary = {
       timestamp: new Date().toISOString(),
       matchesUpdated: updatedCount,
       totalFinished: finished.length,
       betsResolved: resolvedBets,
+      knockoutTeamsSynced: knockoutSynced,
+      ordagosResolved,
       log
     }
 
@@ -282,24 +294,6 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
           const players5Plus = topScorers.filter(p => p.statistics[0]?.goals?.total >= 5)
           correctAnswer = players5Plus.map(p => p.player.name)
           canResolve = groupStageComplete
-        }
-        break
-      }
-
-      // === PRIMER GOLEADOR DEL TORNEO ===
-      case 'first_scorer': {
-        // First goal of the first match
-        if (finishedGroups.length > 0) {
-          const firstMatch = finishedGroups.sort((a, b) =>
-            new Date(a.match_date) - new Date(b.match_date)
-          )[0]
-          // We'd need match events from API-Football for this
-          const eventsRes = await apiFetch(`/fixtures/events?fixture=${findApiFixtureId(apiMatches, firstMatch, teamByApiId)}`)
-          const goals = (eventsRes.response || []).filter(e => e.type === 'Goal').sort((a, b) => a.time.elapsed - b.time.elapsed)
-          if (goals.length > 0) {
-            correctAnswer = goals[0].player.name
-            canResolve = true
-          }
         }
         break
       }
@@ -478,6 +472,145 @@ function findApiFixtureId(apiMatches, ourMatch, teamByApiId) {
     m.teams.home.id === homeApiId && m.teams.away.id === awayApiId
   )
   return found?.fixture?.id
+}
+
+/**
+ * Sync knockout match teams from API-Football.
+ * When API-Football shows knockout fixtures with known teams, populate our knockout matches.
+ * Matches our DB knockout matches by FIFA match number mapping (R32=73-88, R16=89-96, etc.)
+ */
+async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, log) {
+  let updated = 0
+
+  // Map API-Football round names to our stage names and match number ranges
+  const roundMapping = {
+    'Round of 32': { stage: 'Round of 32', startMatch: 73, endMatch: 88 },
+    'Round of 16': { stage: 'Round of 16', startMatch: 89, endMatch: 96 },
+    'Quarter-finals': { stage: 'Quarter-finals', startMatch: 97, endMatch: 100 },
+    'Semi-finals': { stage: 'Semi-finals', startMatch: 101, endMatch: 102 },
+    'Final': { stage: 'Final', startMatch: 104, endMatch: 104 }
+  }
+
+  // Get knockout fixtures from API-Football (with known teams)
+  const knockoutFixtures = apiMatches.filter(m => {
+    const round = m.league?.round || ''
+    return !round.startsWith('Group') && m.teams?.home?.id && m.teams?.away?.id
+  })
+
+  if (knockoutFixtures.length === 0) return 0
+
+  // Group API fixtures by round, sorted by date
+  const fixturesByRound = {}
+  for (const fix of knockoutFixtures) {
+    const round = fix.league.round
+    // Normalize round name: "Round of 32 - 1" → "Round of 32"
+    const baseName = round.replace(/\s*-\s*\d+$/, '')
+    if (!fixturesByRound[baseName]) fixturesByRound[baseName] = []
+    fixturesByRound[baseName].push(fix)
+  }
+
+  // Sort each round's fixtures by date
+  for (const round of Object.keys(fixturesByRound)) {
+    fixturesByRound[round].sort((a, b) =>
+      new Date(a.fixture.date) - new Date(b.fixture.date)
+    )
+  }
+
+  // For each round, match API fixtures to our DB matches by date order
+  for (const [roundName, mapping] of Object.entries(roundMapping)) {
+    const apiFixtures = fixturesByRound[roundName]
+    if (!apiFixtures || apiFixtures.length === 0) continue
+
+    // Get our matches for this stage that still need teams
+    const ourKnockoutMatches = ourMatches.filter(m =>
+      m.stage === mapping.stage &&
+      m.id >= mapping.startMatch && m.id <= mapping.endMatch &&
+      (!m.home_team_id || !m.away_team_id)
+    ).sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
+
+    // Match by date proximity
+    for (const ourMatch of ourKnockoutMatches) {
+      const ourDate = new Date(ourMatch.match_date).getTime()
+      // Find closest API fixture by date
+      let bestFix = null
+      let bestDiff = Infinity
+      for (const fix of apiFixtures) {
+        const diff = Math.abs(new Date(fix.fixture.date).getTime() - ourDate)
+        if (diff < bestDiff) {
+          bestDiff = diff
+          bestFix = fix
+        }
+      }
+
+      // Only match if within 24 hours
+      if (bestFix && bestDiff < 24 * 60 * 60 * 1000) {
+        const homeTeamId = teamByApiId[bestFix.teams.home.id]
+        const awayTeamId = teamByApiId[bestFix.teams.away.id]
+
+        if (homeTeamId && awayTeamId) {
+          await supaFetch(`/rest/v1/matches?id=eq.${ourMatch.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              home_team_id: homeTeamId,
+              away_team_id: awayTeamId,
+              match_date: bestFix.fixture.date // also update exact time from API
+            })
+          })
+          updated++
+          log.push(`   🏆 ${mapping.stage} match ${ourMatch.id}: teams set`)
+          // Remove used fixture to prevent double-matching
+          const fixIdx = apiFixtures.indexOf(bestFix)
+          if (fixIdx > -1) apiFixtures.splice(fixIdx, 1)
+        }
+      }
+    }
+  }
+
+  return updated
+}
+
+/**
+ * Auto-resolve órdagos whose linked match is finished.
+ * Calls the resolve_ordago PostgreSQL function via RPC.
+ */
+async function resolveFinishedOrdagos(log) {
+  let resolved = 0
+
+  // Get all unresolved órdagos with their match info
+  const ordagos = await supaFetch(
+    '/rest/v1/ordagos?status=neq.resolved&match_id=not.is.null&select=id,number,match_id,status'
+  )
+
+  if (!ordagos || ordagos.length === 0) return 0
+
+  for (const ordago of ordagos) {
+    // Check if the linked match is finished
+    const matches = await supaFetch(`/rest/v1/matches?id=eq.${ordago.match_id}&select=id,status,home_score,away_score`)
+    const match = matches?.[0]
+
+    if (match && match.status === 'finished' && match.home_score !== null && match.away_score !== null) {
+      // Call the resolve_ordago function
+      const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_ordago`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ p_ordago_id: ordago.id })
+      })
+
+      if (rpcRes.ok) {
+        resolved++
+        log.push(`   🎲 Órdago #${ordago.number} resolved!`)
+      } else {
+        const err = await rpcRes.text()
+        log.push(`   ⚠️ Órdago #${ordago.number} error: ${err}`)
+      }
+    }
+  }
+
+  return resolved
 }
 
 // ── Helpers ──

@@ -59,3 +59,104 @@ export function generateMockMatchResults(matches) {
     return m
   })
 }
+
+// Deterministic seed-based random to keep demo data stable across renders
+function seededRandom(seed) {
+  let x = Math.sin(seed) * 10000
+  return x - Math.floor(x)
+}
+
+// Generate mock predictions for group matches (all filled in)
+export function generateMockPredictions(matches) {
+  const preds = {}
+  matches.forEach((m, i) => {
+    const seed = m.id || i
+    preds[m.id] = {
+      home_score: Math.floor(seededRandom(seed * 7) * 4),
+      away_score: Math.floor(seededRandom(seed * 13) * 3)
+    }
+  })
+  return preds
+}
+
+// Generate mock match statuses: some finished with results, one live, rest upcoming
+export function generateDemoMatchStatuses(matches) {
+  if (!matches || matches.length === 0) return matches
+
+  // Sort by match_date to apply statuses in chronological order
+  const sorted = [...matches].sort((a, b) =>
+    new Date(a.match_date) - new Date(b.match_date)
+  )
+
+  // First 8 matches finished, 1 live, rest scheduled
+  return sorted.map((m, i) => {
+    const seed = m.id || i
+    if (i < 8) {
+      const hs = Math.floor(seededRandom(seed * 7) * 4)
+      const as = Math.floor(seededRandom(seed * 13) * 3)
+      return {
+        ...m,
+        status: 'finished',
+        home_score: hs,
+        away_score: as
+      }
+    }
+    if (i === 8) {
+      return {
+        ...m,
+        status: 'live',
+        home_score: Math.floor(seededRandom(seed * 3) * 3),
+        away_score: Math.floor(seededRandom(seed * 5) * 2)
+      }
+    }
+    return { ...m, status: 'scheduled', home_score: null, away_score: null }
+  })
+}
+
+// Mock pre-tournament bet entries (all completed)
+const MOCK_BET_VALUES = {
+  players: {
+    top_scorer: { player_name: 'Kylian Mbappé', team: 'Francia' },
+    top_assists: { player_name: 'Kevin De Bruyne', team: 'Bélgica' },
+    best_goalkeeper: { player_name: 'Thibaut Courtois', team: 'Bélgica' },
+    three_plus_goals: { player_name: 'Harry Kane', team: 'Inglaterra' },
+    five_plus_goals: { player_name: 'Kylian Mbappé', team: 'Francia' }
+  },
+  teams: {
+    revelation: { team_name: 'Marruecos' },
+    disappointment: { team_name: 'Alemania' },
+    most_goals_group: { team_name: 'España' },
+    fewest_goals_group: { team_name: 'Arabia Saudí' }
+  },
+  yesno: {
+    hat_trick: { answer: true },
+    five_goal_game: { answer: false }
+  }
+}
+
+export function generateMockBetEntries(bets) {
+  const entries = {}
+  bets.forEach(bet => {
+    // Try to find a mock value by slug or category
+    const catValues = MOCK_BET_VALUES[bet.category]
+    const mockValue = catValues?.[bet.slug]
+
+    if (mockValue) {
+      entries[bet.id] = {
+        bet_id: bet.id,
+        value: mockValue,
+        is_resolved: false,
+        points_awarded: 0
+      }
+    } else {
+      // Generic fallback: mark as answered with a generic value
+      entries[bet.id] = {
+        bet_id: bet.id,
+        value: bet.category === 'yesno' ? { answer: true } : { text: 'Seleccionado' },
+        is_resolved: false,
+        points_awarded: 0
+      }
+    }
+  })
+  return entries
+}

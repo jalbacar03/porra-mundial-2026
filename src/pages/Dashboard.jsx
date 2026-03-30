@@ -197,13 +197,14 @@ export default function Dashboard({ session, demoMode }) {
 
   // Use mock data in demo mode
   const displayStats = demoMode && mockData
-    ? { ...stats, points: mockData.myStats?.total_points || 27, exactHits: mockData.myStats?.exact_hits || 5, rank: mockData.myRank }
+    ? { ...stats, points: mockData.myStats?.total_points || 27, exactHits: mockData.myStats?.exact_hits || 5, signHits: mockData.myStats?.sign_hits || 8, rank: mockData.myRank, completed: stats.total }
     : stats
   const displayTopRanking = demoMode && mockData ? mockData.rankings.slice(0, 5) : topRanking
   const displayTotalUsers = demoMode && mockData ? mockData.rankings.length : totalUsers
   const displayInsight = demoMode
-    ? 'Jornada 2 del Mundial completada. España goleó 3-0 a Croacia con un doblete de Pedri. Argentina empató 1-1 ante Senegal en un partido muy disputado. Brasil venció a Panamá por la mínima (1-0) con gol de Vinicius en el 89\'. Japón dio la sorpresa al derrotar a Alemania 2-1 repitiendo la hazaña de Qatar 2022.'
+    ? 'Jornada 2 del Mundial completada. España goleo 3-0 a Croacia con un doblete de Pedri. Argentina empato 1-1 ante Senegal en un partido muy disputado. Brasil vencio a Panama por la minima (1-0) con gol de Vinicius en el 89\'. Japon dio la sorpresa al derrotar a Alemania 2-1 repitiendo la hazana de Qatar 2022.'
     : dailyInsight
+  const displayInsightLoading = demoMode ? false : insightLoading
 
   // Top 5 max points for bar scaling
   const maxPoints = displayTopRanking.length > 0 ? Math.max(displayTopRanking[0]?.total_points || 1, 1) : 1
@@ -283,7 +284,7 @@ export default function Dashboard({ session, demoMode }) {
           }}>GENERADA POR IA</span>
         </div>
 
-        {insightLoading ? (
+        {displayInsightLoading ? (
           <div style={{
             padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
             fontSize: '12px'
@@ -417,7 +418,46 @@ export default function Dashboard({ session, demoMode }) {
       </div>
 
       {/* ===== NEXT MATCHES ===== */}
-      {nextMatches.length > 0 && (
+      {demoMode && (
+        <div style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '8px',
+          padding: '14px 16px',
+          marginBottom: '12px',
+          border: '0.5px solid var(--border)'
+        }}>
+          <div style={{
+            fontSize: '10px', color: 'var(--text-dim)',
+            textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px'
+          }}>
+            Partidos de hoy
+          </div>
+          {[
+            { home: 'España', away: 'Croacia', time: '18:00', status: 'finished', score: '3-0' },
+            { home: 'Argentina', away: 'Senegal', time: '21:00', status: 'live', minute: '67\'' },
+            { home: 'Brasil', away: 'Panamá', time: '22:00', status: 'upcoming' }
+          ].map((m, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', padding: '8px 0',
+              borderBottom: i < 2 ? '0.5px solid var(--border-light)' : 'none'
+            }}>
+              <div style={{ width: '45px', fontSize: '11px', color: 'var(--text-dim)' }}>{m.time}</div>
+              <div style={{ flex: 1, fontSize: '12px', color: 'var(--text-primary)' }}>
+                {m.home} vs {m.away}
+              </div>
+              <div style={{
+                fontSize: '10px', padding: '2px 8px', borderRadius: '3px',
+                background: m.status === 'finished' ? 'rgba(0,122,69,0.1)' : m.status === 'live' ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)',
+                color: m.status === 'finished' ? 'var(--green)' : m.status === 'live' ? 'var(--gold)' : 'var(--text-dim)',
+                fontWeight: '600'
+              }}>
+                {m.status === 'finished' ? m.score : m.status === 'live' ? `🔴 ${m.minute}` : 'Próximo'}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!demoMode && nextMatches.length > 0 && (
         <div style={{
           background: 'var(--bg-secondary)',
           borderRadius: '8px',
