@@ -587,6 +587,21 @@ async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, 
 async function resolveFinishedOrdagos(log) {
   let resolved = 0
 
+  // Auto-open órdago #1 when World Cup has started (11 Jun 2026)
+  const WORLD_CUP_START = new Date('2026-06-11T00:00:00Z')
+  if (new Date() >= WORLD_CUP_START) {
+    const pending = await supaFetch(
+      '/rest/v1/ordagos?number=eq.1&status=eq.pending&select=id'
+    )
+    if (pending?.length > 0) {
+      await supaFetch(`/rest/v1/ordagos?id=eq.${pending[0].id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'open' })
+      })
+      log.push('   🎲 Órdago #1 auto-opened (World Cup started)')
+    }
+  }
+
   // Get all unresolved órdagos with their match info
   const ordagos = await supaFetch(
     '/rest/v1/ordagos?status=neq.resolved&match_id=not.is.null&select=id,number,match_id,status'

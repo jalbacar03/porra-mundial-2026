@@ -78,8 +78,8 @@ export default function Rules() {
               </div>
               <span style={{
                 fontSize: '8px', padding: '2px 6px', borderRadius: '3px', fontWeight: '600',
-                background: row.phase === 'antes' ? 'rgba(255,138,138,0.1)' : 'rgba(74,222,128,0.1)',
-                color: row.phase === 'antes' ? '#ff8a8a' : '#4ade80',
+                background: row.phase === 'antes' ? 'rgba(255,138,138,0.1)' : 'rgba(255,204,0,0.1)',
+                color: row.phase === 'antes' ? '#ff8a8a' : 'var(--gold)',
                 textTransform: 'uppercase', letterSpacing: '0.3px', flexShrink: 0
               }}>
                 {row.phase}
@@ -144,7 +144,7 @@ export default function Rules() {
       </Section>
 
       {/* ===== PHASE DIVIDER: DURANTE ===== */}
-      <PhaseDivider label="DURANTE EL MUNDIAL" subtitle="Nuevas oportunidades de sumar (y perder) puntos" color="#4ade80" />
+      <PhaseDivider label="DURANTE EL MUNDIAL" subtitle="Nuevas oportunidades de sumar (y perder) puntos" color="#ffcc00" />
 
       {/* ===== 4. CUADRO REAL ===== */}
       <Section icon="⚡" title="4. Cuadro real" badge="31 partidos">
