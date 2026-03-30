@@ -119,8 +119,7 @@ const MOCK_BET_VALUES = {
     top_scorer: { player_name: 'Kylian Mbappé', team: 'Francia' },
     top_assists: { player_name: 'Kevin De Bruyne', team: 'Bélgica' },
     best_goalkeeper: { player_name: 'Thibaut Courtois', team: 'Bélgica' },
-    three_plus_goals: { player_name: 'Harry Kane', team: 'Inglaterra' },
-    five_plus_goals: { player_name: 'Kylian Mbappé', team: 'Francia' }
+    three_plus_goals: { player_name: 'Harry Kane', team: 'Inglaterra' }
   },
   teams: {
     revelation: { team_name: 'Marruecos' },

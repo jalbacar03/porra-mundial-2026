@@ -288,12 +288,23 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
         break
       }
 
-      // === JUGADOR 5+ GOLES ===
-      case 'player_5_goals': {
-        if (topScorers.length > 0) {
-          const players5Plus = topScorers.filter(p => p.statistics[0]?.goals?.total >= 5)
-          correctAnswer = players5Plus.map(p => p.player.name)
-          canResolve = groupStageComplete
+      // === PORTERO MENOS GOLEADO ===
+      case 'best_goalkeeper': {
+        const finalMatch = ourMatches.find(m => m.stage === 'final')
+        if (finalMatch?.home_score !== null) {
+          // Fetch top goalkeepers stats from API-Football
+          // The team with fewest goals conceded in the whole tournament
+          const goalsConceded = {}
+          ourMatches.filter(m => m.home_score !== null).forEach(m => {
+            goalsConceded[m.home_team_id] = (goalsConceded[m.home_team_id] || 0) + (m.away_score || 0)
+            goalsConceded[m.away_team_id] = (goalsConceded[m.away_team_id] || 0) + (m.home_score || 0)
+          })
+          // Find team with fewest goals conceded that went furthest
+          const bestTeamId = Object.entries(goalsConceded).sort((a, b) => a[1] - b[1])[0]
+          if (bestTeamId) {
+            correctAnswer = parseInt(bestTeamId[0])
+            canResolve = true
+          }
         }
         break
       }
@@ -387,7 +398,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
         const thrashing = apiMatches.find(m => {
           const h = m.goals?.home || 0
           const a = m.goals?.away || 0
-          return Math.abs(h - a) >= 5 && (m.fixture.status.short === 'FT')
+          return (h + a) >= 5 && (m.fixture.status.short === 'FT')
         })
         if (thrashing) {
           correctAnswer = 'yes'

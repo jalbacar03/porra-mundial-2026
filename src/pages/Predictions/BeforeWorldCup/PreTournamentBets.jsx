@@ -285,7 +285,7 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
           Apuestas Especiales
         </h3>
         <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-          20 apuestas especiales — hasta {totalMaxPoints} puntos extra
+          10 apuestas especiales — +2 puntos cada una
         </p>
       </div>
 
