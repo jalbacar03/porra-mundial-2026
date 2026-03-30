@@ -181,14 +181,14 @@ export default function OrdagosView({ session }) {
   }
 
   if (loading) {
-    return <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Cargando ordagos...</div>
+    return <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Cargando órdagos...</div>
   }
 
   if (ordagos.length === 0) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
         <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎲</div>
-        <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Los ordagos se activaran durante el Mundial</div>
+        <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Los órdagos se activarán durante el Mundial</div>
       </div>
     )
   }
@@ -214,7 +214,7 @@ export default function OrdagosView({ session }) {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gold)' }}>
-            Ordagos del Mundial
+            Órdagos del Mundial
           </div>
           <span style={{
             fontSize: '10px', padding: '3px 8px', borderRadius: '4px',
@@ -224,7 +224,7 @@ export default function OrdagosView({ session }) {
           </span>
         </div>
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
-          Predice el resultado exacto de partidos concretos. Cada ordago tiene un coste de entrada
+          Predice el resultado exacto de partidos concretos. Cada órdago tiene un coste de entrada
           y una recompensa mayor. Son 100% opcionales.
         </p>
 
@@ -271,7 +271,7 @@ export default function OrdagosView({ session }) {
                 result.type === 'sign' ? '1px solid var(--green)' :
                 '1px solid rgba(231,76,60,0.3)'
               : open ? '1px solid rgba(255,204,0,0.2)' : '0.5px solid var(--border)',
-            opacity: ordago.status === 'locked' ? 0.5 : 1
+            opacity: ordago.status === 'locked' ? 0.7 : 1
           }}>
             {/* Top row: number + title + status */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -459,7 +459,7 @@ export default function OrdagosView({ session }) {
                     marginTop: '8px', textAlign: 'center',
                     fontSize: '11px', color: 'var(--text-dim)'
                   }}>
-                    Tu prediccion: {entry.predicted_home} - {entry.predicted_away}
+                    Tu predicción: {entry.predicted_home} - {entry.predicted_away}
                     {result && (
                       <span style={{
                         marginLeft: '8px', fontWeight: '600',
@@ -493,7 +493,7 @@ export default function OrdagosView({ session }) {
                       opacity: isSaving ? 0.6 : 1
                     }}
                   >
-                    {isSaving ? 'Guardando...' : entry ? 'Actualizar prediccion' : 'Participar en este ordago'}
+                    {isSaving ? 'Guardando...' : entry ? 'Actualizar predicción' : 'Participar en este órdago'}
                   </button>
                 )}
 
@@ -501,7 +501,7 @@ export default function OrdagosView({ session }) {
                 {open && entry && !hasUnsaved && (
                   <div style={{ marginTop: '8px', textAlign: 'center' }}>
                     <div style={{ fontSize: '10px', color: 'var(--green)', fontWeight: '600' }}>
-                      ✓ Prediccion guardada ({entry.predicted_home}-{entry.predicted_away})
+                      ✓ Predicción guardada ({entry.predicted_home}-{entry.predicted_away})
                     </div>
                     <button
                       onClick={() => handleCancel(ordago)}
@@ -517,7 +517,7 @@ export default function OrdagosView({ session }) {
                         opacity: isSaving ? 0.5 : 1
                       }}
                     >
-                      Cancelar predicción
+                      Retirar predicción
                     </button>
                   </div>
                 )}
@@ -528,7 +528,7 @@ export default function OrdagosView({ session }) {
             {ordago.status === 'locked' && match && (
               <div style={{
                 background: 'var(--bg-input)', borderRadius: '8px', padding: '12px',
-                border: '0.5px solid var(--border-light)', opacity: 0.5
+                border: '0.5px solid var(--border-light)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

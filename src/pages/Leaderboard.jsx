@@ -7,9 +7,8 @@ export default function Leaderboard({ demoMode }) {
   const [rankings, setRankings] = useState([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState(null)
-  const [activeTab, setActiveTab] = useState('general')
-  const [last3Rankings, setLast3Rankings] = useState([])
   const [profileNames, setProfileNames] = useState({})
+  const [positionChanges, setPositionChanges] = useState({}) // user_id → delta (positive = moved up)
 
   // Mock data for demo mode (hook must be before any return)
   const mockRankings = useMemo(() => {
@@ -37,81 +36,74 @@ export default function Leaderboard({ demoMode }) {
       .from('leaderboard')
       .select('*')
 
-    if (!error && data) setRankings(data)
+    if (!error && data) {
+      setRankings(data)
+      await computePositionChanges(data)
+    }
 
-    await fetchLast3Days(user?.id)
     setLoading(false)
   }
 
-  async function fetchLast3Days(currentUserId) {
-    const threeDaysAgo = new Date()
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-    const cutoff = threeDaysAgo.toISOString()
+  async function computePositionChanges(currentRankings) {
+    // Get points earned in last 48h from all sources
+    const twoDaysAgo = new Date()
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
+    const cutoff = twoDaysAgo.toISOString()
 
-    // Fetch all 3 point sources in parallel
-    const [matchesRes, predsRes, preTournamentRes, ordagosRes, profilesRes] = await Promise.all([
+    const [matchesRes, preTournamentRes, ordagosRes] = await Promise.all([
       supabase.from('matches').select('id').eq('status', 'finished').gte('match_date', cutoff),
-      null, // filled below after we have matchIds
       supabase.from('pre_tournament_entries').select('user_id, points_awarded').eq('is_resolved', true).gte('updated_at', cutoff),
-      supabase.from('ordago_entries').select('user_id, points_awarded').not('points_awarded', 'is', null).gte('updated_at', cutoff),
-      supabase.from('profiles').select('id, full_name, nickname')
+      supabase.from('ordago_entries').select('user_id, points_awarded').not('points_awarded', 'is', null).gte('updated_at', cutoff)
     ])
 
-    const recentMatches = matchesRes?.data || []
-    const matchIds = recentMatches.map(m => m.id)
+    const recentMatchIds = (matchesRes?.data || []).map(m => m.id)
 
-    // Fetch match predictions (needs matchIds)
     let preds = []
-    if (matchIds.length > 0) {
+    if (recentMatchIds.length > 0) {
       const { data } = await supabase
         .from('predictions')
-        .select('user_id, points_earned, match_id')
-        .in('match_id', matchIds)
+        .select('user_id, points_earned')
+        .in('match_id', recentMatchIds)
       preds = data || []
     }
 
-    const preTournament = preTournamentRes?.data || []
-    const ordagos = ordagosRes?.data || []
-
-    // If no points earned anywhere in last 3 days, show empty
-    if (preds.length === 0 && preTournament.length === 0 && ordagos.length === 0) {
-      setLast3Rankings([])
-      return
-    }
-
-    const profileMap = {}
-    profilesRes?.data?.forEach(p => { profileMap[p.id] = p.nickname || p.full_name })
-
-    const userStats = {}
-    function ensure(uid) {
-      if (!userStats[uid]) userStats[uid] = { user_id: uid, total_points: 0, exact_hits: 0, sign_hits: 0 }
-    }
-
-    // Match prediction points
+    // Sum recent points per user
+    const recentPoints = {}
     preds.forEach(p => {
-      ensure(p.user_id)
-      userStats[p.user_id].total_points += (p.points_earned || 0)
-      if (p.points_earned === 3) userStats[p.user_id].exact_hits++
-      if (p.points_earned === 1) userStats[p.user_id].sign_hits++
+      recentPoints[p.user_id] = (recentPoints[p.user_id] || 0) + (p.points_earned || 0)
+    })
+    ;(preTournamentRes?.data || []).forEach(e => {
+      recentPoints[e.user_id] = (recentPoints[e.user_id] || 0) + (e.points_awarded || 0)
+    })
+    ;(ordagosRes?.data || []).forEach(e => {
+      recentPoints[e.user_id] = (recentPoints[e.user_id] || 0) + (e.points_awarded || 0)
     })
 
-    // Pre-tournament bet points resolved in last 3 days
-    preTournament.forEach(e => {
-      ensure(e.user_id)
-      userStats[e.user_id].total_points += (e.points_awarded || 0)
+    // Current ranking (excluding bot)
+    const current = currentRankings
+      .filter(r => r.user_id !== BOT365_ID)
+      .sort((a, b) => b.total_points - a.total_points || (b.exact_hits || 0) - (a.exact_hits || 0))
+
+    // Simulate "48h ago" ranking by subtracting recent points
+    const past = current.map(r => ({
+      ...r,
+      total_points: r.total_points - (recentPoints[r.user_id] || 0)
+    })).sort((a, b) => b.total_points - a.total_points || (b.exact_hits || 0) - (a.exact_hits || 0))
+
+    // Compute rank for each user in both lists
+    const currentRank = {}
+    const pastRank = {}
+    current.forEach((r, i) => { currentRank[r.user_id] = i + 1 })
+    past.forEach((r, i) => { pastRank[r.user_id] = i + 1 })
+
+    // Delta = past rank - current rank (positive means moved up)
+    const changes = {}
+    Object.keys(currentRank).forEach(uid => {
+      const delta = (pastRank[uid] || currentRank[uid]) - currentRank[uid]
+      if (delta !== 0) changes[uid] = delta
     })
 
-    // Ordago points resolved in last 3 days
-    ordagos.forEach(e => {
-      ensure(e.user_id)
-      userStats[e.user_id].total_points += (e.points_awarded || 0)
-    })
-
-    const sorted = Object.values(userStats)
-      .map(u => ({ ...u, full_name: profileMap[u.user_id] || '?' }))
-      .sort((a, b) => b.total_points - a.total_points || b.exact_hits - a.exact_hits)
-
-    setLast3Rankings(sorted)
+    setPositionChanges(changes)
   }
 
   if (loading) {
@@ -128,9 +120,8 @@ export default function Leaderboard({ demoMode }) {
     'linear-gradient(135deg, #cd7f32, #8b4513)'
   ]
 
-  const allRankings = demoMode ? mockRankings : (activeTab === 'general'
-    ? rankings.map(r => ({ ...r, full_name: profileNames[r.user_id] || r.full_name || 'Participante' }))
-    : last3Rankings)
+  const allRankings = demoMode ? mockRankings :
+    rankings.map(r => ({ ...r, full_name: profileNames[r.user_id] || r.full_name || 'Participante' }))
 
   const bot365Entry = allRankings.find(u => u.user_id === BOT365_ID)
   const currentRankings = allRankings.filter(u => u.user_id !== BOT365_ID)
@@ -170,55 +161,9 @@ export default function Leaderboard({ demoMode }) {
           Clasificación
         </h2>
         <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-          {rankings.filter(u => u.user_id !== BOT365_ID).length} participantes
+          {currentRankings.length} participantes
         </p>
       </div>
-
-      {/* Tab switcher */}
-      <div style={{
-        display: 'flex', gap: '4px', marginBottom: '16px',
-        padding: '3px', background: 'var(--bg-input)', borderRadius: '6px'
-      }}>
-        <button
-          onClick={() => setActiveTab('general')}
-          style={{
-            flex: 1, padding: '8px 12px', borderRadius: '4px', border: 'none',
-            background: activeTab === 'general' ? 'var(--bg-secondary)' : 'transparent',
-            color: activeTab === 'general' ? 'var(--text-primary)' : 'var(--text-muted)',
-            fontSize: '12px', fontWeight: activeTab === 'general' ? '600' : '400', cursor: 'pointer'
-          }}
-        >
-          🏆 General
-        </button>
-        <button
-          onClick={() => setActiveTab('last3')}
-          style={{
-            flex: 1, padding: '8px 12px', borderRadius: '4px', border: 'none',
-            background: activeTab === 'last3' ? 'var(--bg-secondary)' : 'transparent',
-            color: activeTab === 'last3' ? 'var(--text-primary)' : 'var(--text-muted)',
-            fontSize: '12px', fontWeight: activeTab === 'last3' ? '600' : '400', cursor: 'pointer'
-          }}
-        >
-          🔥 Últimos 3 días
-        </button>
-      </div>
-
-      {/* Disclaimer for last 3 days tab */}
-      {activeTab === 'last3' && (
-        <div style={{
-          padding: '8px 12px',
-          marginBottom: '10px',
-          background: 'rgba(255,204,0,0.06)',
-          border: '0.5px solid rgba(255,204,0,0.15)',
-          borderRadius: '6px',
-          fontSize: '11px',
-          color: 'var(--gold)',
-          textAlign: 'center',
-          lineHeight: '1.4'
-        }}>
-          Solo a efectos informativos — no cuenta para la puntuación final
-        </div>
-      )}
 
       {isEmpty ? (
         <div style={{
@@ -226,10 +171,7 @@ export default function Leaderboard({ demoMode }) {
           fontSize: '13px', background: 'var(--bg-secondary)', borderRadius: '8px',
           border: '0.5px solid var(--border)'
         }}>
-          {activeTab === 'general'
-            ? 'Aún no hay datos de clasificación. Se rellenará cuando empiecen los partidos.'
-            : 'No hay partidos finalizados en los últimos 3 días'
-          }
+          Aún no hay datos de clasificación. Se rellenará cuando empiecen los partidos.
         </div>
       ) : (
         <>
@@ -250,6 +192,7 @@ export default function Leaderboard({ demoMode }) {
             const { rank, tied } = getTiedRank(index)
             const rankLabel = tied ? `T${rank}` : `${rank}`
             const showBot365Line = bot365Entry && index === bot365InsertAfter
+            const delta = positionChanges[user.user_id] || 0
 
             return (
               <div key={user.user_id}>
@@ -295,14 +238,27 @@ export default function Leaderboard({ demoMode }) {
                     )}
                   </div>
 
-                  <span style={{
-                    flex: 1, fontSize: '13px',
-                    fontWeight: isMe ? '600' : '400',
-                    color: isMe ? 'var(--gold)' : 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0
-                  }}>
-                    {user.full_name}{isMe ? ' (Tú)' : ''}
-                  </span>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: isMe ? '600' : '400',
+                      color: isMe ? 'var(--gold)' : 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      {user.full_name}{isMe ? ' (Tú)' : ''}
+                    </span>
+
+                    {/* Position change indicator */}
+                    {delta !== 0 && (
+                      <span style={{
+                        fontSize: '9px', fontWeight: '700',
+                        color: delta > 0 ? '#4ade80' : '#e74c3c',
+                        flexShrink: 0
+                      }}>
+                        {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                      </span>
+                    )}
+                  </div>
 
                   <span style={{
                     width: '55px', textAlign: 'center', fontSize: '14px', fontWeight: '600',
