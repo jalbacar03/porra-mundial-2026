@@ -107,6 +107,35 @@ export default function OrdagosView({ session }) {
     }))
   }
 
+  const handleCancel = useCallback(async (ordago) => {
+    if (!userId) return
+    const entry = entries[ordago.id]
+    if (!entry) return
+
+    setSaving(s => ({ ...s, [ordago.id]: true }))
+
+    const { error } = await supabase
+      .from('ordago_entries')
+      .delete()
+      .eq('ordago_id', ordago.id)
+      .eq('user_id', userId)
+
+    if (!error) {
+      setEntries(prev => {
+        const next = { ...prev }
+        delete next[ordago.id]
+        return next
+      })
+      setLocalScores(prev => {
+        const next = { ...prev }
+        delete next[ordago.id]
+        return next
+      })
+    }
+
+    setSaving(s => ({ ...s, [ordago.id]: false }))
+  }, [userId, entries])
+
   const handleSave = useCallback(async (ordago) => {
     if (!userId) return
     const scores = localScores[ordago.id]
@@ -468,13 +497,28 @@ export default function OrdagosView({ session }) {
                   </button>
                 )}
 
-                {/* Already saved indicator */}
+                {/* Already saved indicator + cancel */}
                 {open && entry && !hasUnsaved && (
-                  <div style={{
-                    marginTop: '8px', textAlign: 'center',
-                    fontSize: '10px', color: 'var(--green)', fontWeight: '600'
-                  }}>
-                    ✓ Prediccion guardada ({entry.predicted_home}-{entry.predicted_away})
+                  <div style={{ marginTop: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--green)', fontWeight: '600' }}>
+                      ✓ Prediccion guardada ({entry.predicted_home}-{entry.predicted_away})
+                    </div>
+                    <button
+                      onClick={() => handleCancel(ordago)}
+                      disabled={isSaving}
+                      style={{
+                        marginTop: '6px', padding: '6px 16px',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(231,76,60,0.3)',
+                        background: 'transparent',
+                        color: '#e74c3c',
+                        fontSize: '10px', fontWeight: '600',
+                        cursor: 'pointer',
+                        opacity: isSaving ? 0.5 : 1
+                      }}
+                    >
+                      Cancelar predicción
+                    </button>
                   </div>
                 )}
               </div>
