@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { generateMockLeaderboard } from '../hooks/useDemoMode'
+import { SkeletonDashboard } from '../components/Skeleton'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -188,11 +189,7 @@ export default function Dashboard({ session, demoMode }) {
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando...
-      </div>
-    )
+    return <SkeletonDashboard />
   }
 
   // Use mock data in demo mode

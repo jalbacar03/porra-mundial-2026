@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import { calculateGroupStandings } from '../../../utils/groupStandings'
 import { generateMockPredictions, generateDemoMatchStatuses } from '../../../hooks/useDemoMode'
+import { useToast } from '../../../components/Toast'
+import { SkeletonCard } from '../../../components/Skeleton'
+import { useRateLimit } from '../../../hooks/useRateLimit'
 
 export default function GroupMatchPredictions({ session, deadline, demoMode }) {
   const [matches, setMatches] = useState([])
@@ -9,8 +12,9 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
   const [savedPredictions, setSavedPredictions] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
   const [activeGroup, setActiveGroup] = useState('A')
+  const toast = useToast()
+  const guard = useRateLimit()
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
@@ -87,7 +91,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
     }
 
     if (toSave.length === 0) {
-      setMessage('No hay predicciones completas para guardar en este grupo')
+      toast.info('No hay predicciones completas para guardar en este grupo')
       setSaving(false)
       return
     }
@@ -97,7 +101,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
       .upsert(toSave, { onConflict: 'user_id,match_id' })
 
     if (error) {
-      setMessage('Error al guardar: ' + error.message)
+      toast.error('Error al guardar: ' + error.message)
     } else {
       const newSaved = { ...savedPredictions }
       toSave.forEach(p => {
@@ -107,10 +111,9 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
         }
       })
       setSavedPredictions(newSaved)
-      setMessage(`${toSave.length} predicciones guardadas — Grupo ${activeGroup}`)
+      toast.success(`${toSave.length} predicciones guardadas — Grupo ${activeGroup}`)
     }
     setSaving(false)
-    setTimeout(() => setMessage(''), 3000)
   }
 
   function formatDate(dateStr) {
@@ -186,8 +189,8 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando partidos...
+      <div style={{ padding: '16px 0' }}>
+        {Array.from({ length: 4 }, (_, i) => <SkeletonCard key={i} />)}
       </div>
     )
   }
@@ -442,22 +445,10 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
         </div>
       ))}
 
-      {/* Message */}
-      {message && (
-        <div style={{
-          padding: '10px 12px', marginTop: '12px',
-          background: message.includes('Error') ? 'var(--red-bg)' : 'var(--green-light)',
-          borderRadius: '6px', fontSize: '13px', textAlign: 'center',
-          color: message.includes('Error') ? 'var(--red)' : 'var(--green)'
-        }}>
-          {message}
-        </div>
-      )}
-
       {/* Save button */}
       {!deadline.expired && !demoMode && (
         <button
-          onClick={savePredictions}
+          onClick={guard(savePredictions)}
           disabled={saving}
           style={{
             width: '100%', padding: '13px', marginTop: '14px',

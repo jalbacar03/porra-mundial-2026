@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { supabase } from './supabase'
 import './App.css'
-import Dashboard from './pages/Dashboard'
-import Predictions from './pages/Predictions/PredictionsPage'
-import Leaderboard from './pages/Leaderboard'
-import Admin from './pages/Admin'
-import Stats from './pages/Stats'
-import Rules from './pages/Rules'
-import News from './pages/News'
-import Forum from './pages/Forum'
-// Bracket moved to Predictions > Durante el Mundial
+import { ToastProvider } from './components/Toast'
+import { SkeletonDashboard } from './components/Skeleton'
+
+// Code splitting — lazy load pages
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Predictions = lazy(() => import('./pages/Predictions/PredictionsPage'))
+const Leaderboard = lazy(() => import('./pages/Leaderboard'))
+const Admin = lazy(() => import('./pages/Admin'))
+const Stats = lazy(() => import('./pages/Stats'))
+const Rules = lazy(() => import('./pages/Rules'))
+const News = lazy(() => import('./pages/News'))
+const Forum = lazy(() => import('./pages/Forum'))
+
 import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
@@ -262,6 +266,20 @@ function IconLogout({ size = 22 }) {
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
+  )
+}
+
+/* ============================
+   PAGE LOADER (Suspense fallback)
+   ============================ */
+function PageLoader() {
+  return (
+    <div style={{
+      padding: '24px 16px',
+      animation: 'fadeIn 0.2s ease',
+    }}>
+      <SkeletonDashboard />
+    </div>
   )
 }
 
@@ -588,16 +606,18 @@ function AppLayout({ session }) {
       )}
 
       <div className="app-content">
-        <Routes>
-          <Route path="/" element={<Dashboard session={session} demoMode={demoMode} />} />
-          <Route path="/predictions" element={<Predictions session={session} demoMode={demoMode} />} />
-          <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
-          <Route path="/stats" element={<Stats demoMode={demoMode} />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/forum" element={<Forum session={session} />} />
-          <Route path="/rules" element={<Rules />} />
-          {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Dashboard session={session} demoMode={demoMode} />} />
+            <Route path="/predictions" element={<Predictions session={session} demoMode={demoMode} />} />
+            <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
+            <Route path="/stats" element={<Stats demoMode={demoMode} />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/forum" element={<Forum session={session} />} />
+            <Route path="/rules" element={<Rules />} />
+            {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
+          </Routes>
+        </Suspense>
       </div>
       <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
     </div>
@@ -641,7 +661,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AppLayout session={session} />
+      <ToastProvider>
+        <AppLayout session={session} />
+      </ToastProvider>
     </BrowserRouter>
   )
 }

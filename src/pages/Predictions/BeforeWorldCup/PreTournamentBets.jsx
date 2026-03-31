@@ -3,6 +3,8 @@ import { supabase } from '../../../supabase'
 import BetCard from '../../../components/bets/BetCard'
 import BetProgress from '../../../components/bets/BetProgress'
 import { generateMockBetEntries } from '../../../hooks/useDemoMode'
+import { useToast } from '../../../components/Toast'
+import { SkeletonCard } from '../../../components/Skeleton'
 // GroupStandingsPreview removed — standings now shown in GroupMatchPredictions
 // Bracket picks handled in BracketView component
 
@@ -35,8 +37,8 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
   const [entries, setEntries] = useState({}) // { bet_id: entry }
   const [loading, setLoading] = useState(true)
   const [savingBetId, setSavingBetId] = useState(null)
-  const [message, setMessage] = useState('')
   const [activeCategory, setActiveCategory] = useState('players')
+  const toast = useToast()
   const debounceTimers = useRef({})
 
   useEffect(() => {
@@ -131,8 +133,7 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
       .select()
 
     if (error) {
-      setMessage('Error al guardar: ' + error.message)
-      setTimeout(() => setMessage(''), 3000)
+      toast.error('Error al guardar: ' + error.message)
     } else if (data?.[0]) {
       setEntries(prev => ({ ...prev, [betId]: data[0] }))
     }
@@ -250,8 +251,8 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando apuestas...
+      <div style={{ padding: '16px 0' }}>
+        {Array.from({ length: 4 }, (_, i) => <SkeletonCard key={i} height="100px" />)}
       </div>
     )
   }
@@ -291,18 +292,6 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
 
       {/* Progress */}
       <BetProgress completed={completedCount} total={bets.length} />
-
-      {/* Message */}
-      {message && (
-        <div style={{
-          padding: '10px 12px', marginBottom: '12px',
-          background: message.includes('Error') ? 'var(--red-bg)' : 'var(--green-light)',
-          borderRadius: '6px', fontSize: '13px', textAlign: 'center',
-          color: message.includes('Error') ? 'var(--red)' : 'var(--green)'
-        }}>
-          {message}
-        </div>
-      )}
 
       {/* Category tabs */}
       <div className="group-tabs" style={{ marginBottom: '14px' }}>

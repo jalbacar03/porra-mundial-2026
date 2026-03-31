@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import { useToast } from '../components/Toast'
 
 export default function Admin({ session }) {
   const [matches, setMatches] = useState([])
@@ -8,8 +9,8 @@ export default function Admin({ session }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [scores, setScores] = useState({})
   const [saving, setSaving] = useState(null)
-  const [message, setMessage] = useState('')
   const [activeGroup, setActiveGroup] = useState('A')
+  const toast = useToast()
   const [activeTab, setActiveTab] = useState('results') // 'results' | 'payments' | 'sync' | 'bets'
   const [syncing, setSyncing] = useState(false)
   const [syncLog, setSyncLog] = useState(null)
@@ -121,8 +122,7 @@ export default function Admin({ session }) {
     const away = parseInt(scores[matchId]?.away)
 
     if (isNaN(home) || isNaN(away) || home < 0 || away < 0) {
-      setMessage('Introduce un resultado válido')
-      setTimeout(() => setMessage(''), 3000)
+      toast.error('Introduce un resultado válido')
       return
     }
 
@@ -133,15 +133,14 @@ export default function Admin({ session }) {
       .eq('id', matchId)
 
     if (error) {
-      setMessage('Error: ' + error.message)
+      toast.error('Error: ' + error.message)
     } else {
       setMatches(prev => prev.map(m =>
         m.id === matchId ? { ...m, home_score: home, away_score: away, status: 'finished' } : m
       ))
-      setMessage('Resultado guardado')
+      toast.success('Resultado guardado')
     }
     setSaving(null)
-    setTimeout(() => setMessage(''), 3000)
   }
 
   async function togglePayment(userId, currentStatus) {
@@ -294,17 +293,6 @@ export default function Admin({ session }) {
         </button>
       </div>
 
-      {/* Message */}
-      {message && (
-        <div style={{
-          padding: '10px 12px', marginBottom: '12px',
-          background: message.includes('Error') ? 'var(--red-bg)' : 'var(--green-light)',
-          borderRadius: '6px', fontSize: '13px', textAlign: 'center',
-          color: message.includes('Error') ? 'var(--red)' : 'var(--green)'
-        }}>
-          {message}
-        </div>
-      )}
 
       {/* ========== RESULTS TAB ========== */}
       {activeTab === 'results' && (
@@ -580,11 +568,10 @@ export default function Admin({ session }) {
                   .delete()
                   .or('channel.eq.general,channel.is.null')
                 if (error) {
-                  setMessage('Error al limpiar foro: ' + error.message)
+                  toast.error('Error al limpiar foro: ' + error.message)
                 } else {
-                  setMessage('Foro limpiado correctamente')
+                  toast.success('Foro limpiado correctamente')
                 }
-                setTimeout(() => setMessage(''), 3000)
               }}
               style={{
                 padding: '10px 20px', borderRadius: '6px', border: 'none',

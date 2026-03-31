@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { generateMockLeaderboard } from '../hooks/useDemoMode'
+import { SkeletonLeaderboard } from '../components/Skeleton'
+import EmptyState from '../components/EmptyState'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 export default function Leaderboard({ demoMode }) {
@@ -108,8 +110,8 @@ export default function Leaderboard({ demoMode }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando clasificación...
+      <div style={{ padding: '16px' }}>
+        <SkeletonLeaderboard rows={10} />
       </div>
     )
   }
@@ -166,13 +168,11 @@ export default function Leaderboard({ demoMode }) {
       </div>
 
       {isEmpty ? (
-        <div style={{
-          padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)',
-          fontSize: '13px', background: 'var(--bg-secondary)', borderRadius: '8px',
-          border: '0.5px solid var(--border)'
-        }}>
-          Aún no hay datos de clasificación. Se rellenará cuando empiecen los partidos.
-        </div>
+        <EmptyState
+          icon="🏆"
+          title="Sin clasificación aún"
+          subtitle="Se rellenará cuando empiecen los partidos del Mundial."
+        />
       ) : (
         <>
           {/* Table header */}
