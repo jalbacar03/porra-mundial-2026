@@ -289,7 +289,7 @@ export default function Admin({ session }) {
             color: activeTab === 'bets' ? '#fff' : 'var(--text-muted)'
           }}
         >
-          Apuestas
+          Predicciones
         </button>
       </div>
 
@@ -597,7 +597,7 @@ export default function Admin({ session }) {
               ⚡ Sincronización con API-Football
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '12px' }}>
-              Actualiza resultados de partidos, resuelve apuestas pre-torneo y sincroniza estadísticas.
+              Actualiza resultados de partidos, resuelve predicciones pre-torneo y sincroniza estadísticas.
               Se ejecuta automáticamente cada 2 horas durante el Mundial.
             </div>
             <button
@@ -650,7 +650,7 @@ export default function Admin({ session }) {
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '20px', fontWeight: '700', color: '#ffcc00' }}>{syncLog.betsResolved}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Apuestas</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Predicciones</div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-muted)' }}>{syncLog.totalFinished}</div>
@@ -979,7 +979,7 @@ export default function Admin({ session }) {
                             background: ord.status === 'resolved' ? 'var(--green-light)' : 'rgba(255,204,0,0.08)',
                             color: ord.status === 'resolved' ? 'var(--green)' : 'var(--gold)'
                           }}>
-                            {entries.length} apuestas
+                            {entries.length} predicciones
                           </span>
                         </div>
 
@@ -1001,7 +1001,7 @@ export default function Admin({ session }) {
                           </div>
                         ) : (
                           <div style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center' }}>
-                            Sin apuestas
+                            Sin predicciones
                           </div>
                         )}
                       </div>
@@ -1019,7 +1019,7 @@ export default function Admin({ session }) {
                   marginBottom: '12px', border: '0.5px solid var(--border)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-dim)', marginBottom: '6px' }}>
-                    <span>Totales: {totalMatchCount} partidos · {preTournamentBets.length} apuestas pre-torneo</span>
+                    <span>Totales: {totalMatchCount} partidos · {preTournamentBets.length} predicciones pre-torneo</span>
                   </div>
                 </div>
 
@@ -1030,7 +1030,7 @@ export default function Admin({ session }) {
                 }}>
                   <span style={{ flex: 1 }}>Nombre</span>
                   <span style={{ width: '60px', textAlign: 'center' }}>Partidos</span>
-                  <span style={{ width: '60px', textAlign: 'center' }}>Apuestas</span>
+                  <span style={{ width: '60px', textAlign: 'center' }}>Predicciones</span>
                 </div>
 
                 {completionData.map(user => (

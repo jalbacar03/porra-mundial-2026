@@ -61,9 +61,9 @@ export default function Rules() {
           {[
             { label: '1. Fase de grupos', detail: '72 partidos', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'antes' },
             { label: '2. Cuadro ciego', detail: 'Quién avanza cada ronda', pts: 'Hasta +20 pts (cadena campeón)', phase: 'antes' },
-            { label: '3. Especiales', detail: 'Goleador, revelación...', pts: '+2 pts por apuesta', phase: 'antes' },
+            { label: '3. Especiales', detail: 'Goleador, revelación...', pts: '+2 pts por predicción', phase: 'antes' },
             { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'durante' },
-            { label: '5. Órdagos', detail: '6 apuestas opcionales', pts: 'Hasta +9 pero con coste', phase: 'durante' }
+            { label: '5. Órdagos', detail: '6 predicciones opcionales', pts: 'Hasta +9 pero con coste', phase: 'durante' }
           ].map((row, i) => (
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: '8px',
@@ -126,8 +126,8 @@ export default function Rules() {
         </Highlight>
       </Section>
 
-      {/* ===== 3. APUESTAS ESPECIALES ===== */}
-      <Section icon="🎲" title="3. Apuestas especiales" badge="Pre-torneo">
+      {/* ===== 3. PREDICCIONES ESPECIALES ===== */}
+      <Section icon="🎲" title="3. Predicciones especiales" badge="Pre-torneo">
         <P last>Predicciones extra sobre el torneo. Se rellenan antes del inicio del Mundial.</P>
         <ItemTable items={[
           { label: 'Selección revelación (llega a cuartos)', value: '+2 pts', color: '#4ade80' },
@@ -152,7 +152,7 @@ export default function Rules() {
         <P>Ahora predices el resultado exacto a 90 minutos de cada partido eliminatorio (igual que en grupos).</P>
         <Highlight>
           Importante: predices el resultado a los 90 minutos, no quién pasa de ronda.{'\n'}
-          Puedes predecir un empate (ej: 1-1) aunque sea eliminatoria — el partido se resuelve en prórroga/penaltis, pero tú apuestas al marcador de los 90'.
+          Puedes predecir un empate (ej: 1-1) aunque sea eliminatoria — el partido se resuelve en prórroga/penaltis, pero tú predices el marcador de los 90'.
         </Highlight>
         <ItemTable items={[
           { label: 'Resultado exacto', value: '+3 puntos', color: '#4ade80' },
@@ -182,7 +182,7 @@ export default function Rules() {
           ⚠️ Los órdagos son 100% opcionales. Si no participas, ni ganas ni pierdes puntos.
         </div>
 
-        <P>Apuestas especiales a partidos concretos con mayor recompensa, pero con un coste de entrada en puntos.</P>
+        <P>Predicciones especiales a partidos concretos con mayor recompensa, pero con un coste de entrada en puntos.</P>
 
         <div style={{
           margin: '12px 0', padding: '12px',
@@ -190,7 +190,7 @@ export default function Rules() {
           borderRadius: '8px', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-secondary)'
         }}>
           <strong style={{ color: 'var(--gold)' }}>¿Cómo funcionan?</strong><br />
-          • Se ven todos desde el principio, pero solo puedes apostar en el activo.{'\n'}
+          • Se ven todos desde el principio, pero solo puedes predecir en el activo.{'\n'}
           • Cuando se resuelve uno, se desbloquea el siguiente.{'\n'}
           • Puedes participar hasta 3 horas antes del partido.{'\n'}
           • Pagas un coste de entrada en puntos. Si aciertas, ganas más de lo que pagas. Si fallas, pierdes el coste.
@@ -282,7 +282,7 @@ export default function Rules() {
       <Section icon="🔒" title="Reglas generales">
         <BulletList items={[
           'No se pueden modificar predicciones una vez cerrado el plazo.',
-          'Las apuestas de otros participantes no son visibles hasta que cierre el plazo.',
+          'Las predicciones de otros participantes no son visibles hasta que cierre el plazo.',
           'La inscripción debe estar confirmada antes del inicio del Mundial para que tus predicciones cuenten.',
           'Los órdagos son 100% opcionales — no participar no penaliza.',
           'El organizador se reserva el derecho de resolver disputas.'

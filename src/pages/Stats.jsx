@@ -427,7 +427,7 @@ export default function Stats({ demoMode }) {
           { key: 'overview', label: 'Resumen' },
           { key: 'me', label: 'Tú' },
           { key: 'matches', label: 'Partidos' },
-          { key: 'bets', label: 'Apuestas' },
+          { key: 'bets', label: 'Predicciones' },
           { key: 'h2h', label: 'H2H' },
           { key: 'view', label: 'Otros' }
         ].map(tab => (
@@ -1340,7 +1340,7 @@ export default function Stats({ demoMode }) {
                 {/* Pre-tournament bet comparison */}
                 {bets.length > 0 && (h2hBetEntriesA.length > 0 || h2hBetEntriesB.length > 0) && (
                   <div className="stats-card">
-                    <SectionHeader>Apuestas pre-torneo</SectionHeader>
+                    <SectionHeader>Predicciones pre-torneo</SectionHeader>
                     {bets.map(bet => {
                       const entryA = h2hBetEntriesA.find(e => e.bet_id === bet.id)
                       const entryB = h2hBetEntriesB.find(e => e.bet_id === bet.id)
@@ -1485,7 +1485,7 @@ export default function Stats({ demoMode }) {
               <div className="stats-card" style={{ padding: '40px 20px', textAlign: 'center' }}>
                 <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</div>
                 <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                  Disponible cuando cierren las apuestas
+                  Disponible cuando cierre el plazo
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-dim)', lineHeight: '1.5' }}>
                   Podras ver las predicciones de todos los participantes una vez empiece el Mundial (11 junio 2026).
@@ -1652,7 +1652,7 @@ export default function Stats({ demoMode }) {
                     {/* Pre-tournament bets */}
                     {viewBetEntries.length > 0 && (
                       <div className="stats-card">
-                        <SectionHeader>Apuestas pre-torneo</SectionHeader>
+                        <SectionHeader>Predicciones pre-torneo</SectionHeader>
                         {bets.map(bet => {
                           const entry = viewBetEntries.find(e => e.bet_id === bet.id)
                           if (!entry) return null

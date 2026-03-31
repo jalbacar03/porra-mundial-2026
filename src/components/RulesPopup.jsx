@@ -7,7 +7,7 @@ const RULES_SECTIONS = [
     title: '¿Qué es la Porra Mundial 26?',
     content: [
       'Una porra amistosa de predicciones entre amigos para el Mundial de Fútbol 2026. Se trata de un juego entre amigos sin ánimo de lucro — no es una casa de apuestas.',
-      'Cada participante compite por acertar los resultados de los partidos, el cuadro eliminatorio y otras apuestas especiales.',
+      'Cada participante compite por acertar los resultados de los partidos, el cuadro eliminatorio y otras predicciones especiales.',
       'El que más puntos acumule al final del torneo, gana.'
     ]
   },
@@ -33,7 +33,7 @@ const RULES_SECTIONS = [
   },
   {
     icon: '🎲',
-    title: 'Apuestas especiales',
+    title: 'Predicciones especiales',
     items: [
       { label: 'Revelación (llega a cuartos)', value: '4 pts' },
       { label: 'Decepción (cae en grupos)', value: '4 pts' },
@@ -45,7 +45,7 @@ const RULES_SECTIONS = [
     title: 'Reglas importantes',
     content: [
       'No se pueden modificar predicciones una vez cerrado el plazo.',
-      'Las apuestas de otros no son visibles hasta que cierre el plazo.',
+      'Las predicciones de otros no son visibles hasta que cierre el plazo.',
       'La inscripción debe estar confirmada antes del inicio del Mundial.'
     ]
   }

@@ -19,17 +19,17 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - `matches` — partidos con `home_score`, `away_score` (NULL hasta que se jueguen), `stage`, `group_name`, `status`
 - `predictions` — predicciones de usuarios: `predicted_home`, `predicted_away` (¡NO predicted_home_score!)
 - `profiles` — campos clave: `full_name` (NO display_name), `has_paid` (boolean), `is_admin` (boolean)
-- `pre_tournament_bets` — catálogo de apuestas especiales (goleador, revelación, etc.)
-- `pre_tournament_entries` — respuestas de usuarios a apuestas (answer, points_awarded, is_resolved)
+- `pre_tournament_bets` — catálogo de predicciones especiales (goleador, revelación, etc.)
+- `pre_tournament_entries` — respuestas de usuarios a predicciones (answer, points_awarded, is_resolved)
 - `bracket_picks` — predicciones del cuadro eliminatorio (match_number, round, predicted_winner_id)
 - `players` — jugadores para selector autocomplete (~925 jugadores de 26+ equipos)
 - `daily_insights` — crónicas diarias generadas por Gemini (date, content)
 
-### Bot365
-- Participante ficticio que compite como referencia (predicciones basadas en favoritos/cuotas)
+### Referencia casas de apuestas (antes "Bot365")
+- Línea de referencia en el leaderboard basada en predicciones de favoritos/cuotas
 - UUID: `b0365b03-65b0-365b-0365-b0365b036500`
-- Tiene predicciones de partidos + apuestas pre-torneo
-- No paga, no opta a premios — es la "referencia de las casas de apuestas"
+- Tiene predicciones de partidos + predicciones pre-torneo
+- No aparece como participante — solo como benchmark ("— casas de apuestas —")
 
 ### RLS
 - Todas las tablas tienen RLS habilitado
@@ -59,7 +59,7 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - Campeón: 8 pts
 - **Acertar toda la cadena del campeón = 20 pts** (1+2+4+5+8)
 
-### Apuestas especiales
+### Predicciones especiales
 - Revelación: 4 pts (aciertas si tu selección llega a cuartos)
 - Decepción: 4 pts (aciertas si tu selección cae en grupos)
 - Goleador, asistencias, portero, primer gol: puntos según config
@@ -71,7 +71,7 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - **Vercel Cron**: se ejecuta cada 2 horas automáticamente durante el Mundial
 - **Admin backup**: botón manual en pestaña "⚡ Sync API" del panel admin
 - **Flujo**: API-Football → actualiza `matches` → trigger calcula puntos → leaderboard se actualiza
-- **Resolución automática de TODAS las apuestas**: goleador, asistencias, revelación (llega a QF), decepción (cae en grupos), hat-trick, goleada 5+, más goleadora, menos goleada, primer gol
+- **Resolución automática de TODAS las predicciones**: goleador, asistencias, revelación (llega a QF), decepción (cae en grupos), hat-trick, goleada 5+, más goleadora, menos goleada, primer gol
 - API-Football: plan Free (100 req/día, 0€). Key: configurada en Vercel env vars
 
 ## Crónica del día (Gemini AI)
@@ -113,7 +113,7 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 
 ### Dashboard
 - Widget unificado: posición en clasificación + bote recaudado
-- Widget "Apuesta del día" (blurred, próximamente)
+- Widget órdagos (blurred, próximamente)
 - Widget "Crónica del día" (Gemini)
 - Top 5 leaderboard
 - Link rápido a Predicciones
@@ -123,9 +123,9 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - Solo muestra nombre y puntos (limpio)
 
 ### Stats
-- Tabs: Partidos (1X2 por grupo) + Apuestas (stats pre-torneo)
-- Todo blurred con candado hasta que cierren las apuestas
-- Muestra cuánta gente ha apostado a cada apuesta
+- Tabs: Partidos (1X2 por grupo) + Predicciones (stats pre-torneo)
+- Todo blurred con candado hasta que cierre el plazo
+- Muestra cuánta gente ha respondido a cada predicción
 
 ### Foro
 - Chat en tiempo real con Supabase Realtime
@@ -182,7 +182,7 @@ src/
 │       ├── PredictionsPage.jsx
 │       ├── BeforeWorldCup/
 │       │   ├── GroupMatchPredictions.jsx  # Partidos + mini clasificación
-│       │   └── PreTournamentBets.jsx     # Apuestas especiales
+│       │   └── PreTournamentBets.jsx     # Predicciones especiales
 │       └── DuringWorldCup/
 │           └── DuringPlaceholder.jsx
 ├── App.jsx
@@ -214,9 +214,9 @@ vercel.json               # Cron config (sync cada 2h)
 
 ## Estado actual — Fases completadas
 - ✅ Fases 1-14: Setup, auth, DB, predictions, scoring, leaderboard, admin, diseño, pagos Bizum, countdowns, responsive móvil, PWA completa
-- ✅ Dashboard visual: widget unificado posición+bote, crónica del día, apuesta del día (blurred)
+- ✅ Dashboard visual: widget unificado posición+bote, crónica del día, órdagos (blurred)
 - ✅ Clasificación: tabs General + Últimos 3 días, diseño limpio
-- ✅ Stats: tabs partidos + apuestas, todo blurred con candado hasta cierre
+- ✅ Stats: tabs partidos + predicciones, todo blurred con candado hasta cierre
 - ✅ Normas: página completa con reglas
 - ✅ Noticias: feed RSS en tiempo real (Marca, AS, BBC)
 - ✅ Predicciones reestructuradas: Grupos / Cuadro / Especiales
@@ -224,20 +224,20 @@ vercel.json               # Cron config (sync cada 2h)
 - ✅ Bracket interactivo: Dieciseisavos→Octavos→Cuartos→Semis→Final
 - ✅ Auto-relleno R32 desde predicciones de grupo (top 2 + 8 mejores 3º)
 - ✅ Cascade bracket: campeón acumula 20 pts (1+2+4+5+8)
-- ✅ Apuestas especiales: jugadores, selecciones (revelación 4pts, decepción 4pts), sí/no
+- ✅ Predicciones especiales: jugadores, selecciones (revelación 4pts, decepción 4pts), sí/no
 - ✅ Player selector autocomplete (~925 jugadores)
 - ✅ Bot365: participante ficticio con predicciones basadas en favoritos
 - ✅ Crónica del día: Gemini AI genera resumen diario (cacheado)
 - ✅ Sync automático: API-Football → Supabase (Vercel Cron diario + manual en Admin)
-- ✅ Resolución automática de TODAS las apuestas especiales
+- ✅ Resolución automática de TODAS las predicciones especiales
 - ✅ Admin pro: tabs Resultados / Pagos / Sync API
 - ✅ Foro: chat en tiempo real con Supabase Realtime (reacciones, replies, admin moderation)
 - ✅ Vercel deploy fix: cron cambiado de cada 2h a diario (Hobby plan limit)
 - ✅ Countdown movido junto al logo (evita solape con menú desktop)
 - ✅ Seed jugadores completo: 925 jugadores de 26+ equipos
-- ✅ Órdagos (apuesta del día): 6 órdagos con cascade unlock, coste/recompensa, deadlines
+- ✅ Órdagos: 6 órdagos con cascade unlock, coste/recompensa, deadlines
 - ✅ Durante el Mundial: Cuadro Real (bracket en vivo) + Órdagos
-- ✅ Ver apuestas de otros: tab en Stats con predicciones de cada participante
+- ✅ Ver predicciones de otros: tab en Stats con predicciones de cada participante
 - ✅ H2H comparador: modal + tab dedicado en Stats
 - ✅ Bracket scoring automático: R16=1, QF=2, SF=4, Final=5, Campeón=+8 bonus
 - ✅ Leaderboard incluye: partidos + pre-torneo + órdagos + bracket
@@ -248,9 +248,8 @@ vercel.json               # Cron config (sync cada 2h)
 - ✅ PointsChart: timeline de puntos acumulados por fecha
 
 ## Pendientes próximos
-1. **Engagement** — tarjeta compartible, badges/logros
+1. **Match Day Live** — pantalla dedicada durante partidos en vivo (score real-time, tu predicción vs realidad, puntos al instante, leaderboard moviéndose)
 2. **Emails** — newsletter diaria con Resend (crónica + leaderboard)
-3. **Insights personalizados** — comparación con Bot365 por usuario
 
 ## Notas importantes
 - NUNCA cambiar nombres de columnas existentes (predicted_home, predicted_away, full_name, has_paid, is_admin)

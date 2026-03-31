@@ -192,7 +192,7 @@ export default function PredictionsPage({ session, demoMode }) {
       {/* Content based on active block */}
       {activeBlock === 'before' && (
         <>
-          {/* Sub-tabs: Partidos / Apuestas */}
+          {/* Sub-tabs: Partidos / Predicciones */}
           <div className="group-tabs" style={{ marginBottom: '16px' }}>
             {[
               { key: 'matches', label: '⚽ Grupos' },

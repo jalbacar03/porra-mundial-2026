@@ -17,7 +17,7 @@ export default function BetProgress({ completed, total }) {
         marginBottom: '8px'
       }}>
         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-          Progreso apuestas pre-torneo
+          Progreso predicciones pre-torneo
         </span>
         <span style={{
           fontSize: '13px',

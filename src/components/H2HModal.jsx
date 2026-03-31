@@ -153,7 +153,7 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
               fontSize: '13px', textAlign: 'center',
             }}>
               <StatRow label="Pts partidos" myVal={data.myTotalPts} rivalVal={data.rivalTotalPts} />
-              <StatRow label="Pts apuestas" myVal={data.myBetPts} rivalVal={data.rivalBetPts} />
+              <StatRow label="Pts pred." myVal={data.myBetPts} rivalVal={data.rivalBetPts} />
               <StatRow label="Total" myVal={data.myTotalPts + data.myBetPts} rivalVal={data.rivalTotalPts + data.rivalBetPts} bold />
             </div>
           </>

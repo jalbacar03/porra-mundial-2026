@@ -368,7 +368,7 @@ export default function Dashboard({ session, demoMode }) {
           </div>
         ) : (
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 12px' }}>
-            6 apuestas especiales a partidos concretos. Se desbloquean durante el torneo. ¿Te atreves?
+            6 predicciones especiales a partidos concretos. Se desbloquean durante el torneo. ¿Te atreves?
           </p>
         )}
 
@@ -407,7 +407,7 @@ export default function Dashboard({ session, demoMode }) {
           }}
         >
           <div style={{ fontSize: '14px', fontWeight: '600', letterSpacing: '0.3px' }}>Mis predicciones</div>
-          <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>Partidos y apuestas</div>
+          <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>Partidos y predicciones</div>
         </button>
         <button
           onClick={() => navigate('/leaderboard')}
