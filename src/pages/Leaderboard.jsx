@@ -20,14 +20,21 @@ export default function Leaderboard({ demoMode }) {
     return generateMockLeaderboard(userId)
   }, [demoMode, userId])
 
+  const [paidUsers, setPaidUsers] = useState(new Set())
+
   useEffect(() => {
     fetchData()
-    // Fetch nicknames
-    supabase.from('profiles').select('id, full_name, nickname').then(({ data }) => {
+    // Fetch nicknames + payment status
+    supabase.from('profiles').select('id, full_name, nickname, has_paid').then(({ data }) => {
       if (data) {
         const map = {}
-        data.forEach(p => { map[p.id] = p.nickname || p.full_name || 'Participante' })
+        const paid = new Set()
+        data.forEach(p => {
+          map[p.id] = p.nickname || p.full_name || 'Participante'
+          if (p.has_paid) paid.add(p.id)
+        })
         setProfileNames(map)
+        setPaidUsers(paid)
       }
     })
   }, [])
@@ -125,7 +132,9 @@ export default function Leaderboard({ demoMode }) {
   ]
 
   const allRankings = demoMode ? mockRankings :
-    rankings.map(r => ({ ...r, full_name: profileNames[r.user_id] || r.full_name || 'Participante' }))
+    rankings
+      .filter(r => r.user_id === BOT365_ID || paidUsers.has(r.user_id))
+      .map(r => ({ ...r, full_name: profileNames[r.user_id] || r.full_name || 'Participante' }))
 
   const bot365Entry = allRankings.find(u => u.user_id === BOT365_ID)
   const currentRankings = allRankings.filter(u => u.user_id !== BOT365_ID)

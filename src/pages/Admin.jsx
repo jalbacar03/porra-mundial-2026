@@ -309,7 +309,7 @@ export default function Admin({ session }) {
                   key={g}
                   onClick={() => setActiveGroup(g)}
                   style={{
-                    padding: '6px 14px', borderRadius: '4px', border: 'none',
+                    padding: '6px 14px', borderRadius: '20px', border: 'none',
                     background: isActive ? 'var(--green)' : isComplete ? 'var(--green-light)' : 'var(--bg-secondary)',
                     color: isActive ? '#fff' : isComplete ? 'var(--green)' : 'var(--text-muted)',
                     cursor: 'pointer', fontSize: '12px', fontWeight: isActive ? '600' : '400',
@@ -716,11 +716,11 @@ export default function Admin({ session }) {
                   key={tab.key}
                   onClick={() => setBetsSubTab(tab.key)}
                   style={{
-                    flex: 1, padding: '8px 4px', borderRadius: '4px', border: 'none',
-                    background: betsSubTab === tab.key ? 'var(--bg-secondary)' : 'transparent',
-                    color: betsSubTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
+                    flex: 1, padding: '8px 4px', borderRadius: '20px', border: 'none',
+                    background: betsSubTab === tab.key ? 'var(--green)' : 'var(--bg-secondary)',
+                    color: betsSubTab === tab.key ? '#fff' : 'var(--text-muted)',
                     fontSize: '11px', fontWeight: betsSubTab === tab.key ? '600' : '400',
-                    cursor: 'pointer'
+                    cursor: 'pointer', transition: 'all 0.2s ease'
                   }}
                 >{tab.label}</button>
               ))}
@@ -736,7 +736,7 @@ export default function Admin({ session }) {
                       key={g}
                       onClick={() => setBetsFilterGroup(g)}
                       style={{
-                        padding: '5px 12px', borderRadius: '4px', border: 'none',
+                        padding: '5px 12px', borderRadius: '20px', border: 'none',
                         background: betsFilterGroup === g ? 'var(--green)' : 'var(--bg-secondary)',
                         color: betsFilterGroup === g ? '#fff' : 'var(--text-muted)',
                         cursor: 'pointer', fontSize: '11px', fontWeight: betsFilterGroup === g ? '600' : '400',

@@ -66,7 +66,7 @@ export default function Stats({ demoMode }) {
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
         .eq('stage', 'group').order('match_date', { ascending: true }),
       supabase.from('predictions').select('match_id, predicted_home, predicted_away'),
-      supabase.from('profiles').select('id, full_name, nickname'),
+      supabase.from('profiles').select('id, full_name, nickname, has_paid'),
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),
       supabase.from('pre_tournament_entries').select('bet_id, user_id, value, points_awarded, is_resolved'),
       supabase.from('leaderboard').select('*'),
@@ -276,7 +276,8 @@ export default function Stats({ demoMode }) {
   })()
 
   // Leaderboard stats
-  const lbSorted = [...leaderboard].filter(u => u.user_id !== BOT365_ID).sort((a, b) => b.total_points - a.total_points)
+  const paidUserIds = useMemo(() => new Set(profiles.filter(p => p.has_paid).map(p => p.id)), [profiles])
+  const lbSorted = [...leaderboard].filter(u => u.user_id !== BOT365_ID && paidUserIds.has(u.user_id)).sort((a, b) => b.total_points - a.total_points)
   const avgPoints = lbSorted.length > 0 ? Math.round(lbSorted.reduce((s, u) => s + u.total_points, 0) / lbSorted.length) : 0
   const totalExacts = lbSorted.reduce((s, u) => s + (u.exact_hits || 0), 0)
   const totalSigns = lbSorted.reduce((s, u) => s + (u.sign_hits || 0), 0)
@@ -872,11 +873,12 @@ export default function Stats({ demoMode }) {
                   key={g}
                   onClick={() => setActiveGroup(g)}
                   style={{
-                    padding: '6px 14px', borderRadius: '4px', border: 'none',
+                    padding: '6px 14px', borderRadius: '20px', border: 'none',
                     background: activeGroup === g ? 'var(--green)' : finished > 0 ? 'var(--green-light)' : 'var(--bg-secondary)',
                     color: activeGroup === g ? '#fff' : finished > 0 ? 'var(--green)' : 'var(--text-muted)',
                     cursor: 'pointer', fontSize: '12px', fontWeight: activeGroup === g ? '600' : '400',
-                    whiteSpace: 'nowrap', flexShrink: 0, position: 'relative'
+                    whiteSpace: 'nowrap', flexShrink: 0, position: 'relative',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {g}
@@ -1001,11 +1003,12 @@ export default function Stats({ demoMode }) {
                 key={cat.key}
                 onClick={() => setActiveBetCategory(cat.key)}
                 style={{
-                  padding: '6px 12px', borderRadius: '4px', border: 'none',
+                  padding: '6px 12px', borderRadius: '20px', border: 'none',
                   background: activeBetCategory === cat.key ? 'var(--green)' : 'var(--bg-secondary)',
                   color: activeBetCategory === cat.key ? '#fff' : 'var(--text-muted)',
                   cursor: 'pointer', fontSize: '11px', fontWeight: activeBetCategory === cat.key ? '600' : '400',
-                  whiteSpace: 'nowrap', flexShrink: 0
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                  transition: 'all 0.2s ease'
                 }}
               >{cat.label}</button>
             ))}
@@ -1216,11 +1219,12 @@ export default function Stats({ demoMode }) {
                         key={g}
                         onClick={() => setH2hGroup(g)}
                         style={{
-                          padding: '5px 12px', borderRadius: '4px', border: 'none',
+                          padding: '5px 12px', borderRadius: '20px', border: 'none',
                           background: h2hGroup === g ? 'var(--green)' : 'var(--bg-input)',
                           color: h2hGroup === g ? '#fff' : 'var(--text-muted)',
                           cursor: 'pointer', fontSize: '11px', fontWeight: h2hGroup === g ? '600' : '400',
-                          whiteSpace: 'nowrap', flexShrink: 0
+                          whiteSpace: 'nowrap', flexShrink: 0,
+                          transition: 'all 0.2s ease'
                         }}
                       >{g}</button>
                     ))}
@@ -1571,11 +1575,12 @@ export default function Stats({ demoMode }) {
                             key={g}
                             onClick={() => setViewGroup(g)}
                             style={{
-                              padding: '5px 12px', borderRadius: '4px', border: 'none',
+                              padding: '5px 12px', borderRadius: '20px', border: 'none',
                               background: viewGroup === g ? 'var(--green)' : 'var(--bg-input)',
                               color: viewGroup === g ? '#fff' : 'var(--text-muted)',
                               cursor: 'pointer', fontSize: '11px', fontWeight: viewGroup === g ? '600' : '400',
-                              whiteSpace: 'nowrap', flexShrink: 0
+                              whiteSpace: 'nowrap', flexShrink: 0,
+                              transition: 'all 0.2s ease'
                             }}
                           >{g}</button>
                         ))}

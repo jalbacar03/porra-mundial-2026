@@ -149,16 +149,20 @@ export default function Dashboard({ session, demoMode }) {
       .select('*')
     const { data: allProfiles } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname')
+      .select('id, full_name, nickname, has_paid')
 
     const nicknameMap = {}
-    allProfiles?.forEach(p => { nicknameMap[p.id] = p.nickname || p.full_name })
+    const paidSet = new Set()
+    allProfiles?.forEach(p => {
+      nicknameMap[p.id] = p.nickname || p.full_name
+      if (p.has_paid) paidSet.add(p.id)
+    })
 
     let rank = '-'
     let rankingsTotal = 0
     if (rankings) {
-      // Filter out Bot365 for user-facing data
-      const realRankings = rankings.filter(r => r.user_id !== BOT365_ID)
+      // Filter out Bot365 and unpaid users
+      const realRankings = rankings.filter(r => r.user_id !== BOT365_ID && paidSet.has(r.user_id))
       rankingsTotal = realRankings.length
 
       // Calculate tied position

@@ -307,11 +307,12 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
               key={cat}
               onClick={() => setActiveCategory(cat)}
               style={{
-                padding: '6px 12px', borderRadius: '4px', border: 'none',
+                padding: '6px 12px', borderRadius: '20px', border: 'none',
                 background: isActive ? 'var(--green)' : allDone ? 'var(--green-light)' : 'var(--bg-secondary)',
                 color: isActive ? '#fff' : allDone ? 'var(--green)' : 'var(--text-muted)',
                 cursor: 'pointer', fontSize: '11px', fontWeight: isActive ? '600' : '400',
-                whiteSpace: 'nowrap', flexShrink: 0
+                whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'all 0.2s ease'
               }}
             >
               {CATEGORY_LABELS[cat]} <span style={{ opacity: 0.6, fontSize: '10px' }}>{catCompleted}/{catBets.length}</span>

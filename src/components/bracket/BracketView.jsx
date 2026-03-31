@@ -233,11 +233,12 @@ export default function BracketView({ session }) {
               key={round.key}
               onClick={() => setActiveRound(round.key)}
               style={{
-                padding: '6px 12px', borderRadius: '4px', border: 'none',
+                padding: '6px 12px', borderRadius: '20px', border: 'none',
                 background: isActive ? 'var(--green)' : 'var(--bg-secondary)',
                 color: isActive ? '#fff' : 'var(--text-muted)',
                 cursor: 'pointer', fontSize: '11px', fontWeight: isActive ? '600' : '400',
-                whiteSpace: 'nowrap', flexShrink: 0
+                whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'all 0.2s ease'
               }}
             >
               {round.label} <span style={{ opacity: 0.6, fontSize: '10px' }}>{progress}</span>

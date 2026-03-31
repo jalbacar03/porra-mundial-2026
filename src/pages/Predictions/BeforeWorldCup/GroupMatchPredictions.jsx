@@ -235,7 +235,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
               onClick={() => setActiveGroup(g)}
               style={{
                 padding: '6px 14px',
-                borderRadius: '4px',
+                borderRadius: '20px',
                 border: 'none',
                 background: isActive ? 'var(--green)' : isComplete ? 'var(--green-light)' : 'var(--bg-secondary)',
                 color: isActive ? '#fff' : isComplete ? 'var(--green)' : 'var(--text-muted)',
@@ -243,7 +243,8 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                 fontSize: '12px',
                 fontWeight: isActive ? '600' : '400',
                 whiteSpace: 'nowrap',
-                flexShrink: 0
+                flexShrink: 0,
+                transition: 'all 0.2s ease'
               }}
             >
               {g} <span style={{ opacity: 0.6, fontSize: '10px' }}>{done}/{total}</span>

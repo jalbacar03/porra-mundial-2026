@@ -193,62 +193,32 @@ export default function PredictionsPage({ session, demoMode }) {
       {activeBlock === 'before' && (
         <>
           {/* Sub-tabs: Partidos / Apuestas */}
-          <div style={{
-            display: 'flex',
-            gap: '4px',
-            marginBottom: '16px',
-            padding: '3px',
-            background: 'var(--bg-input)',
-            borderRadius: '6px'
-          }}>
-            <button
-              onClick={() => setActiveTab('matches')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: 'none',
-                background: activeTab === 'matches' ? 'var(--bg-secondary)' : 'transparent',
-                color: activeTab === 'matches' ? 'var(--text-primary)' : 'var(--text-muted)',
-                fontSize: '12px',
-                fontWeight: activeTab === 'matches' ? '600' : '400',
-                cursor: 'pointer'
-              }}
-            >
-              ⚽ Grupos
-            </button>
-            <button
-              onClick={() => setActiveTab('bracket')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: 'none',
-                background: activeTab === 'bracket' ? 'var(--bg-secondary)' : 'transparent',
-                color: activeTab === 'bracket' ? 'var(--text-primary)' : 'var(--text-muted)',
-                fontSize: '12px',
-                fontWeight: activeTab === 'bracket' ? '600' : '400',
-                cursor: 'pointer'
-              }}
-            >
-              🏆 Cuadro
-            </button>
-            <button
-              onClick={() => setActiveTab('bets')}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: '4px',
-                border: 'none',
-                background: activeTab === 'bets' ? 'var(--bg-secondary)' : 'transparent',
-                color: activeTab === 'bets' ? 'var(--text-primary)' : 'var(--text-muted)',
-                fontSize: '12px',
-                fontWeight: activeTab === 'bets' ? '600' : '400',
-                cursor: 'pointer'
-              }}
-            >
-              🎯 Especiales
-            </button>
+          <div className="group-tabs" style={{ marginBottom: '16px' }}>
+            {[
+              { key: 'matches', label: '⚽ Grupos' },
+              { key: 'bracket', label: '🏆 Cuadro' },
+              { key: 'bets', label: '🎯 Especiales' }
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  flex: 1,
+                  padding: '8px 14px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  background: activeTab === tab.key ? 'var(--green)' : 'var(--bg-secondary)',
+                  color: activeTab === tab.key ? '#fff' : 'var(--text-muted)',
+                  fontSize: '12px',
+                  fontWeight: activeTab === tab.key ? '600' : '400',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Tab content */}
