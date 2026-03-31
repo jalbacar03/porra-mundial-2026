@@ -55,6 +55,7 @@ export default async function handler(req, res) {
     })
 
     // 3. Update finished match scores
+    // IMPORTANT: Update any match that is NOT yet finished (includes live → finished transition)
     let updatedCount = 0
     for (const apiMatch of finished) {
       const homeApiId = apiMatch.teams.home.id
@@ -70,7 +71,7 @@ export default async function handler(req, res) {
 
       const ourMatch = ourMatches.find(m =>
         m.home_team_id === homeTeamId && m.away_team_id === awayTeamId &&
-        m.home_score === null // Only update if not already set
+        m.status !== 'finished' // Update any non-finished match (scheduled, live)
       )
 
       if (ourMatch) {
@@ -421,10 +422,16 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
       // === HAT-TRICK ===
       case 'any_hat_trick': {
-        // Check all finished matches for hat-tricks
-        for (const apiMatch of apiMatches.filter(m => m.fixture.status.short === 'FT')) {
+        // Optimization: first check if any player in top scorers has 3+ goals in a single match
+        // by checking matches where a team scored 3+ (hat-trick only possible if team scores 3+)
+        const hatTrickCandidates = apiMatches.filter(m =>
+          (m.fixture.status.short === 'FT' || m.fixture.status.short === 'AET') &&
+          (m.goals?.home >= 3 || m.goals?.away >= 3)
+        )
+        // Only fetch events for candidate matches (saves API calls)
+        for (const apiMatch of hatTrickCandidates) {
           const eventsRes = await apiFetch(`/fixtures/events?fixture=${apiMatch.fixture.id}`)
-          const goals = (eventsRes.response || []).filter(e => e.type === 'Goal')
+          const goals = (eventsRes.response || []).filter(e => e.type === 'Goal' && e.detail !== 'Missed Penalty')
           const goalsByPlayer = {}
           goals.forEach(g => {
             goalsByPlayer[g.player.id] = (goalsByPlayer[g.player.id] || 0) + 1
@@ -764,6 +771,10 @@ async function apiFetch(endpoint) {
   const res = await fetch(`https://v3.football.api-sports.io${endpoint}`, {
     headers: { 'x-apisports-key': API_FOOTBALL_KEY }
   })
+  if (!res.ok) {
+    console.error(`API-Football error: ${res.status} ${res.statusText} for ${endpoint}`)
+    return { response: [] }
+  }
   return res.json()
 }
 
@@ -777,6 +788,13 @@ async function supaFetch(path, options = {}) {
   }
 
   const res = await fetch(url, { ...options, headers })
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'unknown')
+    console.error(`Supabase error: ${res.status} for ${path}: ${errText}`)
+    if (options.method === 'PATCH') return null
+    return []
+  }
 
   if (options.method === 'PATCH') return null
   return res.json()
