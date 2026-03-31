@@ -71,16 +71,27 @@ export default async function handler(req, res) {
       )
 
       if (ourMatch) {
+        const updateData = {
+          home_score: homeScore,
+          away_score: awayScore,
+          status: 'finished'
+        }
+
+        // For knockout matches, determine winner_team_id
+        if (ourMatch.stage !== 'group') {
+          if (apiMatch.teams.home.winner) {
+            updateData.winner_team_id = homeTeamId
+          } else if (apiMatch.teams.away.winner) {
+            updateData.winner_team_id = awayTeamId
+          }
+        }
+
         await supaFetch(`/rest/v1/matches?id=eq.${ourMatch.id}`, {
           method: 'PATCH',
-          body: JSON.stringify({
-            home_score: homeScore,
-            away_score: awayScore,
-            status: 'finished'
-          })
+          body: JSON.stringify(updateData)
         })
         updatedCount++
-        log.push(`   ✅ Match ${ourMatch.id}: ${homeScore}-${awayScore}`)
+        log.push(`   ✅ Match ${ourMatch.id}: ${homeScore}-${awayScore}${updateData.winner_team_id ? ` (winner: ${updateData.winner_team_id})` : ''}`)
       }
     }
     log.push(`📊 Updated ${updatedCount} match scores`)
@@ -117,7 +128,12 @@ export default async function handler(req, res) {
     const ordagosResolved = await resolveFinishedOrdagos(log)
     log.push(`   Resolved ${ordagosResolved} órdagos`)
 
-    // 9. Summary
+    // 9. Score bracket picks for finished knockout matches
+    log.push('🏆 Scoring bracket picks...')
+    const bracketScored = await scoreBracketPicks(log)
+    log.push(`   Scored ${bracketScored} bracket picks`)
+
+    // 10. Summary
     const summary = {
       timestamp: new Date().toISOString(),
       matchesUpdated: updatedCount,
@@ -125,6 +141,7 @@ export default async function handler(req, res) {
       betsResolved: resolvedBets,
       knockoutTeamsSynced: knockoutSynced,
       ordagosResolved,
+      bracketScored,
       log
     }
 
@@ -637,6 +654,74 @@ async function resolveFinishedOrdagos(log) {
   }
 
   return resolved
+}
+
+/**
+ * Score bracket picks — award points for correct winner predictions in knockout rounds.
+ * Points: R32=0, R16=1, QF=2, SF=4, Final=5, Champion=8
+ */
+async function scoreBracketPicks(log) {
+  // Point values per round
+  const ROUND_POINTS = { r32: 0, r16: 1, qf: 2, sf: 4, final: 5 }
+  // Champion bonus: 8 pts for correctly predicting the tournament winner (final winner)
+  const CHAMPION_BONUS = 8
+
+  // Get all finished knockout matches with a winner
+  const knockoutMatches = await supaFetch(
+    '/rest/v1/matches?select=id,match_number,stage,winner_team_id,status' +
+    '&status=eq.finished&winner_team_id=not.is.null&stage=neq.group'
+  )
+
+  if (!knockoutMatches || knockoutMatches.length === 0) return 0
+
+  // Get all bracket picks that haven't been scored yet
+  const unscoredPicks = await supaFetch(
+    '/rest/v1/bracket_picks?select=id,user_id,match_number,round,predicted_winner_id' +
+    '&points_awarded=is.null'
+  )
+
+  if (!unscoredPicks || unscoredPicks.length === 0) return 0
+
+  // Build lookup: match_number → winner_team_id
+  const winnerByMatchNumber = {}
+  knockoutMatches.forEach(m => {
+    if (m.match_number && m.winner_team_id) {
+      winnerByMatchNumber[m.match_number] = m.winner_team_id
+    }
+  })
+
+  // Determine the final match winner for champion bonus
+  // Final is match_number 104
+  const finalWinner = winnerByMatchNumber[104] || null
+
+  let scored = 0
+  for (const pick of unscoredPicks) {
+    const actualWinner = winnerByMatchNumber[pick.match_number]
+    if (!actualWinner) continue // Match not finished yet
+
+    const roundKey = pick.round // 'r32', 'r16', 'qf', 'sf', 'final'
+    const basePoints = ROUND_POINTS[roundKey] || 0
+    const isCorrect = pick.predicted_winner_id === actualWinner
+
+    let pointsAwarded = isCorrect ? basePoints : 0
+
+    // Champion bonus: if this is the final and the user predicted the winner
+    if (roundKey === 'final' && isCorrect && finalWinner) {
+      pointsAwarded += CHAMPION_BONUS
+    }
+
+    await supaFetch(`/rest/v1/bracket_picks?id=eq.${pick.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ points_awarded: pointsAwarded })
+    })
+    scored++
+
+    if (isCorrect && pointsAwarded > 0) {
+      log.push(`   ✅ Bracket: user ${pick.user_id.slice(0,8)}... match ${pick.match_number} → +${pointsAwarded} pts`)
+    }
+  }
+
+  return scored
 }
 
 // ── Helpers ──

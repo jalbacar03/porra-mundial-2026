@@ -52,14 +52,6 @@ export default function Forum({ session }) {
           return [...prev, payload.new]
         })
       })
-      .on('postgres_changes', {
-        event: 'DELETE',
-        schema: 'public',
-        table: 'forum_messages',
-        filter: 'channel=eq.general'
-      }, (payload) => {
-        setMessages(prev => prev.filter(m => m.id !== payload.old.id))
-      })
       .subscribe()
 
     const announcementChannel = supabase
@@ -83,13 +75,20 @@ export default function Forum({ session }) {
           return [...prev, payload.new]
         })
       })
+      .subscribe()
+
+    // Separate DELETE channel without filter — default REPLICA IDENTITY
+    // only sends PK in payload.old, so channel filter won't match on DELETE
+    const deleteChannel = supabase
+      .channel('forum-deletes')
       .on('postgres_changes', {
         event: 'DELETE',
         schema: 'public',
-        table: 'forum_messages',
-        filter: 'channel=eq.announcements'
+        table: 'forum_messages'
       }, (payload) => {
-        setAnnouncements(prev => prev.filter(m => m.id !== payload.old.id))
+        const deletedId = payload.old.id
+        setMessages(prev => prev.filter(m => m.id !== deletedId))
+        setAnnouncements(prev => prev.filter(m => m.id !== deletedId))
       })
       .subscribe()
 
@@ -129,6 +128,7 @@ export default function Forum({ session }) {
     return () => {
       supabase.removeChannel(generalChannel)
       supabase.removeChannel(announcementChannel)
+      supabase.removeChannel(deleteChannel)
       supabase.removeChannel(reactionsChannel)
     }
   }, [])

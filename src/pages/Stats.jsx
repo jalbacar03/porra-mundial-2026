@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { generateDemoMatchStatuses } from '../hooks/useDemoMode'
+import { SkeletonDashboard } from '../components/Skeleton'
 
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
@@ -304,8 +305,8 @@ export default function Stats({ demoMode }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando stats...
+      <div style={{ padding: '16px' }}>
+        <SkeletonDashboard />
       </div>
     )
   }
@@ -314,40 +315,56 @@ export default function Stats({ demoMode }) {
   const filteredBets = activeBetCategory === 'all' ? bets : bets.filter(b => b.category === activeBetCategory)
 
   // ========== STAT CARD COMPONENT ==========
-  const StatCard = ({ value, label, color, sub }) => (
-    <div style={{
-      background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px 12px',
-      border: '0.5px solid var(--border)', textAlign: 'center', position: 'relative', overflow: 'hidden'
+  const StatCard = ({ value, label, color, sub, icon }) => (
+    <div className="tap-scale" style={{
+      background: 'var(--bg-secondary)', borderRadius: '12px', padding: '18px 14px',
+      border: '0.5px solid var(--border)', textAlign: 'center', position: 'relative', overflow: 'hidden',
+      transition: 'border-color 0.2s ease'
     }}>
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
-        background: color || 'var(--green)'
+        position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+        background: `linear-gradient(90deg, ${color || 'var(--green)'}, transparent)`
       }} />
-      <div style={{ fontSize: '28px', fontWeight: '800', color: color || 'var(--text-primary)', lineHeight: 1 }}>
+      {icon && (
+        <div style={{ fontSize: '16px', marginBottom: '6px', opacity: 0.7 }}>{icon}</div>
+      )}
+      <div style={{ fontSize: '26px', fontWeight: '800', color: color || 'var(--text-primary)', lineHeight: 1 }}>
         {value}
       </div>
       <div style={{
-        fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase',
-        letterSpacing: '0.8px', marginTop: '6px', fontWeight: '600'
+        fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase',
+        letterSpacing: '1px', marginTop: '8px', fontWeight: '600'
       }}>
         {label}
       </div>
       {sub && (
-        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3 }}>
           {sub}
         </div>
       )}
     </div>
   )
 
+  // ========== SECTION HEADER ==========
+  const SectionHeader = ({ children }) => (
+    <div style={{
+      fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
+      letterSpacing: '1px', fontWeight: '700', marginBottom: '14px',
+      display: 'flex', alignItems: 'center', gap: '8px'
+    }}>
+      <span>{children}</span>
+      <div style={{ flex: 1, height: '0.5px', background: 'var(--border)' }} />
+    </div>
+  )
+
   // ========== RENDER ==========
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
+    <div className="stagger-in" style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Header */}
       <div style={{ marginBottom: '16px' }}>
         <h2 style={{
-          fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)',
+          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
           margin: '0 0 4px', letterSpacing: '0.3px'
         }}>
           Stats del Mundial
@@ -360,11 +377,11 @@ export default function Stats({ demoMode }) {
 
       {/* Progress bar — tournament progress */}
       <div style={{
-        background: 'var(--bg-input)', borderRadius: '6px', height: '8px',
+        background: 'var(--bg-input)', borderRadius: '4px', height: '6px',
         marginBottom: '18px', overflow: 'hidden'
       }}>
         <div style={{
-          height: '100%', borderRadius: '6px',
+          height: '100%', borderRadius: '4px',
           background: 'linear-gradient(90deg, var(--green), var(--gold))',
           width: `${totalMatches > 0 ? (finishedMatches.length / totalMatches) * 100 : 0}%`,
           transition: 'width 0.6s ease'
@@ -372,28 +389,27 @@ export default function Stats({ demoMode }) {
       </div>
 
       {/* 6-Tab switcher */}
-      <div style={{
-        display: 'flex', gap: '3px', marginBottom: '18px',
-        padding: '3px', background: 'var(--bg-input)', borderRadius: '8px',
-        overflowX: 'auto', WebkitOverflowScrolling: 'touch'
+      <div className="group-tabs" style={{
+        marginBottom: '18px', gap: '6px'
       }}>
         {[
-          { key: 'overview', label: '📊 Resumen' },
-          { key: 'me', label: '👤 Tú' },
-          { key: 'matches', label: '⚽ Partidos' },
-          { key: 'bets', label: '🎯 Apuestas' },
-          { key: 'h2h', label: '🤝 H2H' },
-          { key: 'view', label: '👁 Otros' }
+          { key: 'overview', label: 'Resumen' },
+          { key: 'me', label: 'Tú' },
+          { key: 'matches', label: 'Partidos' },
+          { key: 'bets', label: 'Apuestas' },
+          { key: 'h2h', label: 'H2H' },
+          { key: 'view', label: 'Otros' }
         ].map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             style={{
-              flex: '1 0 auto', padding: '9px 8px', borderRadius: '6px', border: 'none',
-              background: activeTab === tab.key ? 'var(--bg-secondary)' : 'transparent',
-              color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
-              fontSize: '11px', fontWeight: activeTab === tab.key ? '600' : '400', cursor: 'pointer',
-              whiteSpace: 'nowrap'
+              padding: '7px 14px', borderRadius: '20px', border: 'none',
+              background: activeTab === tab.key ? 'var(--green)' : 'var(--bg-secondary)',
+              color: activeTab === tab.key ? '#fff' : 'var(--text-muted)',
+              fontSize: '12px', fontWeight: activeTab === tab.key ? '600' : '400', cursor: 'pointer',
+              whiteSpace: 'nowrap', flexShrink: 0,
+              transition: 'all 0.2s ease'
             }}
           >
             {tab.label}
@@ -409,20 +425,15 @@ export default function Stats({ demoMode }) {
             <StatCard value={totalUsers} label="Participantes" color="var(--text-primary)" />
             <StatCard value={`${accuracyRate}%`} label="Tasa de acierto" color="var(--green)" sub={`${totalExacts} exactos · ${totalSigns} signos`} />
             <StatCard value={totalPredictions.toLocaleString()} label="Predicciones" color="var(--gold)" />
-            <StatCard value={`${avgPoints} pts`} label="Media por jugador" color="var(--text-primary)" sub={`Líder: ${lbSorted[0]?.total_points || 0} pts`} />
+            <StatCard value={`${avgPoints} pts`} label="Media" color="var(--text-primary)" sub={`Líder: ${lbSorted[0]?.total_points || 0} pts`} />
           </div>
 
           {/* 1X2 Global — Donut chart */}
           <div style={{
-            background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
+            background: 'var(--bg-secondary)', borderRadius: '12px', padding: '18px',
             border: '0.5px solid var(--border)', marginBottom: '14px'
           }}>
-            <div style={{
-              fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-              letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-            }}>
-              Tendencia global 1X2
-            </div>
+            <SectionHeader>Tendencia global 1X2</SectionHeader>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <ResponsiveContainer width={120} height={120}>
                 <PieChart>
@@ -459,12 +470,7 @@ export default function Stats({ demoMode }) {
             background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
             border: '0.5px solid var(--border)', marginBottom: '14px'
           }}>
-            <div style={{
-              fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-              letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-            }}>
-              Resultados más predichos
-            </div>
+            <SectionHeader>Resultados más predichos</SectionHeader>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {topResults.map((r, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -495,12 +501,7 @@ export default function Stats({ demoMode }) {
             background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
             border: '0.5px solid var(--border)', marginBottom: '14px'
           }}>
-            <div style={{
-              fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-              letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-            }}>
-              Goles predichos por grupo
-            </div>
+            <SectionHeader>Goles predichos por grupo</SectionHeader>
             <ResponsiveContainer width="100%" height={groupGoals.length * 28 + 10}>
               <BarChart
                 data={groupGoals.slice(0, 8)}
@@ -531,12 +532,7 @@ export default function Stats({ demoMode }) {
             background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
             border: '0.5px solid var(--border)', marginBottom: '14px'
           }}>
-            <div style={{
-              fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-              letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-            }}>
-              Top 5 — Desglose de puntos
-            </div>
+            <SectionHeader>Top 5 — Desglose de puntos</SectionHeader>
             {lbSorted.slice(0, 5).map((user, i) => {
               const total = (user.exact_hits || 0) + (user.sign_hits || 0) + (user.misses || 0)
               const exactPct = total > 0 ? ((user.exact_hits || 0) / total) * 100 : 0
@@ -655,12 +651,7 @@ export default function Stats({ demoMode }) {
               background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
               border: '0.5px solid var(--border)', marginBottom: '14px'
             }}>
-              <div style={{
-                fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-              }}>
-                Distribución de resultados
-              </div>
+              <SectionHeader>Distribución de resultados</SectionHeader>
 
               {/* Stacked bar */}
               {myTotal > 0 && (
@@ -694,12 +685,7 @@ export default function Stats({ demoMode }) {
                 background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
                 border: '0.5px solid var(--border)', marginBottom: '14px'
               }}>
-                <div style={{
-                  fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                  letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-                }}>
-                  Rendimiento por grupo
-                </div>
+                <SectionHeader>Rendimiento por grupo</SectionHeader>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {groupPerf.map((g, i) => (
                     <div key={g.group} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -730,12 +716,7 @@ export default function Stats({ demoMode }) {
               background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
               border: '0.5px solid var(--border)', marginBottom: '14px'
             }}>
-              <div style={{
-                fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-              }}>
-                Tú vs la media
-              </div>
+              <SectionHeader>Tú vs la media</SectionHeader>
               {[
                 { label: 'Puntos', mine: myPoints, avg: avgPoints },
                 { label: 'Exactos', mine: myExacts, avg: lbSorted.length > 0 ? Math.round(totalExacts / lbSorted.length) : 0 },
@@ -1026,12 +1007,7 @@ export default function Stats({ demoMode }) {
               background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
               border: '0.5px solid var(--border)', marginBottom: '14px'
             }}>
-              <div style={{
-                fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-              }}>
-                Comparador H2H
-              </div>
+              <SectionHeader>Comparador H2H</SectionHeader>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
                 <div>
@@ -1150,12 +1126,7 @@ export default function Stats({ demoMode }) {
                   background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                   border: '0.5px solid var(--border)', marginBottom: '14px'
                 }}>
-                  <div style={{
-                    fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                    letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-                  }}>
-                    Partido a partido
-                  </div>
+                  <SectionHeader>Partido a partido</SectionHeader>
 
                   {/* Group selector */}
                   <div className="group-tabs" style={{ marginBottom: '12px' }}>
@@ -1265,12 +1236,7 @@ export default function Stats({ demoMode }) {
                       background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                       border: '0.5px solid var(--border)', marginBottom: '14px', textAlign: 'center'
                     }}>
-                      <div style={{
-                        fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                        letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
-                      }}>
-                        Balance H2H
-                      </div>
+                      <SectionHeader>Balance H2H</SectionHeader>
                       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
                         <div>
                           <div style={{ fontSize: '24px', fontWeight: '800', color: winsA > winsB ? 'var(--gold)' : 'var(--text-muted)' }}>{winsA}</div>
@@ -1295,12 +1261,7 @@ export default function Stats({ demoMode }) {
                     background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                     border: '0.5px solid var(--border)', marginBottom: '14px'
                   }}>
-                    <div style={{
-                      fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                      letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-                    }}>
-                      Apuestas pre-torneo
-                    </div>
+                    <SectionHeader>Apuestas pre-torneo</SectionHeader>
                     {bets.map(bet => {
                       const entryA = h2hBetEntriesA.find(e => e.bet_id === bet.id)
                       const entryB = h2hBetEntriesB.find(e => e.bet_id === bet.id)
@@ -1349,12 +1310,7 @@ export default function Stats({ demoMode }) {
                     background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                     border: '0.5px solid var(--border)', marginBottom: '14px'
                   }}>
-                    <div style={{
-                      fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                      letterSpacing: '1px', fontWeight: '700', marginBottom: '14px'
-                    }}>
-                      Ordagos
-                    </div>
+                    <SectionHeader>Ordagos</SectionHeader>
                     {ordagos.map(ord => {
                       const oA = h2hOrdagoEntriesA.find(e => e.ordago_id === ord.id)
                       const oB = h2hOrdagoEntriesB.find(e => e.ordago_id === ord.id)
@@ -1403,8 +1359,12 @@ export default function Stats({ demoMode }) {
             )}
 
             {h2hLoading && (
-              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                Cargando comparacion...
+              <div style={{ padding: '30px', textAlign: 'center' }}>
+                <div className="pulse-dots" style={{ justifyContent: 'center' }}>
+                  <span style={{ width: 6, height: 6, background: 'var(--green)' }} />
+                  <span style={{ width: 6, height: 6, background: 'var(--green)' }} />
+                  <span style={{ width: 6, height: 6, background: 'var(--green)' }} />
+                </div>
               </div>
             )}
 
@@ -1465,12 +1425,7 @@ export default function Stats({ demoMode }) {
                   background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                   border: '0.5px solid var(--border)', marginBottom: '14px'
                 }}>
-                  <div style={{
-                    fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                    letterSpacing: '1px', fontWeight: '700', marginBottom: '10px'
-                  }}>
-                    Ver predicciones de otros
-                  </div>
+                  <SectionHeader>Ver predicciones de otros</SectionHeader>
                   <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px', lineHeight: '1.4' }}>
                     Todas las predicciones de cada participante
                   </div>
@@ -1495,8 +1450,12 @@ export default function Stats({ demoMode }) {
                 </div>
 
                 {viewLoading && (
-                  <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    Cargando...
+                  <div style={{ padding: '30px', textAlign: 'center' }}>
+                    <div className="pulse-dots" style={{ justifyContent: 'center' }}>
+                      <span style={{ width: 6, height: 6, background: 'var(--green)' }} />
+                      <span style={{ width: 6, height: 6, background: 'var(--green)' }} />
+                      <span style={{ width: 6, height: 6, background: 'var(--green)' }} />
+                    </div>
                   </div>
                 )}
 
@@ -1541,12 +1500,7 @@ export default function Stats({ demoMode }) {
                       background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                       border: '0.5px solid var(--border)', marginBottom: '14px'
                     }}>
-                      <div style={{
-                        fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                        letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
-                      }}>
-                        Predicciones de partidos
-                      </div>
+                      <SectionHeader>Predicciones de partidos</SectionHeader>
 
                       {/* Group selector */}
                       <div className="group-tabs" style={{ marginBottom: '12px' }}>
@@ -1634,12 +1588,7 @@ export default function Stats({ demoMode }) {
                         background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                         border: '0.5px solid var(--border)', marginBottom: '14px'
                       }}>
-                        <div style={{
-                          fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                          letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
-                        }}>
-                          Apuestas pre-torneo
-                        </div>
+                        <SectionHeader>Apuestas pre-torneo</SectionHeader>
                         {bets.map(bet => {
                           const entry = viewBetEntries.find(e => e.bet_id === bet.id)
                           if (!entry) return null
@@ -1680,12 +1629,7 @@ export default function Stats({ demoMode }) {
                         background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
                         border: '0.5px solid var(--border)', marginBottom: '14px'
                       }}>
-                        <div style={{
-                          fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-                          letterSpacing: '1px', fontWeight: '700', marginBottom: '12px'
-                        }}>
-                          Ordagos
-                        </div>
+                        <SectionHeader>Ordagos</SectionHeader>
                         {ordagos.map(ord => {
                           const entry = viewOrdagoEntries.find(e => e.ordago_id === ord.id)
                           if (!entry) return null
