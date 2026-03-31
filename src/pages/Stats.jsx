@@ -44,6 +44,7 @@ export default function Stats({ demoMode }) {
   const [teams, setTeams] = useState([])
   const [ordagos, setOrdagos] = useState([])
   const [allPreTournamentEntries, setAllPreTournamentEntries] = useState([])
+  const [allMatches, setAllMatches] = useState([])
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
   const betCategories = [
@@ -65,7 +66,7 @@ export default function Stats({ demoMode }) {
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
         .eq('stage', 'group').order('match_date', { ascending: true }),
-      supabase.from('predictions').select('match_id, predicted_home, predicted_away'),
+      supabase.from('predictions').select('match_id, predicted_home, predicted_away, user_id'),
       supabase.from('profiles').select('id, full_name, nickname, has_paid'),
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),
       supabase.from('pre_tournament_entries').select('bet_id, user_id, value, points_awarded, is_resolved'),
@@ -78,7 +79,10 @@ export default function Stats({ demoMode }) {
           home_team:teams!matches_home_team_id_fkey(id, name, flag_url),
           away_team:teams!matches_away_team_id_fkey(id, name, flag_url)
         )
-      `).order('number')
+      `).order('number'),
+      supabase.from('matches')
+        .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
+        .order('match_date', { ascending: true })
     ]
 
     // Fetch user's own predictions with points
@@ -104,7 +108,8 @@ export default function Stats({ demoMode }) {
     setLeaderboard(results[5].data || [])
     setTeams(results[6].data || [])
     setOrdagos(results[7].data || [])
-    if (results[8]) setMyPredictions(results[8].data || [])
+    setAllMatches(results[8].data || [])
+    if (results[9]) setMyPredictions(results[9].data || [])
     setLoading(false)
   }
 
@@ -856,6 +861,179 @@ export default function Stats({ demoMode }) {
                 )
               })}
             </div>
+
+            {/* ===== ¿QUÉ NECESITAS? — Scenario simulator ===== */}
+            {(() => {
+              // Upcoming matches (scheduled, from allMatches)
+              const upcoming = allMatches
+                .filter(m => m.status === 'scheduled')
+                .slice(0, 6)
+
+              if (upcoming.length === 0 || myRank === 0) return null
+
+              // Rivals: user above and below
+              const rivalAbove = myRank > 1 ? lbSorted[myRank - 2] : null
+              const rivalBelow = myRank < lbSorted.length ? lbSorted[myRank] : null
+
+              // Get nickname helper
+              const getName = (uid) => {
+                const p = profiles.find(pr => pr.id === uid)
+                return p?.nickname || p?.full_name || '?'
+              }
+
+              // For each upcoming match, check divergence with rival above
+              const divergences = []
+              if (rivalAbove) {
+                for (const match of upcoming) {
+                  const myPred = allPredictions.find(p => p.match_id === match.id && p.user_id === userId)
+                  const rivalPred = allPredictions.find(p => p.match_id === match.id && p.user_id === rivalAbove.user_id)
+                  if (!myPred || !rivalPred) continue
+
+                  const mySign = Math.sign(myPred.predicted_home - myPred.predicted_away)
+                  const rivalSign = Math.sign(rivalPred.predicted_home - rivalPred.predicted_away)
+                  if (mySign !== rivalSign) {
+                    divergences.push({
+                      match,
+                      myPred: `${myPred.predicted_home}-${myPred.predicted_away}`,
+                      rivalPred: `${rivalPred.predicted_home}-${rivalPred.predicted_away}`,
+                      rivalName: getName(rivalAbove.user_id)
+                    })
+                  }
+                }
+              }
+
+              // Best/worst case for next matches
+              const bestCase = upcoming.length * 3
+              const worstCase = 0
+
+              // How many exact hits needed to overtake rival above
+              const gapToAbove = rivalAbove ? rivalAbove.total_points - myPoints : 0
+              const exactsNeeded = gapToAbove > 0 ? Math.ceil(gapToAbove / 3) : 0
+              const signsNeeded = gapToAbove > 0 ? gapToAbove : 0
+
+              // Gap from below
+              const gapFromBelow = rivalBelow ? myPoints - rivalBelow.total_points : null
+
+              return (
+                <div className="stats-card" style={{ position: 'relative', overflow: 'hidden' }}>
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
+                    background: 'linear-gradient(90deg, var(--gold), var(--green), var(--gold))'
+                  }} />
+                  <SectionHeader>¿Qué necesitas?</SectionHeader>
+
+                  {/* Gap to position above */}
+                  {rivalAbove && gapToAbove > 0 && (
+                    <div style={{
+                      padding: '14px', borderRadius: '10px', marginBottom: '12px',
+                      background: 'linear-gradient(135deg, rgba(255,204,0,0.06), rgba(0,122,69,0.04))',
+                      border: '1px solid rgba(255,204,0,0.12)'
+                    }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                        Estás a <span style={{ color: 'var(--gold)', fontWeight: '800', fontSize: '14px' }}>{gapToAbove} pts</span> de{' '}
+                        <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{getName(rivalAbove.user_id)}</span>{' '}
+                        <span style={{ color: 'var(--text-dim)' }}>({myRank - 1}º)</span>
+                      </div>
+                      <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{
+                          padding: '6px 10px', borderRadius: '6px', background: 'rgba(255,204,0,0.1)',
+                          fontSize: '11px', color: 'var(--gold)', fontWeight: '600'
+                        }}>
+                          {exactsNeeded} exacto{exactsNeeded !== 1 ? 's' : ''} para adelantar
+                        </div>
+                        {gapToAbove <= upcoming.length && (
+                          <div style={{
+                            padding: '6px 10px', borderRadius: '6px', background: 'rgba(0,122,69,0.1)',
+                            fontSize: '11px', color: 'var(--green)', fontWeight: '600'
+                          }}>
+                            o {signsNeeded} signo{signsNeeded !== 1 ? 's' : ''} seguidos
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Threat from below */}
+                  {rivalBelow && gapFromBelow !== null && gapFromBelow <= 6 && (
+                    <div style={{
+                      padding: '12px', borderRadius: '10px', marginBottom: '12px',
+                      background: 'rgba(226,75,74,0.06)', border: '1px solid rgba(226,75,74,0.12)'
+                    }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                        <span style={{ color: 'var(--red)', fontWeight: '600' }}>⚠</span>{' '}
+                        <span style={{ fontWeight: '600' }}>{getName(rivalBelow.user_id)}</span>{' '}
+                        <span style={{ color: 'var(--text-dim)' }}>({myRank + 1}º)</span> está solo a{' '}
+                        <span style={{ color: 'var(--red)', fontWeight: '700' }}>{gapFromBelow} pts</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Divergences — key matches */}
+                  {divergences.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{
+                        fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600',
+                        textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px'
+                      }}>
+                        Partidos clave vs {divergences[0].rivalName}
+                      </div>
+                      {divergences.slice(0, 3).map((d, i) => (
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                          padding: '10px 0',
+                          borderBottom: i < Math.min(divergences.length, 3) - 1 ? '0.5px solid var(--border-light)' : 'none'
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                              {d.match.home_team?.name || 'TBD'} vs {d.match.away_team?.name || 'TBD'}
+                            </div>
+                            <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                              {d.match.stage === 'group' ? `Grupo ${d.match.group_name}` : d.match.stage?.replace('_', ' ')}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginBottom: '2px' }}>Tú</div>
+                            <div style={{
+                              fontSize: '13px', fontWeight: '700', color: 'var(--gold)',
+                              fontFamily: 'SF Mono, Monaco, monospace'
+                            }}>{d.myPred}</div>
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>vs</div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginBottom: '2px' }}>{d.rivalName.split(' ')[0]}</div>
+                            <div style={{
+                              fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)',
+                              fontFamily: 'SF Mono, Monaco, monospace'
+                            }}>{d.rivalPred}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Best case scenario */}
+                  <div style={{
+                    padding: '12px', borderRadius: '10px',
+                    background: 'var(--bg-input)', textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                      Próximos {upcoming.length} partidos
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Mejor caso</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--green)' }}>+{bestCase}</div>
+                      </div>
+                      <div style={{ width: '1px', background: 'var(--border)' }} />
+                      <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Tu potencial</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--gold)' }}>{myPoints + bestCase}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         )
       })()}
