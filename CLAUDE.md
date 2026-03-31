@@ -231,19 +231,26 @@ vercel.json               # Cron config (sync cada 2h)
 - ✅ Sync automático: API-Football → Supabase (Vercel Cron diario + manual en Admin)
 - ✅ Resolución automática de TODAS las apuestas especiales
 - ✅ Admin pro: tabs Resultados / Pagos / Sync API
-- ✅ Foro: chat en tiempo real con Supabase Realtime
+- ✅ Foro: chat en tiempo real con Supabase Realtime (reacciones, replies, admin moderation)
 - ✅ Vercel deploy fix: cron cambiado de cada 2h a diario (Hobby plan limit)
 - ✅ Countdown movido junto al logo (evita solape con menú desktop)
+- ✅ Seed jugadores completo: 925 jugadores de 26+ equipos
+- ✅ Órdagos (apuesta del día): 6 órdagos con cascade unlock, coste/recompensa, deadlines
+- ✅ Durante el Mundial: Cuadro Real (bracket en vivo) + Órdagos
+- ✅ Ver apuestas de otros: tab en Stats con predicciones de cada participante
+- ✅ H2H comparador: modal + tab dedicado en Stats
+- ✅ Bracket scoring automático: R16=1, QF=2, SF=4, Final=5, Campeón=+8 bonus
+- ✅ Leaderboard incluye: partidos + pre-torneo + órdagos + bracket
+- ✅ Stats premium: hero cards, OddsBar bet365-style, gradient-text, animaciones
+- ✅ Tabs pill (borderRadius 20px) unificados en toda la app
+- ✅ Leaderboard filtra por has_paid (usuarios no admitidos no aparecen)
+- ✅ Normas accesibles en móvil (footer link en todas las páginas)
+- ✅ PointsChart: timeline de puntos acumulados por fecha
 
 ## Pendientes próximos
-1. **Completar seed de jugadores** — faltan ~17 equipos (necesitan IDs correctos de API-Football)
-2. **Apuesta del día** — sistema de apuestas diarias durante el Mundial
-3. **Durante el Mundial** — predicciones de partidos eliminatorios en tiempo real
-4. **Ver apuestas de otros** — después del cierre, ver cómo apostó cada persona
-5. **Configurar nº Bizum real** en PaymentWall
-6. **Engagement** — tarjeta compartible, badges/logros, comparador H2H, feed actividad
-7. **Emails** — newsletter diaria con Resend (crónica + leaderboard)
-8. **Insights personalizados** — comparación con Bot365 por usuario
+1. **Engagement** — tarjeta compartible, badges/logros
+2. **Emails** — newsletter diaria con Resend (crónica + leaderboard)
+3. **Insights personalizados** — comparación con Bot365 por usuario
 
 ## Notas importantes
 - NUNCA cambiar nombres de columnas existentes (predicted_home, predicted_away, full_name, has_paid, is_admin)
