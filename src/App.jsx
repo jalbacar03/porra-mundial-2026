@@ -396,7 +396,6 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
         <StyledNavLink to="/predictions">Mis predicciones</StyledNavLink>
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
         <StyledNavLink to="/stats">Stats</StyledNavLink>
-        <StyledNavLink to="/matchday">Match Day</StyledNavLink>
         <StyledNavLink to="/news">Noticias</StyledNavLink>
         <StyledNavLink to="/forum">Foro</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
@@ -447,7 +446,6 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
     { to: '/predictions', label: 'Pred.', icon: IconPredictions },
     { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
-    { to: '/matchday', label: 'Live', icon: IconLive },
     { to: '/news', label: 'Noticias', icon: IconNews },
     { to: '/forum', label: 'Foro', icon: IconForum },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
