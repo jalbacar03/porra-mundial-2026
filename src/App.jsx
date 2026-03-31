@@ -522,6 +522,35 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
   )
 }
 
+function MobileRulesFooter() {
+  const location = useLocation()
+  // Don't show on the rules page itself
+  if (location.pathname === '/rules') return null
+  return (
+    <div className="mobile-rules-footer" style={{
+      textAlign: 'center',
+      padding: '24px 16px 100px',
+    }}>
+      <NavLink
+        to="/rules"
+        style={{
+          fontSize: '11px',
+          color: 'var(--text-dim)',
+          textDecoration: 'none',
+          letterSpacing: '0.3px',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          border: '0.5px solid var(--border)',
+          background: 'var(--bg-secondary)',
+          transition: 'all 0.2s ease'
+        }}
+      >
+        Normas del torneo
+      </NavLink>
+    </div>
+  )
+}
+
 function StyledNavLink({ to, end, children }) {
   return (
     <NavLink
@@ -628,6 +657,7 @@ function AppLayout({ session }) {
             </PageTransition>
           </Suspense>
         </ErrorBoundary>
+        <MobileRulesFooter />
       </div>
       <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
     </div>

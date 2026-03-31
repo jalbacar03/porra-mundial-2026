@@ -39,11 +39,14 @@ button, a {
 
 /* ===== Responsive: Bottom Nav (móvil) / Top Nav (desktop) ===== */
 
-/* Desktop: ocultar bottom nav, mostrar top nav */
+/* Desktop: ocultar bottom nav y footer móvil, mostrar top nav */
 .top-navbar {
   display: flex !important;
 }
 .bottom-navbar {
+  display: none !important;
+}
+.mobile-rules-footer {
   display: none !important;
 }
 
@@ -57,6 +60,9 @@ button, a {
     /* Extender la barra hasta el borde inferior absoluto del iPhone */
     padding-bottom: 34px;
     padding-bottom: env(safe-area-inset-bottom, 34px);
+  }
+  .mobile-rules-footer {
+    display: block !important;
   }
   /* Espacio inferior para que el contenido no quede tapado por bottom nav */
   .app-content {
