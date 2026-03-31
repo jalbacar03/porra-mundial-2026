@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonDashboard } from '../components/Skeleton'
+import PointsChart from '../components/PointsChart'
+import { useNotifications } from '../hooks/useNotifications'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -17,6 +19,8 @@ export default function Dashboard({ session, demoMode }) {
   const [insightLoading, setInsightLoading] = useState(true)
   const [activeOrdago, setActiveOrdago] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { permission: notifPerm, requestPermission } = useNotifications()
+  const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
   const mockData = useMemo(() => {
@@ -525,6 +529,52 @@ export default function Dashboard({ session, demoMode }) {
         </div>
       )}
 
+      {/* ===== NOTIFICATION PROMPT ===== */}
+      {notifPerm === 'default' && !notifDismissed && !demoMode && (
+        <div style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          border: '0.5px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+        }}>
+          <span style={{ fontSize: '20px', flexShrink: 0 }}>🔔</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '2px' }}>
+              Activa las notificaciones
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Te avisaremos cuando se resuelvan partidos y cambies de posición.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+            <button
+              onClick={() => { setNotifDismissed(true); localStorage.setItem('porra26_notif_dismissed', '1') }}
+              style={{
+                padding: '6px 10px', background: 'none', border: '1px solid var(--border)',
+                borderRadius: '6px', color: 'var(--text-dim)', fontSize: '11px', cursor: 'pointer',
+              }}
+            >
+              No
+            </button>
+            <button
+              onClick={async () => {
+                const result = await requestPermission()
+                if (result === 'granted' || result === 'denied') setNotifDismissed(true)
+              }}
+              style={{
+                padding: '6px 12px', background: 'var(--green)', border: 'none',
+                borderRadius: '6px', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer',
+              }}
+            >
+              Activar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ===== TOP 5 RANKING (Visual bars) ===== */}
       {displayTopRanking.length > 0 && (
         <div style={{
@@ -605,6 +655,9 @@ export default function Dashboard({ session, demoMode }) {
           })}
         </div>
       )}
+
+      {/* Points history chart */}
+      {!demoMode && <PointsChart userId={session.user.id} />}
     </div>
   )
 }
