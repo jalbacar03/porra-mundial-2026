@@ -257,11 +257,9 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
     )
   }
 
-  const completedCount = bets.filter(b => displayEntries[b.id]?.value).length
-  const totalMaxPoints = bets.reduce((sum, b) => sum + b.max_points, 0)
-
   // Group by category — exclude bracket slugs + stats category
   const betsByCategory = {}
+  const visibleBets = []
   bets.forEach(b => {
     // Skip excluded bets (bracket + champion)
     if (EXCLUDED_SLUGS.includes(b.slug)) return
@@ -270,10 +268,14 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
     // Skip podium category (all moved to bracket)
     if (b.category === 'podium') return
 
+    visibleBets.push(b)
     const cat = b.category
     if (!betsByCategory[cat]) betsByCategory[cat] = []
     betsByCategory[cat].push(b)
   })
+
+  const completedCount = visibleBets.filter(b => displayEntries[b.id]?.value).length
+  const totalMaxPoints = visibleBets.reduce((sum, b) => sum + b.max_points, 0)
 
   return (
     <div>
@@ -291,7 +293,7 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
       </div>
 
       {/* Progress */}
-      <BetProgress completed={completedCount} total={bets.length} />
+      <BetProgress completed={completedCount} total={visibleBets.length} />
 
       {/* Category tabs */}
       <div className="group-tabs" style={{ marginBottom: '14px' }}>

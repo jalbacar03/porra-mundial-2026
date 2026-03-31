@@ -315,20 +315,16 @@ export default function Stats({ demoMode }) {
   const filteredBets = activeBetCategory === 'all' ? bets : bets.filter(b => b.category === activeBetCategory)
 
   // ========== STAT CARD COMPONENT ==========
-  const StatCard = ({ value, label, color, sub, icon }) => (
-    <div className="tap-scale" style={{
-      background: 'var(--bg-secondary)', borderRadius: '12px', padding: '18px 14px',
-      border: '0.5px solid var(--border)', textAlign: 'center', position: 'relative', overflow: 'hidden',
-      transition: 'border-color 0.2s ease'
+  const StatCard = ({ value, label, color, sub }) => (
+    <div className="stats-card" style={{
+      textAlign: 'center', padding: '16px 12px', marginBottom: 0,
+      position: 'relative', overflow: 'hidden'
     }}>
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
         background: `linear-gradient(90deg, ${color || 'var(--green)'}, transparent)`
       }} />
-      {icon && (
-        <div style={{ fontSize: '16px', marginBottom: '6px', opacity: 0.7 }}>{icon}</div>
-      )}
-      <div style={{ fontSize: '26px', fontWeight: '800', color: color || 'var(--text-primary)', lineHeight: 1 }}>
+      <div style={{ fontSize: '24px', fontWeight: '800', color: color || 'var(--text-primary)', lineHeight: 1 }}>
         {value}
       </div>
       <div style={{
@@ -348,14 +344,48 @@ export default function Stats({ demoMode }) {
   // ========== SECTION HEADER ==========
   const SectionHeader = ({ children }) => (
     <div style={{
-      fontSize: '11px', color: 'var(--gold)', textTransform: 'uppercase',
-      letterSpacing: '1px', fontWeight: '700', marginBottom: '14px',
+      fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+      letterSpacing: '1.2px', fontWeight: '700', marginBottom: '16px',
       display: 'flex', alignItems: 'center', gap: '8px'
     }}>
+      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--gold)', flexShrink: 0 }} />
       <span>{children}</span>
-      <div style={{ flex: 1, height: '0.5px', background: 'var(--border)' }} />
+      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, var(--border), transparent)' }} />
     </div>
   )
+
+  // ========== ODDS BAR (1X2 bet365-style) ==========
+  const OddsBar = ({ homePct, drawPct, awayPct }) => {
+    const max = Math.max(homePct, drawPct, awayPct)
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+        <div className="odds-pill" style={{
+          background: 'rgba(0,122,69,0.12)',
+          color: '#00c464',
+          borderColor: homePct === max ? 'rgba(0,122,69,0.4)' : 'transparent'
+        }}>
+          <div style={{ fontSize: '9px', fontWeight: '600', letterSpacing: '0.5px', opacity: 0.7 }}>1</div>
+          <div style={{ fontSize: '18px', fontWeight: '800', lineHeight: 1.2 }}>{homePct}%</div>
+        </div>
+        <div className="odds-pill" style={{
+          background: 'rgba(74,79,94,0.25)',
+          color: 'var(--text-secondary)',
+          borderColor: drawPct === max ? 'rgba(74,79,94,0.5)' : 'transparent'
+        }}>
+          <div style={{ fontSize: '9px', fontWeight: '600', letterSpacing: '0.5px', opacity: 0.7 }}>X</div>
+          <div style={{ fontSize: '18px', fontWeight: '800', lineHeight: 1.2 }}>{drawPct}%</div>
+        </div>
+        <div className="odds-pill" style={{
+          background: 'rgba(255,204,0,0.1)',
+          color: '#ffcc00',
+          borderColor: awayPct === max ? 'rgba(255,204,0,0.35)' : 'transparent'
+        }}>
+          <div style={{ fontSize: '9px', fontWeight: '600', letterSpacing: '0.5px', opacity: 0.7 }}>2</div>
+          <div style={{ fontSize: '18px', fontWeight: '800', lineHeight: 1.2 }}>{awayPct}%</div>
+        </div>
+      </div>
+    )
+  }
 
   // ========== RENDER ==========
   return (
@@ -419,46 +449,121 @@ export default function Stats({ demoMode }) {
 
       {/* ==================== OVERVIEW TAB ==================== */}
       {activeTab === 'overview' && (
-        <>
-          {/* Big stats grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
-            <StatCard value={totalUsers} label="Participantes" color="var(--text-primary)" />
-            <StatCard value={`${accuracyRate}%`} label="Tasa de acierto" color="var(--green)" sub={`${totalExacts} exactos · ${totalSigns} signos`} />
-            <StatCard value={totalPredictions.toLocaleString()} label="Predicciones" color="var(--gold)" />
-            <StatCard value={`${avgPoints} pts`} label="Media" color="var(--text-primary)" sub={`Líder: ${lbSorted[0]?.total_points || 0} pts`} />
+        <div className="tab-fade-in">
+          {/* Hero accuracy card */}
+          <div className="stats-hero" style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
+              <div>
+                <div className="gradient-text" style={{ fontSize: '52px', fontWeight: '900', lineHeight: 1 }}>
+                  {accuracyRate}%
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1.5px', marginTop: '8px', fontWeight: '600' }}>
+                  Tasa de acierto global
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  {totalExacts} exactos · {totalSigns} signos · {lbSorted.reduce((s, u) => s + (u.misses || 0), 0)} fallos
+                </div>
+              </div>
+              {/* Mini gauge */}
+              <div style={{ position: 'relative', width: '80px', height: '80px', flexShrink: 0 }}>
+                <ResponsiveContainer width={80} height={80}>
+                  <PieChart>
+                    <Pie
+                      data={[{ value: accuracyRate }, { value: 100 - accuracyRate }]}
+                      cx="50%" cy="50%"
+                      innerRadius={30} outerRadius={38}
+                      startAngle={90} endAngle={-270}
+                      dataKey="value"
+                      strokeWidth={0}
+                    >
+                      <Cell fill="url(#gaugeGradient)" />
+                      <Cell fill="rgba(42,45,56,0.5)" />
+                    </Pie>
+                    <defs>
+                      <linearGradient id="gaugeGradient" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#007a45" />
+                        <stop offset="100%" stopColor="#ffcc00" />
+                      </linearGradient>
+                    </defs>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{
+                  position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)'
+                }}>
+                  {finishedMatches.length}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* 1X2 Global — Donut chart */}
+          {/* Stats strip — horizontal scroll */}
           <div style={{
-            background: 'var(--bg-secondary)', borderRadius: '12px', padding: '18px',
-            border: '0.5px solid var(--border)', marginBottom: '14px'
+            display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch', marginBottom: '14px', padding: '2px 0'
           }}>
+            {[
+              { value: totalUsers, label: 'Participantes', color: 'var(--text-primary)' },
+              { value: totalPredictions.toLocaleString(), label: 'Predicciones', color: 'var(--gold)' },
+              { value: `${avgPoints}`, label: 'Media pts', color: 'var(--text-primary)' },
+              { value: lbSorted[0]?.total_points || 0, label: 'Lider', color: 'var(--gold)' }
+            ].map((s, i) => (
+              <div key={i} style={{
+                minWidth: '100px', flex: '1 0 auto', background: 'var(--bg-secondary)',
+                borderRadius: '10px', padding: '14px 12px', border: '0.5px solid var(--border)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '20px', fontWeight: '700', color: s.color, lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: '8px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '6px', fontWeight: '600' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 1X2 Global — bet365 style */}
+          <div className="stats-card">
             <SectionHeader>Tendencia global 1X2</SectionHeader>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <ResponsiveContainer width={120} height={120}>
-                <PieChart>
-                  <Pie
-                    data={global1X2}
-                    cx="50%" cy="50%"
-                    innerRadius={32} outerRadius={55}
-                    paddingAngle={3}
-                    dataKey="value"
-                    startAngle={90} endAngle={-270}
-                  >
-                    {global1X2.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} stroke="none" />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ position: 'relative', width: '140px', height: '140px', flexShrink: 0 }}>
+                <ResponsiveContainer width={140} height={140}>
+                  <PieChart>
+                    <Pie
+                      data={global1X2}
+                      cx="50%" cy="50%"
+                      innerRadius={42} outerRadius={66}
+                      paddingAngle={4}
+                      cornerRadius={3}
+                      dataKey="value"
+                      startAngle={90} endAngle={-270}
+                    >
+                      {global1X2.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center label */}
+                <div style={{
+                  position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    {global1X2[0].value}%
+                  </div>
+                  <div style={{ fontSize: '8px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Local
+                  </div>
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {global1X2.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '10px', height: '10px', borderRadius: '50%', background: item.color, flexShrink: 0
-                    }} />
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '8px 12px', borderRadius: '8px',
+                    background: `${item.color}10`,
+                    border: `1px solid ${item.color}20`
+                  }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', flex: 1 }}>{item.name}</span>
-                    <span style={{ fontSize: '16px', fontWeight: '700', color: item.color }}>{item.value}%</span>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: item.color }}>{item.value}%</span>
                   </div>
                 ))}
               </div>
@@ -466,59 +571,70 @@ export default function Stats({ demoMode }) {
           </div>
 
           {/* Top predicted results */}
-          <div style={{
-            background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
-            border: '0.5px solid var(--border)', marginBottom: '14px'
-          }}>
-            <SectionHeader>Resultados más predichos</SectionHeader>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="stats-card">
+            <SectionHeader>Resultados mas predichos</SectionHeader>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {topResults.map((r, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{
-                    width: '40px', fontSize: '16px', fontWeight: '800',
-                    color: i === 0 ? 'var(--gold)' : 'var(--text-primary)', textAlign: 'center'
+                    width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '10px', fontWeight: '700',
+                    background: i === 0 ? 'linear-gradient(135deg, #ffcc00, #ff9500)' : i === 1 ? 'rgba(192,192,192,0.15)' : i === 2 ? 'rgba(205,127,50,0.15)' : 'var(--bg-input)',
+                    color: i === 0 ? '#1a1d26' : i <= 2 ? 'var(--text-muted)' : 'var(--text-dim)'
+                  }}>
+                    {i + 1}
+                  </div>
+                  <div style={{
+                    fontSize: '17px', fontWeight: '800', letterSpacing: '2px',
+                    color: i === 0 ? 'var(--gold)' : 'var(--text-primary)', width: '42px', textAlign: 'center',
+                    fontFamily: 'SF Mono, Monaco, monospace'
                   }}>
                     {r.result}
                   </div>
-                  <div style={{ flex: 1, height: '20px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%', borderRadius: '4px',
-                      background: i === 0 ? 'linear-gradient(90deg, var(--gold), rgba(255,204,0,0.4))' : 'var(--green)',
-                      width: `${(r.count / (topResults[0]?.count || 1)) * 100}%`,
-                      transition: 'width 0.5s ease'
-                    }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ height: '6px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: '3px',
+                        background: i === 0 ? 'linear-gradient(90deg, var(--gold), rgba(255,204,0,0.4))' : 'var(--green)',
+                        width: `${(r.count / (topResults[0]?.count || 1)) * 100}%`,
+                        animation: 'barGrow 0.6s ease forwards',
+                        boxShadow: i === 0 ? '0 0 8px rgba(255,204,0,0.2)' : 'none'
+                      }} />
+                    </div>
                   </div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', width: '50px', textAlign: 'right' }}>
-                    {r.count} <span style={{ fontSize: '10px' }}>({r.pct}%)</span>
-                  </span>
+                  <div style={{ textAlign: 'right', minWidth: '42px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: i === 0 ? 'var(--gold)' : 'var(--text-primary)' }}>{r.pct}%</div>
+                    <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>{r.count}</div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Goals by group — horizontal bar chart */}
-          <div style={{
-            background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
-            border: '0.5px solid var(--border)', marginBottom: '14px'
-          }}>
+          <div className="stats-card">
             <SectionHeader>Goles predichos por grupo</SectionHeader>
-            <ResponsiveContainer width="100%" height={groupGoals.length * 28 + 10}>
+            <ResponsiveContainer width="100%" height={groupGoals.length * 34 + 10}>
               <BarChart
                 data={groupGoals.slice(0, 8)}
                 layout="vertical"
-                margin={{ top: 0, right: 30, left: 0, bottom: 0 }}
+                margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
               >
                 <XAxis type="number" hide />
                 <YAxis
                   type="category" dataKey="group" width={42}
-                  tick={{ fill: '#6b7080', fontSize: 11 }}
+                  tick={{ fill: '#6b7080', fontSize: 11, fontWeight: 600 }}
                   axisLine={false} tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ background: '#22252f', border: '1px solid #2a2d38', borderRadius: '6px', fontSize: '12px' }}
+                  contentStyle={{ background: '#22252f', border: '1px solid #2a2d38', borderRadius: '8px', fontSize: '12px' }}
                   formatter={(value) => [`${value} goles`, 'Total']}
                 />
-                <Bar dataKey="goals" radius={[0, 4, 4, 0]} barSize={16}>
+                <Bar
+                  dataKey="goals" radius={[0, 6, 6, 0]} barSize={20}
+                  label={{ position: 'right', fill: '#9da3b0', fontSize: 11, fontWeight: 600 }}
+                >
                   {groupGoals.slice(0, 8).map((entry, i) => (
                     <Cell key={i} fill={i === 0 ? '#ffcc00' : i === 1 ? '#007a45' : '#2a4a3a'} />
                   ))}
@@ -528,34 +644,40 @@ export default function Stats({ demoMode }) {
           </div>
 
           {/* Leaderboard top 5 — accuracy breakdown */}
-          <div style={{
-            background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
-            border: '0.5px solid var(--border)', marginBottom: '14px'
-          }}>
-            <SectionHeader>Top 5 — Desglose de puntos</SectionHeader>
+          <div className="stats-card">
+            <SectionHeader>Top 5 — Desglose</SectionHeader>
             {lbSorted.slice(0, 5).map((user, i) => {
               const total = (user.exact_hits || 0) + (user.sign_hits || 0) + (user.misses || 0)
               const exactPct = total > 0 ? ((user.exact_hits || 0) / total) * 100 : 0
               const signPct = total > 0 ? ((user.sign_hits || 0) / total) * 100 : 0
+              const medalColors = ['linear-gradient(135deg, #ffd700, #ff9500)', 'linear-gradient(135deg, #c0c0c0, #808080)', 'linear-gradient(135deg, #cd7f32, #8b4513)']
               return (
-                <div key={user.user_id} style={{ marginBottom: i < 4 ? '12px' : 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                      <span style={{
-                        color: i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : 'var(--text-dim)',
-                        fontWeight: '700', marginRight: '6px', fontSize: '11px'
-                      }}>
-                        {i + 1}.
-                      </span>
+                <div key={user.user_id} style={{
+                  marginBottom: i < 4 ? '14px' : 0,
+                  padding: i < 3 ? '10px 12px' : '4px 0',
+                  borderRadius: i < 3 ? '8px' : 0,
+                  background: i < 3 ? `${i === 0 ? 'rgba(255,204,0,0.04)' : i === 1 ? 'rgba(192,192,192,0.04)' : 'rgba(205,127,50,0.04)'}` : 'transparent',
+                  borderLeft: i < 3 ? `3px solid ${i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : '#cd7f32'}` : '3px solid transparent'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                    <div style={{
+                      width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
+                      background: i < 3 ? medalColors[i] : 'var(--bg-input)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '11px', fontWeight: '700', color: i < 3 ? '#1a1d26' : 'var(--text-dim)'
+                    }}>
+                      {i + 1}
+                    </div>
+                    <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500', flex: 1 }}>
                       {user.full_name}
                     </span>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: i === 0 ? 'var(--gold)' : 'var(--text-primary)' }}>
-                      {user.total_points} pts
+                    <span style={{ fontSize: '14px', fontWeight: '800', color: i === 0 ? 'var(--gold)' : 'var(--text-primary)' }}>
+                      {user.total_points}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', height: '6px', borderRadius: '3px', overflow: 'hidden', background: 'var(--bg-input)' }}>
+                  <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', background: 'var(--bg-input)', marginLeft: '36px' }}>
                     <div style={{ width: `${exactPct}%`, background: 'var(--gold)', transition: 'width 0.4s' }} />
-                    <div style={{ width: `${signPct}%`, background: 'var(--green)', transition: 'width 0.4s' }} />
+                    <div style={{ width: `${signPct}%`, background: 'var(--green)', transition: 'width 0.4s', marginLeft: '1px' }} />
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '3px' }}>
                     <span style={{ fontSize: '10px', color: 'var(--gold)' }}>{user.exact_hits || 0} exactos</span>
@@ -566,7 +688,7 @@ export default function Stats({ demoMode }) {
               )
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* ==================== PERSONAL TAB ==================== */}
@@ -606,21 +728,13 @@ export default function Stats({ demoMode }) {
         const ptsToNext = nextUp ? nextUp.total_points - myPoints : 0
 
         return (
-          <>
+          <div className="tab-fade-in">
             {/* Position card */}
-            <div style={{
-              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '20px',
-              border: '0.5px solid var(--border)', marginBottom: '14px', textAlign: 'center',
-              position: 'relative', overflow: 'hidden'
-            }}>
-              <div style={{
-                position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
-                background: 'linear-gradient(90deg, var(--green), var(--gold))'
-              }} />
-              <div style={{ fontSize: '42px', fontWeight: '800', color: 'var(--gold)', lineHeight: 1 }}>
+            <div className="stats-hero" style={{ marginBottom: '14px' }}>
+              <div className="gradient-text" style={{ fontSize: '52px', fontWeight: '900', lineHeight: 1 }}>
                 {myRank > 0 ? `#${myRank}` : '-'}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
                 de {lbSorted.length} participantes
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
@@ -647,10 +761,7 @@ export default function Stats({ demoMode }) {
             </div>
 
             {/* Score distribution bar */}
-            <div style={{
-              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
-              border: '0.5px solid var(--border)', marginBottom: '14px'
-            }}>
+            <div className="stats-card">
               <SectionHeader>Distribución de resultados</SectionHeader>
 
               {/* Stacked bar */}
@@ -681,10 +792,7 @@ export default function Stats({ demoMode }) {
 
             {/* Performance by group */}
             {groupPerf.length > 0 && (
-              <div style={{
-                background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
-                border: '0.5px solid var(--border)', marginBottom: '14px'
-              }}>
+              <div className="stats-card">
                 <SectionHeader>Rendimiento por grupo</SectionHeader>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {groupPerf.map((g, i) => (
@@ -712,10 +820,7 @@ export default function Stats({ demoMode }) {
             )}
 
             {/* Comparison vs average */}
-            <div style={{
-              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '18px',
-              border: '0.5px solid var(--border)', marginBottom: '14px'
-            }}>
+            <div className="stats-card">
               <SectionHeader>Tú vs la media</SectionHeader>
               {[
                 { label: 'Puntos', mine: myPoints, avg: avgPoints },
@@ -750,13 +855,13 @@ export default function Stats({ demoMode }) {
                 )
               })}
             </div>
-          </>
+          </div>
         )
       })()}
 
       {/* ==================== MATCHES TAB ==================== */}
       {activeTab === 'matches' && (
-        <>
+        <div className="tab-fade-in">
           {/* Group selector */}
           <div className="group-tabs" style={{ marginBottom: '14px' }}>
             {groups.map(g => {
@@ -793,40 +898,44 @@ export default function Stats({ demoMode }) {
             const isFinished = match.status === 'finished'
             return (
               <div key={match.id} style={{
-                background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px 16px',
-                marginBottom: '10px', border: `0.5px solid ${isFinished ? 'var(--green)' : 'var(--border)'}`,
-                borderLeft: isFinished ? '3px solid var(--green)' : '3px solid transparent'
+                background: isFinished ? 'linear-gradient(135deg, rgba(0,122,69,0.04) 0%, var(--bg-secondary) 100%)' : 'var(--bg-secondary)',
+                borderRadius: '14px', padding: '18px 20px',
+                marginBottom: '12px',
+                border: isFinished ? '1px solid rgba(0,122,69,0.2)' : '0.5px solid var(--border)'
               }}>
-                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '10px', textAlign: 'center' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '12px', textAlign: 'center' }}>
                   {formatDate(match.match_date)}
                 </div>
 
                 {/* Teams row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
-                    <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {match.home_team?.name || 'TBD'}
                     </span>
-                    {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '22px', height: '15px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />}
+                    {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '28px', height: '20px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />}
                   </div>
 
                   {isFinished ? (
                     <div style={{
-                      padding: '4px 12px', background: 'var(--green-light)', borderRadius: '6px',
-                      fontSize: '18px', fontWeight: '800', color: 'var(--green)', letterSpacing: '2px'
+                      padding: '6px 16px', background: 'linear-gradient(135deg, var(--green), #00a85a)',
+                      borderRadius: '8px',
+                      fontSize: '20px', fontWeight: '800', color: '#fff', letterSpacing: '3px',
+                      boxShadow: '0 2px 8px rgba(0,122,69,0.3)',
+                      fontFamily: 'SF Mono, Monaco, monospace'
                     }}>
-                      {match.home_score} — {match.away_score}
+                      {match.home_score}-{match.away_score}
                     </div>
                   ) : (
                     <span style={{
-                      fontSize: '11px', color: 'var(--text-dim)', fontWeight: '600',
-                      padding: '4px 10px', background: 'var(--bg-input)', borderRadius: '4px'
+                      fontSize: '12px', color: 'var(--text-dim)', fontWeight: '700',
+                      padding: '4px 12px', border: '1px dashed var(--border)', borderRadius: '6px'
                     }}>vs</span>
                   )}
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                    {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '22px', height: '15px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />}
-                    <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '28px', height: '20px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />}
+                    <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {match.away_team?.name || 'TBD'}
                     </span>
                   </div>
@@ -835,50 +944,34 @@ export default function Stats({ demoMode }) {
                 {/* Consensus */}
                 {consensus ? (
                   <>
-                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', textAlign: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', textAlign: 'center', marginBottom: '10px' }}>
                       {consensus.total} predicciones
                     </div>
 
-                    {/* 1X2 Bar */}
-                    <div style={{ display: 'flex', height: '26px', borderRadius: '5px', overflow: 'hidden', marginBottom: '10px' }}>
-                      {consensus.homePct > 0 && (
-                        <div style={{
-                          width: `${consensus.homePct}%`, background: '#007a45',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '10px', fontWeight: '700', color: '#fff',
-                          minWidth: consensus.homePct > 8 ? 'auto' : '24px'
-                        }}>{consensus.homePct}%</div>
-                      )}
-                      {consensus.drawPct > 0 && (
-                        <div style={{
-                          width: `${consensus.drawPct}%`, background: '#4a4f5e',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '10px', fontWeight: '700', color: '#fff',
-                          minWidth: consensus.drawPct > 8 ? 'auto' : '24px'
-                        }}>{consensus.drawPct}%</div>
-                      )}
-                      {consensus.awayPct > 0 && (
-                        <div style={{
-                          width: `${consensus.awayPct}%`, background: '#ffcc00',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '10px', fontWeight: '700', color: '#1a1d26',
-                          minWidth: consensus.awayPct > 8 ? 'auto' : '24px'
-                        }}>{consensus.awayPct}%</div>
-                      )}
+                    {/* 1X2 Odds — bet365 style */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <OddsBar homePct={consensus.homePct} drawPct={consensus.drawPct} awayPct={consensus.awayPct} />
                     </div>
 
                     {/* Favorite result */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 14px', borderRadius: '8px',
+                      background: 'rgba(255,204,0,0.04)', border: '1px solid rgba(255,204,0,0.1)'
+                    }}>
                       <div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Pronóstico favorito</span>
-                        <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Favorito</span>
+                        <div style={{
+                          fontSize: '20px', fontWeight: '900', color: 'var(--text-primary)', marginTop: '2px',
+                          letterSpacing: '4px', fontFamily: 'SF Mono, Monaco, monospace'
+                        }}>
                           {consensus.topResult}
                         </div>
                       </div>
                       <div style={{
-                        padding: '4px 10px', background: 'var(--gold-dim)', borderRadius: '4px'
+                        padding: '6px 12px', background: 'var(--gold-dim)', borderRadius: '6px'
                       }}>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gold)' }}>
+                        <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--gold)' }}>
                           {consensus.topResultPct}%
                         </span>
                       </div>
@@ -886,21 +979,21 @@ export default function Stats({ demoMode }) {
                   </>
                 ) : (
                   <div style={{
-                    padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
-                    fontSize: '11px', background: 'var(--bg-input)', borderRadius: '6px'
+                    padding: '14px', textAlign: 'center', color: 'var(--text-dim)',
+                    fontSize: '11px', background: 'var(--bg-input)', borderRadius: '8px'
                   }}>
-                    Sin predicciones aún
+                    Sin predicciones aun
                   </div>
                 )}
               </div>
             )
           })}
-        </>
+        </div>
       )}
 
       {/* ==================== BETS TAB ==================== */}
       {activeTab === 'bets' && (
-        <>
+        <div className="tab-fade-in">
           {/* Category filter */}
           <div className="group-tabs" style={{ marginBottom: '14px' }}>
             {betCategories.map(cat => (
@@ -922,10 +1015,7 @@ export default function Stats({ demoMode }) {
           {filteredBets.map(bet => {
             const stats = getBetStats(bet.id)
             return (
-              <div key={bet.id} style={{
-                background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                marginBottom: '10px', border: '0.5px solid var(--border)'
-              }}>
+              <div key={bet.id} className="stats-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '3px' }}>
@@ -978,7 +1068,7 @@ export default function Stats({ demoMode }) {
               </div>
             )
           })}
-        </>
+        </div>
       )}
 
       {/* ==================== H2H TAB ==================== */}
@@ -1002,11 +1092,8 @@ export default function Stats({ demoMode }) {
         const h2hGroupMatches = displayMatches.filter(m => m.group_name === h2hGroup && m.status === 'finished')
 
         return (
-          <>
-            <div style={{
-              background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-              border: '0.5px solid var(--border)', marginBottom: '14px'
-            }}>
+          <div className="tab-fade-in">
+            <div className="stats-card">
               <SectionHeader>Comparador H2H</SectionHeader>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
@@ -1049,10 +1136,7 @@ export default function Stats({ demoMode }) {
             {h2hUserA && h2hUserB && !h2hLoading && lbA && lbB && (
               <>
                 {/* Side-by-side stats */}
-                <div style={{
-                  background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                  border: '0.5px solid var(--border)', marginBottom: '14px'
-                }}>
+                <div className="stats-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div style={{ textAlign: 'center', flex: 1 }}>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)', marginBottom: '2px' }}>
@@ -1122,10 +1206,7 @@ export default function Stats({ demoMode }) {
                 </div>
 
                 {/* Match-by-match comparison */}
-                <div style={{
-                  background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                  border: '0.5px solid var(--border)', marginBottom: '14px'
-                }}>
+                <div className="stats-card">
                   <SectionHeader>Partido a partido</SectionHeader>
 
                   {/* Group selector */}
@@ -1232,10 +1313,7 @@ export default function Stats({ demoMode }) {
                   })
                   if (winsA + winsB + ties === 0) return null
                   return (
-                    <div style={{
-                      background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                      border: '0.5px solid var(--border)', marginBottom: '14px', textAlign: 'center'
-                    }}>
+                    <div className="stats-card" style={{ textAlign: 'center' }}>
                       <SectionHeader>Balance H2H</SectionHeader>
                       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
                         <div>
@@ -1257,10 +1335,7 @@ export default function Stats({ demoMode }) {
 
                 {/* Pre-tournament bet comparison */}
                 {bets.length > 0 && (h2hBetEntriesA.length > 0 || h2hBetEntriesB.length > 0) && (
-                  <div style={{
-                    background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                    border: '0.5px solid var(--border)', marginBottom: '14px'
-                  }}>
+                  <div className="stats-card">
                     <SectionHeader>Apuestas pre-torneo</SectionHeader>
                     {bets.map(bet => {
                       const entryA = h2hBetEntriesA.find(e => e.bet_id === bet.id)
@@ -1306,10 +1381,7 @@ export default function Stats({ demoMode }) {
 
                 {/* Ordago comparison */}
                 {ordagos.length > 0 && (h2hOrdagoEntriesA.length > 0 || h2hOrdagoEntriesB.length > 0) && (
-                  <div style={{
-                    background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                    border: '0.5px solid var(--border)', marginBottom: '14px'
-                  }}>
+                  <div className="stats-card">
                     <SectionHeader>Ordagos</SectionHeader>
                     {ordagos.map(ord => {
                       const oA = h2hOrdagoEntriesA.find(e => e.ordago_id === ord.id)
@@ -1387,7 +1459,7 @@ export default function Stats({ demoMode }) {
                 Selecciona dos participantes para comparar sus predicciones
               </div>
             )}
-          </>
+          </div>
         )
       })()}
 
@@ -1404,13 +1476,9 @@ export default function Stats({ demoMode }) {
         const viewGroupMatches = displayMatches.filter(m => m.group_name === viewGroup)
 
         return (
-          <>
+          <div className="tab-fade-in">
             {!betsClosed ? (
-              <div style={{
-                padding: '40px 20px', textAlign: 'center',
-                background: 'var(--bg-secondary)', borderRadius: '10px',
-                border: '0.5px solid var(--border)'
-              }}>
+              <div className="stats-card" style={{ padding: '40px 20px', textAlign: 'center' }}>
                 <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</div>
                 <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>
                   Disponible cuando cierren las apuestas
@@ -1421,10 +1489,7 @@ export default function Stats({ demoMode }) {
               </div>
             ) : (
               <>
-                <div style={{
-                  background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                  border: '0.5px solid var(--border)', marginBottom: '14px'
-                }}>
+                <div className="stats-card">
                   <SectionHeader>Ver predicciones de otros</SectionHeader>
                   <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px', lineHeight: '1.4' }}>
                     Todas las predicciones de cada participante
@@ -1496,10 +1561,7 @@ export default function Stats({ demoMode }) {
                     })()}
 
                     {/* Match predictions */}
-                    <div style={{
-                      background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                      border: '0.5px solid var(--border)', marginBottom: '14px'
-                    }}>
+                    <div className="stats-card">
                       <SectionHeader>Predicciones de partidos</SectionHeader>
 
                       {/* Group selector */}
@@ -1584,10 +1646,7 @@ export default function Stats({ demoMode }) {
 
                     {/* Pre-tournament bets */}
                     {viewBetEntries.length > 0 && (
-                      <div style={{
-                        background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                        border: '0.5px solid var(--border)', marginBottom: '14px'
-                      }}>
+                      <div className="stats-card">
                         <SectionHeader>Apuestas pre-torneo</SectionHeader>
                         {bets.map(bet => {
                           const entry = viewBetEntries.find(e => e.bet_id === bet.id)
@@ -1625,10 +1684,7 @@ export default function Stats({ demoMode }) {
 
                     {/* Ordagos */}
                     {viewOrdagoEntries.length > 0 && ordagos.length > 0 && (
-                      <div style={{
-                        background: 'var(--bg-secondary)', borderRadius: '10px', padding: '16px',
-                        border: '0.5px solid var(--border)', marginBottom: '14px'
-                      }}>
+                      <div className="stats-card">
                         <SectionHeader>Ordagos</SectionHeader>
                         {ordagos.map(ord => {
                           const entry = viewOrdagoEntries.find(e => e.ordago_id === ord.id)
@@ -1679,7 +1735,7 @@ export default function Stats({ demoMode }) {
                 )}
               </>
             )}
-          </>
+          </div>
         )
       })()}
     </div>

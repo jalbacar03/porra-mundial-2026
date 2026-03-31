@@ -163,8 +163,11 @@ export default function Forum({ session }) {
   async function handleDeleteMessage(msgId) {
     if (!isAdmin) return
     if (!confirm('¿Eliminar este mensaje?')) return
-    const { error } = await supabase.from('forum_messages').delete().eq('id', msgId)
-    if (!error) {
+    const { error, status } = await supabase.from('forum_messages').delete().eq('id', msgId)
+    if (error) {
+      console.error('Delete failed:', error, 'status:', status)
+      alert(`Error al eliminar: ${error.message}`)
+    } else {
       setMessages(prev => prev.filter(m => m.id !== msgId))
       setAnnouncements(prev => prev.filter(m => m.id !== msgId))
     }
