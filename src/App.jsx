@@ -4,6 +4,9 @@ import { supabase } from './supabase'
 import './App.css'
 import { ToastProvider } from './components/Toast'
 import { SkeletonDashboard } from './components/Skeleton'
+import ErrorBoundary from './components/ErrorBoundary'
+import PageTransition from './components/PageTransition'
+import Onboarding from './components/Onboarding'
 
 // Code splitting — lazy load pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -579,6 +582,9 @@ function AppLayout({ session }) {
       {/* Si no está admitido, mostrar popup de inscripción */}
       {!hasPaid && <PaymentWall />}
 
+      {/* Onboarding para nuevos usuarios */}
+      {hasPaid && rulesAccepted && <Onboarding />}
+
       {/* Si ha pagado pero no ha aceptado normas, mostrar popup de normas */}
       {hasPaid && !rulesAccepted && (
         <RulesPopup
@@ -606,18 +612,22 @@ function AppLayout({ session }) {
       )}
 
       <div className="app-content">
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Dashboard session={session} demoMode={demoMode} />} />
-            <Route path="/predictions" element={<Predictions session={session} demoMode={demoMode} />} />
-            <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
-            <Route path="/stats" element={<Stats demoMode={demoMode} />} />
-            <Route path="/news" element={<News />} />
-            <Route path="/forum" element={<Forum session={session} />} />
-            <Route path="/rules" element={<Rules />} />
-            {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
-          </Routes>
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <PageTransition>
+              <Routes>
+                <Route path="/" element={<Dashboard session={session} demoMode={demoMode} />} />
+                <Route path="/predictions" element={<Predictions session={session} demoMode={demoMode} />} />
+                <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
+                <Route path="/stats" element={<Stats demoMode={demoMode} />} />
+                <Route path="/news" element={<News />} />
+                <Route path="/forum" element={<Forum session={session} />} />
+                <Route path="/rules" element={<Rules />} />
+                {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
+              </Routes>
+            </PageTransition>
+          </Suspense>
+        </ErrorBoundary>
       </div>
       <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
     </div>

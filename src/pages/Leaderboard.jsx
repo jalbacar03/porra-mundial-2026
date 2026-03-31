@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonLeaderboard } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
+import H2HModal from '../components/H2HModal'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 export default function Leaderboard({ demoMode }) {
@@ -11,6 +12,7 @@ export default function Leaderboard({ demoMode }) {
   const [userId, setUserId] = useState(null)
   const [profileNames, setProfileNames] = useState({})
   const [positionChanges, setPositionChanges] = useState({}) // user_id → delta (positive = moved up)
+  const [h2hRival, setH2hRival] = useState(null) // { id, name } or null
 
   // Mock data for demo mode (hook must be before any return)
   const mockRankings = useMemo(() => {
@@ -215,12 +217,15 @@ export default function Leaderboard({ demoMode }) {
                   </div>
                 )}
 
-                <div style={{
-                  display: 'flex', alignItems: 'center', padding: '10px 12px',
-                  borderBottom: '0.5px solid var(--border-light)',
-                  background: isMe ? 'rgba(255, 204, 0, 0.04)' : 'transparent',
-                  borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent'
-                }}>
+                <div
+                  onClick={() => !isMe && setH2hRival({ id: user.user_id, name: user.full_name })}
+                  style={{
+                    display: 'flex', alignItems: 'center', padding: '10px 12px',
+                    borderBottom: '0.5px solid var(--border-light)',
+                    background: isMe ? 'rgba(255, 204, 0, 0.04)' : 'transparent',
+                    borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent',
+                    cursor: isMe ? 'default' : 'pointer',
+                  }}>
                   <div style={{ width: '36px' }}>
                     {rank <= 3 ? (
                       <div style={{
@@ -290,6 +295,16 @@ export default function Leaderboard({ demoMode }) {
             </div>
           )}
         </>
+      )}
+
+      {/* H2H Modal */}
+      {h2hRival && (
+        <H2HModal
+          userId={userId}
+          rivalId={h2hRival.id}
+          rivalName={h2hRival.name}
+          onClose={() => setH2hRival(null)}
+        />
       )}
     </div>
   )
