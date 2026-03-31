@@ -396,6 +396,34 @@ export default function Dashboard({ session, demoMode }) {
         </div>
       </div>
 
+      {/* ===== MATCH DAY LIVE ===== */}
+      <button
+        onClick={() => navigate('/matchday')}
+        style={{
+          width: '100%', padding: '16px 18px', marginBottom: '12px',
+          background: 'linear-gradient(135deg, rgba(226,75,74,0.08), rgba(226,75,74,0.02))',
+          border: '1px solid rgba(226,75,74,0.2)', borderRadius: '10px',
+          cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '14px'
+        }}
+      >
+        <div style={{
+          width: '42px', height: '42px', borderRadius: '10px',
+          background: 'rgba(226,75,74,0.12)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', flexShrink: 0
+        }}>
+          <span style={{ fontSize: '20px' }}>📡</span>
+        </div>
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', letterSpacing: '0.3px' }}>
+            Match Day Live
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            Partidos en directo · Tus predicciones vs realidad
+          </div>
+        </div>
+        <span style={{ marginLeft: 'auto', fontSize: '16px', color: 'var(--text-dim)' }}>›</span>
+      </button>
+
       {/* ===== ACTION BUTTONS ===== */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
         <button

@@ -17,6 +17,7 @@ const Stats = lazy(() => import('./pages/Stats'))
 const Rules = lazy(() => import('./pages/Rules'))
 const News = lazy(() => import('./pages/News'))
 const Forum = lazy(() => import('./pages/Forum'))
+const MatchDayLive = lazy(() => import('./pages/MatchDayLive'))
 
 import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
@@ -254,6 +255,17 @@ function IconRules({ size = 22 }) {
     </svg>
   )
 }
+function IconLive({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="2" />
+      <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+      <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+      <path d="M4.93 19.07a10 10 0 0 1 0-14.14" />
+    </svg>
+  )
+}
 function IconAdmin({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -384,6 +396,7 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
         <StyledNavLink to="/predictions">Mis predicciones</StyledNavLink>
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
         <StyledNavLink to="/stats">Stats</StyledNavLink>
+        <StyledNavLink to="/matchday">Match Day</StyledNavLink>
         <StyledNavLink to="/news">Noticias</StyledNavLink>
         <StyledNavLink to="/forum">Foro</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
@@ -434,6 +447,7 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
     { to: '/predictions', label: 'Pred.', icon: IconPredictions },
     { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
+    { to: '/matchday', label: 'Live', icon: IconLive },
     { to: '/news', label: 'Noticias', icon: IconNews },
     { to: '/forum', label: 'Foro', icon: IconForum },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
@@ -649,6 +663,7 @@ function AppLayout({ session }) {
                 <Route path="/predictions" element={<Predictions session={session} demoMode={demoMode} />} />
                 <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
                 <Route path="/stats" element={<Stats demoMode={demoMode} />} />
+                <Route path="/matchday" element={<MatchDayLive session={session} />} />
                 <Route path="/news" element={<News />} />
                 <Route path="/forum" element={<Forum session={session} />} />
                 <Route path="/rules" element={<Rules />} />

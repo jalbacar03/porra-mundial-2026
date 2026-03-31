@@ -231,3 +231,32 @@ input:focus, button:focus-visible {
 .group-tabs > button {
   scroll-snap-align: start;
 }
+
+/* Live match animations */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  display: inline-block;
+  animation: livePulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(226, 75, 74, 0.5);
+}
+
+.live-match-card {
+  background: var(--bg-secondary);
+  border-radius: 14px;
+  padding: 20px;
+  border: 0.5px solid var(--border);
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease;
+}

@@ -39,7 +39,10 @@ export default async function handler(req, res) {
       m.fixture.status.short === 'AET' ||
       m.fixture.status.short === 'PEN'
     )
-    log.push(`   Found ${finished.length} finished matches`)
+    const live = apiMatches.filter(m =>
+      ['LIVE', '1H', '2H', 'HT', 'ET', 'BT', 'P'].includes(m.fixture.status.short)
+    )
+    log.push(`   Found ${finished.length} finished, ${live.length} live matches`)
 
     // 2. Get our matches from Supabase
     const ourMatches = await supaFetch('/rest/v1/matches?select=*&order=id')
@@ -51,7 +54,7 @@ export default async function handler(req, res) {
       if (t.api_football_id) teamByApiId[t.api_football_id] = t.id
     })
 
-    // 3. Update match scores
+    // 3. Update finished match scores
     let updatedCount = 0
     for (const apiMatch of finished) {
       const homeApiId = apiMatch.teams.home.id
@@ -95,6 +98,37 @@ export default async function handler(req, res) {
       }
     }
     log.push(`📊 Updated ${updatedCount} match scores`)
+
+    // 3a. Update live match scores (intermediate, status='live')
+    let liveUpdated = 0
+    for (const apiMatch of live) {
+      const homeApiId = apiMatch.teams.home.id
+      const awayApiId = apiMatch.teams.away.id
+      const homeScore = apiMatch.goals.home ?? 0
+      const awayScore = apiMatch.goals.away ?? 0
+
+      const homeTeamId = teamByApiId[homeApiId]
+      const awayTeamId = teamByApiId[awayApiId]
+      if (!homeTeamId || !awayTeamId) continue
+
+      const ourMatch = ourMatches.find(m =>
+        m.home_team_id === homeTeamId && m.away_team_id === awayTeamId
+      )
+
+      if (ourMatch && ourMatch.status !== 'finished') {
+        await supaFetch(`/rest/v1/matches?id=eq.${ourMatch.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            home_score: homeScore,
+            away_score: awayScore,
+            status: 'live'
+          })
+        })
+        liveUpdated++
+        log.push(`   🔴 Live ${ourMatch.id}: ${homeScore}-${awayScore} (${apiMatch.fixture.status.short} ${apiMatch.fixture.status.elapsed || ''}')`)
+      }
+    }
+    log.push(`🔴 Updated ${liveUpdated} live match scores`)
 
     // 3b. Sync playoff/repechaje teams — update placeholder teams with real ones
     log.push('🔄 Checking playoff teams...')
