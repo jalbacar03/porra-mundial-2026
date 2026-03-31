@@ -22,7 +22,6 @@ import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 import { useDemoMode } from './hooks/useDemoMode'
-import { useTheme } from './hooks/useTheme'
 
 /* ============================
    PANTALLA DE LOGIN / REGISTRO
@@ -290,7 +289,7 @@ function PageLoader() {
 /* ============================
    NAVBAR + LAYOUT PRINCIPAL
    ============================ */
-function TopNavbar({ isAdmin, demoMode, onToggleDemo, theme, onToggleTheme }) {
+function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
   const countdown = useCountdown(WORLD_CUP_START)
 
   return (
@@ -409,21 +408,6 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo, theme, onToggleTheme }) {
           </button>
         )}
         <button
-          onClick={onToggleTheme}
-          title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            fontSize: '14px',
-            cursor: 'pointer',
-            padding: '7px 8px',
-            marginLeft: '2px'
-          }}
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
-        <button
           onClick={() => supabase.auth.signOut()}
           style={{
             background: 'none',
@@ -442,7 +426,7 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo, theme, onToggleTheme }) {
   )
 }
 
-function BottomNavbar({ isAdmin, demoMode, onToggleDemo, theme, onToggleTheme }) {
+function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
   const location = useLocation()
 
   const navItems = [
@@ -454,7 +438,6 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo, theme, onToggleTheme })
     { to: '/forum', label: 'Foro', icon: IconForum },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
     ...(isAdmin ? [{ to: null, label: demoMode ? '🔴' : '👁', icon: () => null, action: onToggleDemo, isDemo: true }] : []),
-    { to: null, label: theme === 'dark' ? '☀️' : '🌙', icon: () => null, action: onToggleTheme, isTheme: true },
     { to: null, label: 'Salir', icon: IconLogout, action: () => supabase.auth.signOut() }
   ]
 
@@ -497,7 +480,7 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo, theme, onToggleTheme })
                 color: item.isDemo && demoMode ? 'var(--gold)' : 'var(--text-dim)'
               }}
             >
-              {item.isDemo || item.isTheme ? (
+              {item.isDemo ? (
                 <span style={{ fontSize: '16px', lineHeight: '20px' }}>{item.label}</span>
               ) : (
                 <>
@@ -565,7 +548,6 @@ function AppLayout({ session }) {
   const [hasPaid, setHasPaid] = useState(null) // null = cargando
   const [rulesAccepted, setRulesAccepted] = useState(null) // null = cargando
   const { demoMode, toggle: toggleDemo } = useDemoMode(isAdmin)
-  const { theme, toggle: toggleTheme } = useTheme()
 
   useEffect(() => {
     async function checkProfile() {
@@ -611,7 +593,7 @@ function AppLayout({ session }) {
         />
       )}
 
-      <TopNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} theme={theme} onToggleTheme={toggleTheme} />
+      <TopNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
 
       {/* Demo mode banner */}
       {demoMode && (
@@ -647,7 +629,7 @@ function AppLayout({ session }) {
           </Suspense>
         </ErrorBoundary>
       </div>
-      <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} theme={theme} onToggleTheme={toggleTheme} />
+      <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
     </div>
   )
 }

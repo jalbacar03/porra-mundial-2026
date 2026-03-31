@@ -52,6 +52,14 @@ export default function Forum({ session }) {
           return [...prev, payload.new]
         })
       })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'forum_messages',
+        filter: 'channel=eq.general'
+      }, (payload) => {
+        setMessages(prev => prev.filter(m => m.id !== payload.old.id))
+      })
       .subscribe()
 
     const announcementChannel = supabase
@@ -74,6 +82,14 @@ export default function Forum({ session }) {
           }
           return [...prev, payload.new]
         })
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'forum_messages',
+        filter: 'channel=eq.announcements'
+      }, (payload) => {
+        setAnnouncements(prev => prev.filter(m => m.id !== payload.old.id))
       })
       .subscribe()
 

@@ -73,6 +73,20 @@ export function SkeletonLeaderboard({ rows = 10 }) {
   )
 }
 
+/**
+ * Pulsing dots loader — like Claude's thinking animation.
+ * Usage: <PulseDots /> or <PulseDots color="var(--gold)" size={8} />
+ */
+export function PulseDots({ color = 'var(--green)', size = 6 }) {
+  return (
+    <span className="pulse-dots">
+      <span style={{ width: size, height: size, background: color }} />
+      <span style={{ width: size, height: size, background: color }} />
+      <span style={{ width: size, height: size, background: color }} />
+    </span>
+  )
+}
+
 export function SkeletonDashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>

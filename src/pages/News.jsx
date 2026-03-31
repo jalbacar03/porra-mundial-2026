@@ -45,12 +45,16 @@ export default function News() {
           data.items.forEach(item => {
             // Try to get highest quality image available
             let image = null
-            // 1. Try description/content for full-size images
-            const content = item.content || item.description || ''
-            const imgMatch = content.match(/<img[^>]+src="([^"]+)"/)
-            if (imgMatch) image = imgMatch[1]
-            // 2. Enclosure often has better quality than thumbnail
-            if (!image && item.enclosure?.link) image = item.enclosure.link
+            // 1. Enclosure often has the best quality
+            if (item.enclosure?.link) image = item.enclosure.link
+            // 2. Try description/content for full-size images (skip tracking pixels)
+            if (!image) {
+              const content = item.content || item.description || ''
+              const imgMatch = content.match(/<img[^>]+src="([^"]+)"/)
+              if (imgMatch && !imgMatch[1].includes('imrworldwide') && !imgMatch[1].includes('cgi-bin')) {
+                image = imgMatch[1]
+              }
+            }
             // 3. Fallback to thumbnail
             if (!image && item.thumbnail) image = item.thumbnail
             // 4. Try to upgrade known low-res patterns to high-res

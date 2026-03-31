@@ -218,6 +218,7 @@ export default function Leaderboard({ demoMode }) {
                 )}
 
                 <div
+                  className={!isMe ? 'tap-scale' : ''}
                   onClick={() => !isMe && setH2hRival({ id: user.user_id, name: user.full_name })}
                   style={{
                     display: 'flex', alignItems: 'center', padding: '10px 12px',
@@ -225,6 +226,7 @@ export default function Leaderboard({ demoMode }) {
                     background: isMe ? 'rgba(255, 204, 0, 0.04)' : 'transparent',
                     borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent',
                     cursor: isMe ? 'default' : 'pointer',
+                    transition: 'background 0.15s ease',
                   }}>
                   <div style={{ width: '36px' }}>
                     {rank <= 3 ? (

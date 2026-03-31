@@ -5,6 +5,7 @@ import { generateMockPredictions, generateDemoMatchStatuses } from '../../../hoo
 import { useToast } from '../../../components/Toast'
 import { SkeletonCard } from '../../../components/Skeleton'
 import { useRateLimit } from '../../../hooks/useRateLimit'
+import { PulseDots } from '../../../components/Skeleton'
 
 export default function GroupMatchPredictions({ session, deadline, demoMode }) {
   const [matches, setMatches] = useState([])
@@ -459,7 +460,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
             opacity: saving ? 0.7 : 1
           }}
         >
-          {saving ? 'Guardando...' : `Guardar grupo ${activeGroup}`}
+          {saving ? <><PulseDots color="#fff" /> Guardando</> : `Guardar grupo ${activeGroup}`}
         </button>
       )}
 

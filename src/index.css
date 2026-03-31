@@ -44,28 +44,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ===== Light Theme ===== */
-[data-theme="light"] {
-  --bg-primary: #f0f2f5;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-input: #f5f6f8;
-  --bg-nav: #ffffff;
-
-  --green-light: #e8f5ee;
-
-  --gold-dim: rgba(180, 140, 0, 0.1);
-
-  --text-primary: #1a1d26;
-  --text-secondary: #4a4f5e;
-  --text-muted: #6b7080;
-  --text-dim: #9da3b0;
-
-  --border: #dde0e6;
-  --border-light: #e8eaef;
-
-  --red-bg: rgba(226, 75, 74, 0.08);
-}
 
 * {
   margin: 0;
@@ -77,7 +55,6 @@ body {
   margin: 0;
   background: var(--bg-nav);
   color: var(--text-secondary);
-  transition: background 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -120,13 +97,13 @@ input:focus, button:focus-visible {
 }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateY(-12px) scale(0.95); }
+  from { opacity: 0; transform: translateY(-12px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes toastOut {
   from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(-12px) scale(0.95); }
+  to { opacity: 0; transform: translateY(-12px) scale(0.96); }
 }
 
 @keyframes fadeIn {
@@ -137,4 +114,47 @@ input:focus, button:focus-visible {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulsing dots (like Claude's thinking indicator) */
+@keyframes pulseDot {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.pulse-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.pulse-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulseDot 1.4s ease-in-out infinite;
+}
+.pulse-dots span:nth-child(2) { animation-delay: 0.2s; }
+.pulse-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Stagger children animation */
+.stagger-in > * {
+  opacity: 0;
+  animation: slideUp 0.35s ease forwards;
+}
+.stagger-in > *:nth-child(1) { animation-delay: 0.03s; }
+.stagger-in > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger-in > *:nth-child(3) { animation-delay: 0.09s; }
+.stagger-in > *:nth-child(4) { animation-delay: 0.12s; }
+.stagger-in > *:nth-child(5) { animation-delay: 0.15s; }
+.stagger-in > *:nth-child(6) { animation-delay: 0.18s; }
+.stagger-in > *:nth-child(7) { animation-delay: 0.21s; }
+.stagger-in > *:nth-child(8) { animation-delay: 0.24s; }
+.stagger-in > *:nth-child(9) { animation-delay: 0.27s; }
+.stagger-in > *:nth-child(10) { animation-delay: 0.30s; }
+
+/* Smooth scale on tap for interactive elements */
+.tap-scale:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
 }

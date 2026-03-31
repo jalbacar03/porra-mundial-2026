@@ -546,7 +546,9 @@ export default function OrdagosView({ session }) {
                   </div>
                 </div>
                 <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '10px', color: 'var(--text-dim)', fontStyle: 'italic' }}>
-                  🔒 Se desbloqueará cuando se resuelva el órdago anterior
+                  {ordago.number === 1
+                    ? '🔒 Se desbloqueará cuando empiece el Mundial (11 jun 2026)'
+                    : '🔒 Se desbloqueará cuando se resuelva el órdago anterior'}
                 </div>
               </div>
             )}
@@ -555,7 +557,9 @@ export default function OrdagosView({ session }) {
                 padding: '12px', textAlign: 'center',
                 fontSize: '11px', color: 'var(--text-dim)', fontStyle: 'italic'
               }}>
-                🔒 Se desbloqueará cuando se resuelva el órdago anterior
+                {ordago.number === 1
+                  ? '🔒 Se desbloqueará cuando empiece el Mundial (11 jun 2026)'
+                  : '🔒 Se desbloqueará cuando se resuelva el órdago anterior'}
               </div>
             )}
           </div>

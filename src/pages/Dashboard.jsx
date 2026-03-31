@@ -211,7 +211,7 @@ export default function Dashboard({ session, demoMode }) {
   const maxPoints = displayTopRanking.length > 0 ? Math.max(displayTopRanking[0]?.total_points || 1, 1) : 1
 
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
+    <div className="stagger-in" style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* ===== POSITION + POT (unified) ===== */}
       <div style={{
