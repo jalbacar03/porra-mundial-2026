@@ -38,10 +38,12 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 ### Funciones y triggers
 - `calculate_match_points(p_match_id BIGINT)` — calcula puntos automáticamente cuando se actualizan resultados
 - Trigger `on_match_result_updated` en tabla `matches`
+- **IMPORTANTE**: solo calcula puntos cuando `status = 'finished'` (no durante partidos live)
 - Scoring partidos: 3 pts resultado exacto, 1 pt signo 1X2 correcto
+- `resolve_ordago(p_ordago_id INT)` — RPC para resolver órdagos cuando su partido termina
 
 ### Vista
-- `leaderboard` — agrega puntos totales (partidos + pre-torneo), aciertos exactos, aciertos de signo, fallos, pre_tournament_points por usuario
+- `leaderboard` — agrega puntos de 4 fuentes: partidos (predictions.points_earned) + pre-torneo (pre_tournament_entries) + órdagos (ordago_entries) + bracket (bracket_picks)
 
 ## Sistema de puntuación
 
@@ -68,10 +70,14 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 
 ## Automatización (API-Football + Vercel Cron)
 - **`/api/sync-results.js`** — Serverless function que sincroniza resultados desde API-Football
-- **Vercel Cron**: se ejecuta cada 2 horas automáticamente durante el Mundial
-- **Admin backup**: botón manual en pestaña "⚡ Sync API" del panel admin
-- **Flujo**: API-Football → actualiza `matches` → trigger calcula puntos → leaderboard se actualiza
+- **Vercel Cron**: se ejecuta 1 vez al día (9 AM UTC) — Hobby plan limit
+- **Admin backup**: botón manual en pestaña "⚡ Sync API" del panel admin (CRUCIAL durante partidos en vivo)
+- **Flujo**: API-Football → actualiza `matches` → trigger calcula puntos (solo status=finished) → leaderboard se actualiza
+- **Sync de partidos en vivo**: actualiza scores intermedios con status='live' (no dispara cálculo de puntos)
+- **Transición live→finished**: corregido — busca `status !== 'finished'` (no `home_score === null`)
 - **Resolución automática de TODAS las predicciones**: goleador, asistencias, revelación (llega a QF), decepción (cae en grupos), hat-trick, goleada 5+, más goleadora, menos goleada, primer gol
+- **Hat-trick optimizado**: solo busca eventos en partidos donde un equipo metió 3+ goles (ahorra API calls)
+- **Error handling**: apiFetch y supaFetch logean errores y devuelven arrays vacíos (no crashean)
 - API-Football: plan Free (100 req/día, 0€). Key: configurada en Vercel env vars
 
 ## Crónica del día (Gemini AI)
@@ -112,20 +118,27 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
    - ¿Sí o No? (hat-trick, goleada 5+)
 
 ### Dashboard
-- Widget unificado: posición en clasificación + bote recaudado
-- Widget órdagos (blurred, próximamente)
+- Widget unificado: posición en clasificación + puntos + exactos
+- Widget "Informe de jornada" (post-match report automático de la última jornada)
 - Widget "Crónica del día" (Gemini)
-- Top 5 leaderboard
-- Link rápido a Predicciones
+- Widget órdagos con preview del órdago activo
+- Card de acceso a Match Day Live (no en nav, solo desde Dashboard)
+- Botones: Mis predicciones + Clasificación
+- Top 5 leaderboard con barras visuales
+- PointsChart: timeline de puntos acumulados
+- Prompt de notificaciones push
 
 ### Clasificación
 - Tabs: 🏆 General + 🔥 Últimos 3 días
 - Solo muestra nombre y puntos (limpio)
 
-### Stats
-- Tabs: Partidos (1X2 por grupo) + Predicciones (stats pre-torneo)
-- Todo blurred con candado hasta que cierre el plazo
-- Muestra cuánta gente ha respondido a cada predicción
+### Stats — 6 tabs premium
+- **Resumen**: 1X2 global, resultados más predichos, goles por grupo
+- **Tú** (Personal): posición, aciertos, distribución, rendimiento por grupo, tú vs la media, **simulador "¿Qué necesitas?"** (gap al rival, partidos clave con divergencias, mejor/peor caso)
+- **Partidos**: consensus 1X2 por grupo con OddsBar bet365-style
+- **Predicciones**: stats de predicciones especiales (blurred hasta cierre plazo)
+- **H2H**: comparador entre 2 participantes (partidos + predicciones + órdagos)
+- **Otros**: ver predicciones de cualquier participante
 
 ### Foro
 - Chat en tiempo real con Supabase Realtime
@@ -172,6 +185,7 @@ src/
 │   └── thirdPlaceAssignment.js # Asignación de mejores terceros a partidos R32
 ├── pages/
 │   ├── Dashboard.jsx
+│   ├── MatchDayLive.jsx   # Partidos en vivo, predicción vs realidad, leaderboard del día
 │   ├── Leaderboard.jsx
 │   ├── Stats.jsx
 │   ├── Admin.jsx
@@ -198,7 +212,7 @@ scripts/
 public/
 ├── manifest.json
 ├── sw.js
-vercel.json               # Cron config (sync cada 2h)
+vercel.json               # Cron config (sync diario 9AM UTC)
 ```
 
 ## Variables de entorno
@@ -246,10 +260,18 @@ vercel.json               # Cron config (sync cada 2h)
 - ✅ Leaderboard filtra por has_paid (usuarios no admitidos no aparecen)
 - ✅ Normas accesibles en móvil (footer link en todas las páginas)
 - ✅ PointsChart: timeline de puntos acumulados por fecha
+- ✅ Match Day Live: partidos en vivo, predicción vs realidad, consensus 1X2, leaderboard del día (acceso desde Dashboard)
+- ✅ Informe de jornada: widget automático en Dashboard (exactos/signos/fallos + mejor predicción)
+- ✅ Simulador "¿Qué necesitas?": gap al rival, partidos clave con divergencias, mejor/peor caso (en Stats > Tú)
+- ✅ Sync live matches: API-Football sincroniza scores intermedios con status='live'
+- ✅ Trigger protegido: calculate_match_points solo ejecuta cuando status='finished'
+- ✅ Fix crítico: transición live→finished corregida (status !== 'finished' en vez de home_score === null)
+- ✅ Hat-trick optimizado: solo fetch eventos en partidos con 3+ goles de un equipo
+- ✅ Error handling robusto: apiFetch/supaFetch logean errores sin crashear
+- ✅ Auditoría completa pre-Mundial: scoring, triggers, sync, leaderboard verificados
 
 ## Pendientes próximos
-1. **Match Day Live** — pantalla dedicada durante partidos en vivo (score real-time, tu predicción vs realidad, puntos al instante, leaderboard moviéndose)
-2. **Emails** — newsletter diaria con Resend (crónica + leaderboard)
+1. **Emails** — newsletter diaria con Resend (crónica + leaderboard)
 
 ## Notas importantes
 - NUNCA cambiar nombres de columnas existentes (predicted_home, predicted_away, full_name, has_paid, is_admin)
