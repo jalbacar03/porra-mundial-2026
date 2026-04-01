@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../supabase'
 import { SkeletonDashboard } from '../components/Skeleton'
 
@@ -20,9 +20,20 @@ function getElapsedMinute(matchDate) {
   const diff = Math.floor((now - start) / 60000)
   if (diff < 0) return null
   if (diff <= 45) return diff
-  if (diff <= 60) return '45+' // halftime buffer
-  if (diff <= 105) return diff - 15 // second half
+  if (diff <= 60) return '45+'
+  if (diff <= 105) return diff - 15
   return '90+'
+}
+
+function getMatchProgress(matchDate) {
+  const start = new Date(matchDate)
+  const now = new Date()
+  const diffMin = Math.floor((now - start) / 60000)
+  if (diffMin <= 0) return 0
+  if (diffMin <= 45) return (diffMin / 45) * 47
+  if (diffMin <= 60) return 50
+  if (diffMin <= 105) return 50 + ((diffMin - 60) / 45) * 47
+  return 100
 }
 
 function getPointsStatus(pred, match) {
@@ -43,6 +54,22 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
+function formatCountdown(dateStr) {
+  const diff = new Date(dateStr) - new Date()
+  if (diff <= 0) return 'Ahora'
+  const d = Math.floor(diff / 86400000)
+  const h = Math.floor((diff % 86400000) / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  if (d > 0) return `${d}d ${h}h`
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
+}
+
+const medalColors = [
+  'linear-gradient(135deg, #ffd700, #b8860b)',
+  'linear-gradient(135deg, #c0c0c0, #808080)',
+  'linear-gradient(135deg, #cd7f32, #8b4513)'
+]
+
 export default function MatchDayLive({ session }) {
   const [matches, setMatches] = useState([])
   const [predictions, setPredictions] = useState({})
@@ -51,15 +78,11 @@ export default function MatchDayLive({ session }) {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [changedScores, setChangedScores] = useState(new Set())
+  const prevScoresRef = useRef({})
 
   const fetchData = useCallback(async () => {
     const userId = session?.user?.id
-
-    // Get today's date range
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    const todayEnd = new Date()
-    todayEnd.setHours(23, 59, 59, 999)
 
     const [matchesRes, predsRes, allPredsRes, lbRes, profilesRes] = await Promise.all([
       supabase.from('matches')
@@ -74,7 +97,23 @@ export default function MatchDayLive({ session }) {
       supabase.from('profiles').select('id, full_name, nickname, has_paid')
     ])
 
-    setMatches(matchesRes.data || [])
+    const newMatches = matchesRes.data || []
+
+    // Detect score changes for animation
+    const newChanged = new Set()
+    newMatches.forEach(m => {
+      const prev = prevScoresRef.current[m.id]
+      if (prev && (prev.home !== m.home_score || prev.away !== m.away_score)) {
+        newChanged.add(m.id)
+      }
+      prevScoresRef.current[m.id] = { home: m.home_score, away: m.away_score }
+    })
+    if (newChanged.size > 0) {
+      setChangedScores(newChanged)
+      setTimeout(() => setChangedScores(new Set()), 700)
+    }
+
+    setMatches(newMatches)
 
     const predsMap = {}
     ;(predsRes.data || []).forEach(p => { predsMap[p.match_id] = p })
@@ -144,6 +183,18 @@ export default function MatchDayLive({ session }) {
         ? 'Últimos resultados'
         : null
 
+  // My today points
+  const myTodayPoints = useMemo(() => {
+    const userId = session?.user?.id
+    if (!userId) return 0
+    return displayMatches.reduce((sum, match) => {
+      const pred = predictions[match.id]
+      if (!pred || match.home_score === null) return sum
+      const status = getPointsStatus(pred, match)
+      return sum + (status?.points || 0)
+    }, 0)
+  }, [displayMatches, predictions, session])
+
   // Today's leaderboard delta
   const todayDelta = useMemo(() => {
     const todayFinishedIds = todayMatches.filter(m => isFinished(m)).map(m => m.id)
@@ -151,7 +202,6 @@ export default function MatchDayLive({ session }) {
     const relevantIds = [...todayFinishedIds, ...liveIds]
     if (relevantIds.length === 0) return []
 
-    // Calculate points each user earned today
     const userPoints = {}
     allPredictions.filter(p => relevantIds.includes(p.match_id)).forEach(p => {
       const match = matches.find(m => m.id === p.match_id)
@@ -199,6 +249,7 @@ export default function MatchDayLive({ session }) {
   if (loading) return <div style={{ padding: '16px' }}><SkeletonDashboard /></div>
 
   const hasLive = liveMatches.length > 0
+  const hasActivity = hasLive || todayMatches.some(isFinished)
 
   return (
     <div className="stagger-in" style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
@@ -216,7 +267,7 @@ export default function MatchDayLive({ session }) {
                 fontSize: '10px', fontWeight: '700', color: 'var(--red)',
                 textTransform: 'uppercase', letterSpacing: '1px'
               }}>
-                <span className="live-dot" /> EN VIVO
+                <span className="live-dot" /> {liveMatches.length} EN VIVO
               </span>
             )}
           </h2>
@@ -235,6 +286,43 @@ export default function MatchDayLive({ session }) {
           ↻ {lastRefresh.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
         </button>
       </div>
+
+      {/* Hero stats row */}
+      {hasActivity && (
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <div className="stats-card" style={{ flex: 1, padding: '12px', marginBottom: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Tus pts hoy
+            </div>
+            <div className="gradient-text" style={{ fontSize: '24px', fontWeight: '900' }}>
+              +{myTodayPoints}
+            </div>
+          </div>
+          <div className="stats-card" style={{ flex: 1, padding: '12px', marginBottom: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Partidos
+            </div>
+            <div style={{ fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>
+              {todayMatches.filter(m => isFinished(m) || isLive(m)).length}/{todayMatches.length}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Countdown to next match */}
+      {nextMatchDay && todayMatches.length === 0 && (
+        <div className="stats-hero" style={{ textAlign: 'center', padding: '32px 20px', marginBottom: '16px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
+            Próximo partido en
+          </div>
+          <div className="countdown-mono" style={{ fontSize: '28px', fontWeight: '900', color: 'var(--text-primary)' }}>
+            {formatCountdown(nextMatchDay.date)}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '8px' }}>
+            {formatDate(nextMatchDay.date)}
+          </div>
+        </div>
+      )}
 
       {/* No matches state */}
       {displayMatches.length === 0 && (
@@ -282,7 +370,7 @@ export default function MatchDayLive({ session }) {
             )}
 
             {/* Match header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: live ? '6px' : '16px' }}>
               <span style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 {match.stage === 'group' ? `Grupo ${match.group_name}` : match.stage?.replace('_', ' ')}
               </span>
@@ -307,6 +395,13 @@ export default function MatchDayLive({ session }) {
               )}
             </div>
 
+            {/* Progress bar for live matches */}
+            {live && (
+              <div className="match-progress-bar">
+                <div className="match-progress-fill" style={{ width: `${Math.min(getMatchProgress(match.match_date), 100)}%` }} />
+              </div>
+            )}
+
             {/* Teams + Score */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', marginBottom: '18px' }}>
               {/* Home team */}
@@ -325,7 +420,7 @@ export default function MatchDayLive({ session }) {
               {/* Score */}
               <div style={{ textAlign: 'center', minWidth: '90px' }}>
                 {(live || finished) ? (
-                  <div style={{
+                  <div className={changedScores.has(match.id) ? 'score-changed' : ''} style={{
                     padding: '8px 20px',
                     background: live
                       ? 'linear-gradient(135deg, rgba(226,75,74,0.2), rgba(226,75,74,0.08))'
@@ -370,7 +465,7 @@ export default function MatchDayLive({ session }) {
                 display: 'flex', gap: '10px', alignItems: 'stretch', marginBottom: consensus ? '14px' : 0
               }}>
                 {/* Your prediction */}
-                <div style={{
+                <div className={status?.points === 3 ? 'exact-celebration' : ''} style={{
                   flex: 1, padding: '12px', borderRadius: '10px', textAlign: 'center',
                   background: status ? status.bg : 'var(--bg-input)',
                   border: status ? `1px solid ${status.color}30` : '1px solid var(--border)'
@@ -484,12 +579,23 @@ export default function MatchDayLive({ session }) {
                 padding: '8px 0',
                 borderBottom: i < todayDelta.length - 1 ? '0.5px solid var(--border-light)' : 'none'
               }}>
-                <span style={{
-                  width: '22px', fontSize: '11px', fontWeight: '600',
-                  color: i === 0 ? 'var(--gold)' : 'var(--text-dim)'
-                }}>
-                  {i + 1}
-                </span>
+                {i < 3 ? (
+                  <div style={{
+                    width: '20px', height: '20px', borderRadius: '50%',
+                    background: medalColors[i],
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '10px', fontWeight: '700', color: '#1a1d26', flexShrink: 0
+                  }}>
+                    {i + 1}
+                  </div>
+                ) : (
+                  <span style={{
+                    width: '20px', fontSize: '11px', fontWeight: '600',
+                    color: 'var(--text-dim)', textAlign: 'center', flexShrink: 0
+                  }}>
+                    {i + 1}
+                  </span>
+                )}
                 <span style={{
                   flex: 1, fontSize: '13px',
                   color: isMe ? 'var(--gold)' : 'var(--text-primary)',
