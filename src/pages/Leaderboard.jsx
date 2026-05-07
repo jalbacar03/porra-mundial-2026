@@ -222,27 +222,7 @@ export default function Leaderboard({ demoMode }) {
       ]
     : currentRankings
   const maxPts = Math.max(...fullRankings.map(u => hasLive ? u.effective_points : u.total_points), 1)
-  const initials = (name) => {
-    if (!name) return '?'
-    const parts = name.trim().split(/\s+/)
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-    return (parts[0][0] + (parts[parts.length - 1][0] || '')).toUpperCase()
-  }
-  const avatarColors = [
-    'linear-gradient(135deg, #d4af37, #8b6f1c)',
-    'linear-gradient(135deg, #4a90e2, #2c5fa3)',
-    'linear-gradient(135deg, #e07b39, #a14e1e)',
-    'linear-gradient(135deg, #2dbf7e, #1a6f4d)',
-    'linear-gradient(135deg, #b454c4, #6f2c7c)',
-    'linear-gradient(135deg, #5b6cf2, #3243aa)',
-    'linear-gradient(135deg, #ec5f7a, #a82d44)',
-    'linear-gradient(135deg, #58c4d4, #2c7a85)'
-  ]
-  const colorFor = (uid) => {
-    let h = 0
-    for (const c of (uid || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0
-    return avatarColors[h % avatarColors.length]
-  }
+  const firstLetter = (name) => ((name || '?')[0] || '?').toUpperCase()
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
@@ -320,17 +300,17 @@ export default function Leaderboard({ demoMode }) {
                   {rankLabel}
                 </div>
 
-                {/* Avatar */}
+                {/* Avatar (muted) */}
                 <div style={{
-                  width: '36px', height: '36px', borderRadius: '50%',
+                  width: '34px', height: '34px', borderRadius: '50%',
                   marginLeft: '6px', marginRight: '12px', flexShrink: 0,
-                  background: isBot ? '#3a3d48' : colorFor(user.user_id),
+                  background: isMe ? 'rgba(0,144,81,0.25)' : 'rgba(255,255,255,0.05)',
+                  border: isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid rgba(255,255,255,0.06)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '12px', fontWeight: '700',
-                  color: isBot ? '#9da3b0' : '#fff',
-                  letterSpacing: '0.5px'
+                  fontSize: '13px', fontWeight: '700',
+                  color: isBot ? 'var(--text-dim)' : isMe ? '#4ade80' : 'var(--text-muted)'
                 }}>
-                  {isBot ? 'B' : initials(user.full_name)}
+                  {isBot ? 'B' : firstLetter(user.full_name)}
                 </div>
 
                 {/* Name + delta */}

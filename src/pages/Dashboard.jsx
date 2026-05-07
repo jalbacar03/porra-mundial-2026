@@ -279,14 +279,20 @@ export default function Dashboard({ session, demoMode }) {
 
   // Greeting + delta vs yesterday (from postMatchReport.points)
   const userName = (profile?.nickname || profile?.full_name || 'Participante').split(' ')[0]
-  const userInitials = (() => {
-    const n = profile?.nickname || profile?.full_name || ''
-    const parts = n.trim().split(/\s+/)
-    if (!parts[0]) return '?'
-    return (parts[0][0] + (parts[parts.length - 1]?.[0] || '')).toUpperCase()
-  })()
+  const userInitial = ((profile?.nickname || profile?.full_name || '?')[0] || '?').toUpperCase()
   const deltaVsYesterday = postMatchReport?.points || 0
   const hasLive = liveMatches.length > 0
+
+  // Leader info: highest paid (excluding bot), names tied if multiple
+  const myPoints = displayStats.points
+  const leaderInfo = (() => {
+    if (!displayTopRanking.length) return null
+    const top = displayTopRanking[0]
+    const topPts = top.total_points
+    if (myPoints >= topPts) return null
+    const tied = displayTopRanking.filter(r => r.total_points === topPts)
+    return { points: topPts, names: tied.map(t => t.full_name).join(', ') }
+  })()
 
   function calcLivePts(pred, match) {
     if (!pred || match.home_score === null) return 0
@@ -317,7 +323,7 @@ export default function Dashboard({ session, demoMode }) {
             background: 'linear-gradient(135deg, #2dbf7e, #1a6f4d)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '14px', fontWeight: '700', color: '#fff', flexShrink: 0
-          }}>{userInitials}</div>
+          }}>{userInitial}</div>
         </div>
       </div>
 
@@ -364,7 +370,7 @@ export default function Dashboard({ session, demoMode }) {
 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', marginBottom: '14px' }}>
           <span style={{ fontSize: '46px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
-            {displayStats.rank}.<sup style={{ fontSize: '24px', fontWeight: '700' }}>º</sup>
+            {displayStats.rank}{typeof displayStats.rank === 'number' && <span>.<sup style={{ fontSize: '24px', fontWeight: '700' }}>º</sup></span>}
           </span>
           <span style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', paddingBottom: '6px' }}>
             /{displayTotalUsers > 0 ? displayTotalUsers : '?'}
@@ -385,8 +391,15 @@ export default function Dashboard({ session, demoMode }) {
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline' }}>
           <div>
-            <div style={{ fontSize: '22px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
-              {displayStats.points}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
+                {displayStats.points}
+              </span>
+              {leaderInfo && (
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: '500' }}>
+                  · líder {leaderInfo.points} <span style={{ color: 'rgba(255,255,255,0.6)' }}>({leaderInfo.names})</span>
+                </span>
+              )}
             </div>
             <div style={{
               fontSize: '9px', color: 'rgba(255,255,255,0.5)',
