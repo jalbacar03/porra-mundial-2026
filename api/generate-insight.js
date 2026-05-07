@@ -124,7 +124,7 @@ async function generateWithGemini(data) {
       `${m.home_team?.name} ${m.home_score}-${m.away_score} ${m.away_team?.name}`
     ).join(', ')
 
-    prompt = `Eres el comentarista de una porra amistosa de fútbol del Mundial 2026 entre amigos. Tu estilo es divertido, cercano y con toques de humor deportivo. Hoy es ${today}.
+    prompt = `Eres un periodista deportivo que cubre una porra amistosa del Mundial 2026 entre amigos. Tono profesional pero cercano. Sin sensacionalismo, sin chistes forzados, sin superlativos exagerados. Hoy es ${today}.
 
 DATOS DE LA PORRA:
 - ${data.totalParticipants} participantes
@@ -135,33 +135,32 @@ ${top5}
 ÚLTIMOS RESULTADOS:
 ${recentResults}
 
-Genera una crónica diaria de la porra en español (máximo 200 palabras) que incluya:
-1. Un titular llamativo con emoji
-2. Resumen de la jornada (quién subió, quién bajó, sorpresas)
-3. Un dato curioso o predicción picante
-4. Cierra con una frase motivadora o graciosa
+Redacta la crónica del día en español (máximo 200 palabras), con esta estructura:
+1. Titular sobrio (un emoji solo si aporta)
+2. Movimiento del ranking en la jornada (quién subió, quién bajó, las predicciones más certeras)
+3. Un dato relevante: el resultado más sorprendente, una racha, un patrón
+4. Una frase de cierre breve sobre lo que viene
 
-Formato: texto plano con emojis, sin markdown ni HTML. Párrafos cortos.`
+Formato: texto plano, sin markdown ni HTML. Párrafos cortos. Evita exclamaciones múltiples. Máximo 1-2 emojis en toda la crónica.`
   } else {
     const newsContext = data.newsHeadlines.length > 0
       ? `\nÚLTIMAS NOTICIAS DEL MUNDO DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
       : ''
 
-    prompt = `Eres el comentarista de una porra amistosa de fútbol del Mundial 2026 entre amigos. Tu estilo es divertido, cercano y con toques de humor deportivo. Hoy es ${today}.
+    prompt = `Eres un periodista deportivo que cubre una porra amistosa del Mundial 2026 entre amigos. Tono profesional pero cercano. Sin sensacionalismo, sin chistes forzados, sin superlativos exagerados. Hoy es ${today}.
 
-DATOS DE LA PORRA:
+CONTEXTO:
 - ${data.totalParticipants} participantes registrados
 - El Mundial empieza el 11 de junio de 2026
-- Hay apuestas pre-torneo abiertas (campeón, goleador, selección revelación, etc.)
+- Predicciones especiales abiertas (campeón, goleador, revelación, etc.)
 ${newsContext}
 
-Genera una crónica pre-torneo en español (máximo 150 palabras) que incluya:
-1. Un titular llamativo con emoji
-2. Comenta alguna noticia relevante del mundo del fútbol y cómo puede afectar a las apuestas
-3. Hype sobre las apuestas pre-torneo
-4. Cierra con una frase motivadora tipo cuenta atrás
+Redacta una crónica pre-torneo en español (máximo 150 palabras), con esta estructura:
+1. Titular sobrio (un emoji solo si aporta)
+2. Análisis breve de una noticia relevante y su posible impacto en las predicciones especiales
+3. Recordatorio del cierre de plazo de predicciones (9 de junio, 48h antes del primer partido)
 
-Formato: texto plano con emojis, sin markdown ni HTML. Párrafos cortos.`
+Formato: texto plano, sin markdown ni HTML. Párrafos cortos. Evita exclamaciones múltiples. Máximo 1-2 emojis en toda la crónica.`
   }
 
   const response = await fetch(
@@ -171,7 +170,7 @@ Formato: texto plano con emojis, sin markdown ni HTML. Párrafos cortos.`
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.9, maxOutputTokens: 500 }
+        generationConfig: { temperature: 0.6, maxOutputTokens: 500 }
       })
     }
   )

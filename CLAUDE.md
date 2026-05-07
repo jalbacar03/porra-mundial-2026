@@ -1,17 +1,16 @@
 # CLAUDE.md — Porra Mundial 2026
 
 ## Qué es este proyecto
-App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan una cuota (~25€), predicen resultados de partidos, y compiten en un leaderboard por premios (80% del bote). El organizador se lleva el 20% de comisión. ~100 participantes esperados.
+App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los participantes predicen resultados de partidos y compiten en un leaderboard. ~100 participantes esperados. **NO es plataforma de apuestas: la app no procesa pagos ni los muestra; el admin acepta o rechaza usuarios manualmente.**
 
 ## Tech Stack
 - **Frontend:** React + Vite
 - **Backend/DB:** Supabase (PostgreSQL con RLS habilitado en todas las tablas)
 - **Hosting:** Vercel (auto-deploy desde GitHub en cada push)
 - **APIs externas:** API-Football (resultados, stats), Google Gemini (crónica diaria), RSS (noticias)
-- **Pagos:** Bizum (manual, con PaymentWall popup en la app)
-- **Repo:** github.com/jalbacar03/porra-mundial-2026
-- **URL:** porra-mundial-2026-omega.vercel.app
-- **Local:** ~/Desktop/porra-mundial-2026
+- **Repo:** ver `git remote -v`
+- **URL pública:** ver Vercel dashboard
+- **Local:** ver `pwd`
 
 ## Base de datos (Supabase)
 ### Tablas
@@ -92,8 +91,8 @@ App web de predicciones para el Mundial de Fútbol 2026. Los participantes pagan
 - Botón de actualizar (🔄)
 
 ## Admin
-- ID del admin (Javier): `e2fc4937-cd8d-4cb1-8291-05fa8a66ce97`
-- Panel admin con 3 tabs: **Resultados** (meter scores manual) | **Pagos** (marcar Bizum) | **⚡ Sync API** (sincronizar con API-Football)
+- ID del admin: `e2fc4937-cd8d-4cb1-8291-05fa8a66ce97`
+- Panel admin con 3 tabs: **Resultados** (meter scores manual) | **Admisiones** (aceptar/rechazar acceso) | **⚡ Sync API** (sincronizar con API-Football)
 - Link admin oculto para usuarios normales
 
 ## Navegación y páginas
@@ -227,8 +226,8 @@ vercel.json               # Cron config (sync diario 9AM UTC)
 - `API_FOOTBALL_KEY` — API key de API-Football (free tier, 100 req/día)
 
 ## Estado actual — Fases completadas
-- ✅ Fases 1-14: Setup, auth, DB, predictions, scoring, leaderboard, admin, diseño, pagos Bizum, countdowns, responsive móvil, PWA completa
-- ✅ Dashboard visual: widget unificado posición+bote, crónica del día, órdagos (blurred)
+- ✅ Fases 1-14: Setup, auth, DB, predictions, scoring, leaderboard, admin, diseño, admisión de usuarios, countdowns, responsive móvil, PWA completa
+- ✅ Dashboard visual: widget unificado posición+puntos, crónica del día, órdagos (blurred)
 - ✅ Clasificación: tabs General + Últimos 3 días, diseño limpio
 - ✅ Stats: tabs partidos + predicciones, todo blurred con candado hasta cierre
 - ✅ Normas: página completa con reglas
