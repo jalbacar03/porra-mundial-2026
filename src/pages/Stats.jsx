@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { generateDemoMatchStatuses } from '../hooks/useDemoMode'
 import { SkeletonDashboard } from '../components/Skeleton'
+import Avatar from '../components/Avatar'
 
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
@@ -67,7 +68,7 @@ export default function Stats({ demoMode }) {
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
         .eq('stage', 'group').order('match_date', { ascending: true }),
       supabase.from('predictions').select('match_id, predicted_home, predicted_away, user_id'),
-      supabase.from('profiles').select('id, full_name, nickname, has_paid'),
+      supabase.from('profiles').select('id, full_name, nickname, has_paid, avatar_url'),
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),
       supabase.from('pre_tournament_entries').select('bet_id, user_id, value, points_awarded, is_resolved'),
       supabase.from('leaderboard').select('*'),
@@ -171,6 +172,11 @@ export default function Stats({ demoMode }) {
   function getProfileName(id) {
     const p = profiles.find(pr => pr.id === id)
     return p ? (p.nickname || p.full_name || 'Participante') : 'Participante'
+  }
+
+  function getProfileAvatar(id) {
+    const p = profiles.find(pr => pr.id === id)
+    return p?.avatar_url || null
   }
 
   function getTeamName(teamId) {
@@ -348,15 +354,14 @@ export default function Stats({ demoMode }) {
   )
 
   // ========== SECTION HEADER ==========
-  const SectionHeader = ({ children }) => (
+  const SectionHeader = ({ children, accent }) => (
     <div style={{
-      fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
-      letterSpacing: '1.2px', fontWeight: '700', marginBottom: '16px',
+      fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase',
+      letterSpacing: '1.2px', fontWeight: '700', marginBottom: '14px',
       display: 'flex', alignItems: 'center', gap: '8px'
     }}>
-      <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--gold)', flexShrink: 0 }} />
+      {accent && <span style={{ color: accent }}>{accent === 'var(--gold)' ? '★' : '•'}</span>}
       <span>{children}</span>
-      <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, var(--border), transparent)' }} />
     </div>
   )
 
@@ -399,22 +404,30 @@ export default function Stats({ demoMode }) {
 
       {/* Header */}
       <div style={{ marginBottom: '14px' }}>
-        <h2 style={{
+        <h1 style={{
           fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)',
-          margin: '0 0 4px', letterSpacing: '-0.4px'
+          margin: '0 0 6px', letterSpacing: '-0.4px'
         }}>
           Stats
-        </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-          {finishedMatches.length} de {totalMatches} partidos jugados
-          {demoMode && <span style={{ color: 'var(--gold)', marginLeft: '6px', fontSize: '10px', fontWeight: '600' }}>(DEMO)</span>}
-        </p>
+        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>
+            {finishedMatches.length} <span style={{ color: 'var(--text-dim)' }}>de</span> {totalMatches} partidos
+          </span>
+          {demoMode && (
+            <span style={{
+              fontSize: '9px', color: 'var(--gold)', fontWeight: '700',
+              padding: '2px 8px', borderRadius: '4px',
+              background: 'rgba(255,204,0,0.1)', letterSpacing: '0.8px'
+            }}>DEMO</span>
+          )}
+        </div>
       </div>
 
       {/* Progress bar — tournament progress */}
       <div style={{
-        background: 'var(--bg-input)', borderRadius: '4px', height: '6px',
-        marginBottom: '18px', overflow: 'hidden'
+        background: 'var(--bg-input)', borderRadius: '4px', height: '4px',
+        marginBottom: '16px', overflow: 'hidden'
       }}>
         <div style={{
           height: '100%', borderRadius: '4px',
@@ -426,7 +439,7 @@ export default function Stats({ demoMode }) {
 
       {/* 6-Tab switcher */}
       <div className="group-tabs" style={{
-        marginBottom: '18px', gap: '6px'
+        marginBottom: '16px', gap: '6px'
       }}>
         {[
           { key: 'overview', label: 'Resumen' },
@@ -440,10 +453,10 @@ export default function Stats({ demoMode }) {
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             style={{
-              padding: '7px 14px', borderRadius: '20px', border: 'none',
+              padding: '6px 12px', borderRadius: '20px', border: 'none',
               background: activeTab === tab.key ? 'var(--green)' : 'var(--bg-secondary)',
               color: activeTab === tab.key ? '#fff' : 'var(--text-muted)',
-              fontSize: '12px', fontWeight: activeTab === tab.key ? '600' : '400', cursor: 'pointer',
+              fontSize: '12px', fontWeight: activeTab === tab.key ? '700' : '500', cursor: 'pointer',
               whiteSpace: 'nowrap', flexShrink: 0,
               transition: 'all 0.2s ease'
             }}
@@ -456,46 +469,66 @@ export default function Stats({ demoMode }) {
       {/* ==================== OVERVIEW TAB ==================== */}
       {activeTab === 'overview' && (
         <div className="tab-fade-in">
-          {/* Hero accuracy card */}
-          <div className="stats-hero" style={{ marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
-              <div>
-                <div className="gradient-text" style={{ fontSize: '52px', fontWeight: '900', lineHeight: 1 }}>
-                  {accuracyRate}%
+          {/* Hero accuracy card — Dashboard hero style */}
+          <div style={{
+            background: 'linear-gradient(135deg, #00392a, #00643d)',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            marginBottom: '12px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute', top: '-30px', right: '-30px',
+              width: '100px', height: '100px', borderRadius: '50%',
+              border: '1px solid rgba(255,255,255,0.05)'
+            }} />
+            <div style={{
+              position: 'absolute', top: '-60px', right: '-60px',
+              width: '160px', height: '160px', borderRadius: '50%',
+              border: '1px solid rgba(255,255,255,0.03)'
+            }} />
+
+            <div style={{
+              fontSize: '10px', color: 'rgba(255,255,255,0.5)',
+              textTransform: 'uppercase', letterSpacing: '1.4px', fontWeight: '600',
+              marginBottom: '10px'
+            }}>
+              Acierto global
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <span style={{ fontSize: '46px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
+                    {accuracyRate}
+                  </span>
+                  <span style={{ fontSize: '20px', fontWeight: '700', color: 'rgba(255,255,255,0.5)' }}>%</span>
                 </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1.5px', marginTop: '8px', fontWeight: '600' }}>
-                  Tasa de acierto global
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '8px', fontWeight: '500' }}>
                   {totalExacts} exactos · {totalSigns} signos · {lbSorted.reduce((s, u) => s + (u.misses || 0), 0)} fallos
                 </div>
               </div>
               {/* Mini gauge */}
-              <div style={{ position: 'relative', width: '80px', height: '80px', flexShrink: 0 }}>
-                <ResponsiveContainer width={80} height={80}>
+              <div style={{ position: 'relative', width: '76px', height: '76px', flexShrink: 0 }}>
+                <ResponsiveContainer width={76} height={76}>
                   <PieChart>
                     <Pie
                       data={[{ value: accuracyRate }, { value: 100 - accuracyRate }]}
                       cx="50%" cy="50%"
-                      innerRadius={30} outerRadius={38}
+                      innerRadius={28} outerRadius={36}
                       startAngle={90} endAngle={-270}
                       dataKey="value"
                       strokeWidth={0}
                     >
-                      <Cell fill="url(#gaugeGradient)" />
-                      <Cell fill="rgba(42,45,56,0.5)" />
+                      <Cell fill="#ffcc00" />
+                      <Cell fill="rgba(255,255,255,0.1)" />
                     </Pie>
-                    <defs>
-                      <linearGradient id="gaugeGradient" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#007a45" />
-                        <stop offset="100%" stopColor="#ffcc00" />
-                      </linearGradient>
-                    </defs>
                   </PieChart>
                 </ResponsiveContainer>
                 <div style={{
                   position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)'
+                  fontSize: '13px', fontWeight: '800', color: '#fff'
                 }}>
                   {finishedMatches.length}
                 </div>
@@ -505,22 +538,25 @@ export default function Stats({ demoMode }) {
 
           {/* Stats strip — horizontal scroll */}
           <div style={{
-            display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none',
+            display: 'flex', gap: '8px', overflowX: 'auto', scrollbarWidth: 'none',
             WebkitOverflowScrolling: 'touch', marginBottom: '14px', padding: '2px 0'
           }}>
             {[
               { value: totalUsers, label: 'Participantes', color: 'var(--text-primary)' },
               { value: totalPredictions.toLocaleString(), label: 'Predicciones', color: 'var(--gold)' },
               { value: `${avgPoints}`, label: 'Media pts', color: 'var(--text-primary)' },
-              { value: lbSorted[0]?.total_points || 0, label: 'Lider', color: 'var(--gold)' }
+              { value: lbSorted[0]?.total_points || 0, label: 'Líder', color: 'var(--gold)' }
             ].map((s, i) => (
               <div key={i} style={{
-                minWidth: '100px', flex: '1 0 auto', background: 'var(--bg-secondary)',
-                borderRadius: '10px', padding: '14px 12px', border: '0.5px solid var(--border)',
+                minWidth: '96px', flex: '1 0 auto', background: 'var(--bg-secondary)',
+                borderRadius: '10px', padding: '12px 10px',
                 textAlign: 'center'
               }}>
-                <div style={{ fontSize: '20px', fontWeight: '700', color: s.color, lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: '8px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '6px', fontWeight: '600' }}>{s.label}</div>
+                <div style={{ fontSize: '20px', fontWeight: '800', color: s.color, lineHeight: 1 }}>{s.value}</div>
+                <div style={{
+                  fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase',
+                  letterSpacing: '1px', marginTop: '6px', fontWeight: '700'
+                }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -651,43 +687,62 @@ export default function Stats({ demoMode }) {
 
           {/* Leaderboard top 5 — accuracy breakdown */}
           <div className="stats-card">
-            <SectionHeader>Top 5 — Desglose</SectionHeader>
+            <SectionHeader>Top 5 — desglose</SectionHeader>
             {lbSorted.slice(0, 5).map((user, i) => {
               const total = (user.exact_hits || 0) + (user.sign_hits || 0) + (user.misses || 0)
               const exactPct = total > 0 ? ((user.exact_hits || 0) / total) * 100 : 0
               const signPct = total > 0 ? ((user.sign_hits || 0) / total) * 100 : 0
-              const medalColors = ['linear-gradient(135deg, #ffd700, #ff9500)', 'linear-gradient(135deg, #c0c0c0, #808080)', 'linear-gradient(135deg, #cd7f32, #8b4513)']
+              const isMe = user.user_id === userId
+              const fullName = getProfileName(user.user_id) || user.full_name
               return (
                 <div key={user.user_id} style={{
-                  marginBottom: i < 4 ? '14px' : 0,
-                  padding: i < 3 ? '10px 12px' : '4px 0',
-                  borderRadius: i < 3 ? '8px' : 0,
-                  background: i < 3 ? `${i === 0 ? 'rgba(255,204,0,0.04)' : i === 1 ? 'rgba(192,192,192,0.04)' : 'rgba(205,127,50,0.04)'}` : 'transparent',
-                  borderLeft: i < 3 ? `3px solid ${i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : '#cd7f32'}` : '3px solid transparent'
+                  marginBottom: i < 4 ? '12px' : 0,
+                  paddingBottom: i < 4 ? '12px' : 0,
+                  borderBottom: i < 4 ? '0.5px solid var(--border-light)' : 'none'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                    <div style={{
-                      width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
-                      background: i < 3 ? medalColors[i] : 'var(--bg-input)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '11px', fontWeight: '700', color: i < 3 ? '#1a1d26' : 'var(--text-dim)'
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{
+                      width: '20px', textAlign: 'center', flexShrink: 0,
+                      fontSize: '13px', fontWeight: '700',
+                      color: i === 0 ? 'var(--gold)' : 'var(--text-muted)'
                     }}>
                       {i + 1}
-                    </div>
-                    <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500', flex: 1 }}>
-                      {user.full_name}
                     </span>
-                    <span style={{ fontSize: '14px', fontWeight: '800', color: i === 0 ? 'var(--gold)' : 'var(--text-primary)' }}>
+                    <Avatar
+                      url={getProfileAvatar(user.user_id)}
+                      name={fullName}
+                      size={30}
+                      color={isMe ? 'rgba(0,144,81,0.25)' : 'rgba(255,255,255,0.05)'}
+                      border={isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid rgba(255,255,255,0.06)'}
+                      textColor={isMe ? '#4ade80' : 'var(--text-muted)'}
+                    />
+                    <span style={{
+                      flex: 1, fontSize: '13px',
+                      color: 'var(--text-primary)',
+                      fontWeight: isMe ? '700' : '500',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      {fullName}{isMe ? ' · Tú' : ''}
+                    </span>
+                    <span style={{
+                      fontSize: '15px', fontWeight: '800',
+                      color: i === 0 ? 'var(--gold)' : 'var(--text-primary)'
+                    }}>
                       {user.total_points}
+                      <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '500', marginLeft: '3px' }}>pts</span>
                     </span>
                   </div>
-                  <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', background: 'var(--bg-input)', marginLeft: '36px' }}>
+                  {/* stacked accuracy bar */}
+                  <div style={{
+                    display: 'flex', height: '6px', borderRadius: '3px', overflow: 'hidden',
+                    background: 'var(--bg-input)', marginLeft: '40px'
+                  }}>
                     <div style={{ width: `${exactPct}%`, background: 'var(--gold)', transition: 'width 0.4s' }} />
-                    <div style={{ width: `${signPct}%`, background: 'var(--green)', transition: 'width 0.4s', marginLeft: '1px' }} />
+                    <div style={{ width: `${signPct}%`, background: 'var(--green)', transition: 'width 0.4s' }} />
                   </div>
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '3px' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--gold)' }}>{user.exact_hits || 0} exactos</span>
-                    <span style={{ fontSize: '10px', color: 'var(--green)' }}>{user.sign_hits || 0} signos</span>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px', marginLeft: '40px' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--gold)', fontWeight: '600' }}>{user.exact_hits || 0} exactos</span>
+                    <span style={{ fontSize: '10px', color: 'var(--green)', fontWeight: '600' }}>{user.sign_hits || 0} signos</span>
                     <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>{user.misses || 0} fallos</span>
                   </div>
                 </div>
@@ -735,35 +790,137 @@ export default function Stats({ demoMode }) {
 
         return (
           <div className="tab-fade-in">
-            {/* Position card */}
-            <div className="stats-hero" style={{ marginBottom: '14px' }}>
-              <div className="gradient-text" style={{ fontSize: '52px', fontWeight: '900', lineHeight: 1 }}>
-                {myRank > 0 ? `#${myRank}` : '-'}
+            {/* Position hero — Dashboard style */}
+            <div style={{
+              background: 'linear-gradient(135deg, #00392a, #00643d)',
+              borderRadius: '14px',
+              padding: '18px 20px',
+              marginBottom: '12px',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                position: 'absolute', top: '-30px', right: '-30px',
+                width: '100px', height: '100px', borderRadius: '50%',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }} />
+              <div style={{
+                position: 'absolute', top: '-60px', right: '-60px',
+                width: '160px', height: '160px', borderRadius: '50%',
+                border: '1px solid rgba(255,255,255,0.03)'
+              }} />
+
+              <div style={{
+                fontSize: '10px', color: 'rgba(255,255,255,0.5)',
+                textTransform: 'uppercase', letterSpacing: '1.4px', fontWeight: '600',
+                marginBottom: '8px'
+              }}>
+                Tu posición
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                de {lbSorted.length} participantes
+
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '46px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
+                  {myRank > 0 ? myRank : '-'}
+                </span>
+                {myRank > 0 && (
+                  <span style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', paddingBottom: '6px' }}>
+                    /{lbSorted.length}
+                  </span>
+                )}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
-                Top {percentile}% · {myPoints} puntos
+
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline' }}>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
+                    {myPoints}
+                  </div>
+                  <div style={{
+                    fontSize: '9px', color: 'rgba(255,255,255,0.5)',
+                    textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: '4px', fontWeight: '600'
+                  }}>
+                    Puntos
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--gold)', lineHeight: 1 }}>
+                    {percentile}<span style={{ fontSize: '14px' }}>%</span>
+                  </div>
+                  <div style={{
+                    fontSize: '9px', color: 'rgba(255,255,255,0.5)',
+                    textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: '4px', fontWeight: '600'
+                  }}>
+                    Top
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
+                    {myExacts}
+                  </div>
+                  <div style={{
+                    fontSize: '9px', color: 'rgba(255,255,255,0.5)',
+                    textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: '4px', fontWeight: '600'
+                  }}>
+                    Exactos
+                  </div>
+                </div>
               </div>
+
               {nextUp && ptsToNext > 0 && (
                 <div style={{
-                  marginTop: '10px', padding: '6px 12px', background: 'var(--bg-input)',
-                  borderRadius: '6px', fontSize: '11px', color: 'var(--text-muted)', display: 'inline-block'
+                  marginTop: '14px', padding: '8px 12px',
+                  background: 'rgba(0,0,0,0.25)', borderRadius: '8px',
+                  fontSize: '11px', color: 'rgba(255,255,255,0.85)',
+                  display: 'inline-flex', alignItems: 'center', gap: '6px'
                 }}>
-                  A {ptsToNext} pts de {nextUp.full_name} ({myRank - 1}º)
+                  <span style={{ color: 'var(--gold)', fontWeight: '700' }}>▲ {ptsToNext} pts</span>
+                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>de {nextUp.full_name} ({myRank - 1}º)</span>
                 </div>
               )}
             </div>
 
             {/* Accuracy comparison */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px'
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px'
             }}>
-              <StatCard value={`${myAccuracy}%`} label="Tu acierto" color={myAccuracy >= avgAcc ? 'var(--green)' : 'var(--red)'}
-                sub={myAccuracy >= avgAcc ? `+${myAccuracy - avgAcc}% vs media` : `${myAccuracy - avgAcc}% vs media`} />
-              <StatCard value={myExacts} label="Exactos" color="var(--gold)"
-                sub={`${mySigns} signos · ${myMisses} fallos`} />
+              <div style={{
+                background: 'var(--bg-secondary)', borderRadius: '10px',
+                padding: '14px 12px', textAlign: 'center'
+              }}>
+                <div style={{
+                  fontSize: '22px', fontWeight: '800',
+                  color: myAccuracy >= avgAcc ? 'var(--green)' : 'var(--red)', lineHeight: 1
+                }}>
+                  {myAccuracy}%
+                </div>
+                <div style={{
+                  fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase',
+                  letterSpacing: '1px', marginTop: '6px', fontWeight: '700'
+                }}>Tu acierto</div>
+                <div style={{
+                  fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3
+                }}>
+                  {myAccuracy >= avgAcc ? `+${myAccuracy - avgAcc}% vs media` : `${myAccuracy - avgAcc}% vs media`}
+                </div>
+              </div>
+              <div style={{
+                background: 'var(--bg-secondary)', borderRadius: '10px',
+                padding: '14px 12px', textAlign: 'center'
+              }}>
+                <div style={{
+                  fontSize: '22px', fontWeight: '800', color: 'var(--gold)', lineHeight: 1
+                }}>
+                  {myExacts}
+                </div>
+                <div style={{
+                  fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase',
+                  letterSpacing: '1px', marginTop: '6px', fontWeight: '700'
+                }}>Exactos</div>
+                <div style={{
+                  fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.3
+                }}>
+                  {mySigns} signos · {myMisses} fallos
+                </div>
+              </div>
             </div>
 
             {/* Score distribution bar */}
@@ -800,23 +957,27 @@ export default function Stats({ demoMode }) {
             {groupPerf.length > 0 && (
               <div className="stats-card">
                 <SectionHeader>Rendimiento por grupo</SectionHeader>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {groupPerf.map((g, i) => (
-                    <div key={g.group} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div key={g.group} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{
-                        fontSize: '11px', fontWeight: '600', width: '28px',
+                        fontSize: '11px', fontWeight: '700', width: '32px',
                         color: i === 0 ? 'var(--gold)' : i === groupPerf.length - 1 ? 'var(--red)' : 'var(--text-muted)'
                       }}>
                         Gr.{g.group}
                       </span>
-                      <div style={{ flex: 1, height: '14px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ flex: 1, height: '8px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden' }}>
                         <div style={{
-                          height: '100%', borderRadius: '3px',
-                          background: i === 0 ? 'var(--gold)' : 'var(--green)',
-                          width: `${groupPerf[0].points > 0 ? (g.points / groupPerf[0].points) * 100 : 0}%`
+                          height: '100%', borderRadius: '4px',
+                          background: i === 0 ? 'linear-gradient(90deg, var(--green), var(--gold))' : 'var(--green)',
+                          width: `${groupPerf[0].points > 0 ? (g.points / groupPerf[0].points) * 100 : 0}%`,
+                          transition: 'width 0.4s ease'
                         }} />
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', width: '32px', textAlign: 'right' }}>
+                      <span style={{
+                        fontSize: '13px', fontWeight: '700',
+                        color: 'var(--text-primary)', width: '36px', textAlign: 'right'
+                      }}>
                         {g.points}
                       </span>
                     </div>
@@ -836,25 +997,35 @@ export default function Stats({ demoMode }) {
                 const maxVal = Math.max(row.mine, row.avg, 1)
                 const better = row.mine >= row.avg
                 return (
-                  <div key={i} style={{ marginBottom: i < 2 ? '12px' : 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{row.label}</span>
-                      <span style={{ fontSize: '11px', color: better ? 'var(--green)' : 'var(--red)', fontWeight: '600' }}>
+                  <div key={i} style={{ marginBottom: i < 2 ? '14px' : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600' }}>{row.label}</span>
+                      <span style={{ fontSize: '11px', color: better ? '#4ade80' : 'var(--red)', fontWeight: '700' }}>
                         {better ? '+' : ''}{row.mine - row.avg} vs media
                       </span>
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ height: '8px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden', marginBottom: '2px' }}>
-                          <div style={{ height: '100%', borderRadius: '4px', background: 'var(--gold)', width: `${(row.mine / maxVal) * 100}%` }} />
+                        <div style={{ height: '8px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden', marginBottom: '3px' }}>
+                          <div style={{
+                            height: '100%', borderRadius: '4px',
+                            background: 'linear-gradient(90deg, var(--green), var(--gold))',
+                            width: `${(row.mine / maxVal) * 100}%`,
+                            transition: 'width 0.4s ease'
+                          }} />
                         </div>
-                        <div style={{ height: '6px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: '3px', background: 'var(--text-dim)', width: `${(row.avg / maxVal) * 100}%` }} />
+                        <div style={{ height: '5px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{
+                            height: '100%', borderRadius: '3px',
+                            background: 'var(--text-dim)',
+                            width: `${(row.avg / maxVal) * 100}%`,
+                            transition: 'width 0.4s ease'
+                          }} />
                         </div>
                       </div>
-                      <div style={{ width: '50px', textAlign: 'right' }}>
-                        <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--gold)', lineHeight: 1 }}>{row.mine}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-dim)', lineHeight: 1, marginTop: '2px' }}>{row.avg}</div>
+                      <div style={{ width: '52px', textAlign: 'right' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--gold)', lineHeight: 1 }}>{row.mine}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dim)', lineHeight: 1, marginTop: '3px', fontWeight: '600' }}>{row.avg}</div>
                       </div>
                     </div>
                   </div>
@@ -1042,7 +1213,7 @@ export default function Stats({ demoMode }) {
       {activeTab === 'matches' && (
         <div className="tab-fade-in">
           {/* Group selector */}
-          <div className="group-tabs" style={{ marginBottom: '14px' }}>
+          <div className="group-tabs" style={{ marginBottom: '14px', gap: '6px' }}>
             {groups.map(g => {
               const groupMs = displayMatches.filter(m => m.group_name === g)
               const finished = groupMs.filter(m => m.status === 'finished').length
@@ -1051,10 +1222,10 @@ export default function Stats({ demoMode }) {
                   key={g}
                   onClick={() => setActiveGroup(g)}
                   style={{
-                    padding: '6px 14px', borderRadius: '20px', border: 'none',
-                    background: activeGroup === g ? 'var(--green)' : finished > 0 ? 'var(--green-light)' : 'var(--bg-secondary)',
+                    padding: '6px 12px', borderRadius: '20px', border: 'none',
+                    background: activeGroup === g ? 'var(--green)' : 'var(--bg-secondary)',
                     color: activeGroup === g ? '#fff' : finished > 0 ? 'var(--green)' : 'var(--text-muted)',
-                    cursor: 'pointer', fontSize: '12px', fontWeight: activeGroup === g ? '600' : '400',
+                    cursor: 'pointer', fontSize: '12px', fontWeight: activeGroup === g ? '700' : '500',
                     whiteSpace: 'nowrap', flexShrink: 0, position: 'relative',
                     transition: 'all 0.2s ease'
                   }}
@@ -1175,7 +1346,7 @@ export default function Stats({ demoMode }) {
       {activeTab === 'bets' && (
         <div className="tab-fade-in">
           {/* Category filter */}
-          <div className="group-tabs" style={{ marginBottom: '14px' }}>
+          <div className="group-tabs" style={{ marginBottom: '14px', gap: '6px' }}>
             {betCategories.map(cat => (
               <button
                 key={cat.key}
@@ -1184,7 +1355,7 @@ export default function Stats({ demoMode }) {
                   padding: '6px 12px', borderRadius: '20px', border: 'none',
                   background: activeBetCategory === cat.key ? 'var(--green)' : 'var(--bg-secondary)',
                   color: activeBetCategory === cat.key ? '#fff' : 'var(--text-muted)',
-                  cursor: 'pointer', fontSize: '11px', fontWeight: activeBetCategory === cat.key ? '600' : '400',
+                  cursor: 'pointer', fontSize: '12px', fontWeight: activeBetCategory === cat.key ? '700' : '500',
                   whiteSpace: 'nowrap', flexShrink: 0,
                   transition: 'all 0.2s ease'
                 }}
@@ -1197,51 +1368,51 @@ export default function Stats({ demoMode }) {
             const stats = getBetStats(bet.id)
             return (
               <div key={bet.id} className="stats-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '3px' }}>
-                      {bet.name || bet.question}
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                      Máx. {bet.max_points} pts · {stats.total} respuestas
-                    </div>
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    {bet.name || bet.question}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                    Máx. {bet.max_points} pts · {stats.total} respuestas
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {stats.topAnswers.length > 0 ? (
                     stats.topAnswers.map((a, i) => (
                       <div key={i}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                           <span style={{
-                            fontSize: '12px', color: i === 0 ? 'var(--gold)' : 'var(--text-primary)',
-                            fontWeight: i === 0 ? '600' : '400',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%'
+                            fontSize: '13px', color: i === 0 ? 'var(--gold)' : 'var(--text-primary)',
+                            fontWeight: i === 0 ? '700' : '500',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%'
                           }}>
-                            {i === 0 ? '👑 ' : ''}{a.answer}
+                            {i === 0 ? '★ ' : ''}{a.answer}
                           </span>
                           <span style={{
-                            fontSize: '12px', fontWeight: '600',
+                            fontSize: '13px', fontWeight: '700',
                             color: i === 0 ? 'var(--gold)' : 'var(--text-muted)'
                           }}>
                             {a.pct}%
                           </span>
                         </div>
                         <div style={{
-                          height: '8px', background: 'var(--bg-input)', borderRadius: '4px', overflow: 'hidden'
+                          height: '6px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden'
                         }}>
                           <div style={{
                             height: '100%',
                             width: `${a.pct}%`,
-                            background: i === 0 ? 'linear-gradient(90deg, var(--gold), rgba(255,204,0,0.4))' : 'var(--green)',
-                            borderRadius: '4px',
+                            background: i === 0
+                              ? 'linear-gradient(90deg, var(--green), var(--gold))'
+                              : 'var(--green)',
+                            borderRadius: '3px',
                             transition: 'width 0.5s ease'
                           }} />
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '11px' }}>
+                    <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px' }}>
                       Sin respuestas aún
                     </div>
                   )}
@@ -1277,9 +1448,12 @@ export default function Stats({ demoMode }) {
             <div className="stats-card">
               <SectionHeader>Comparador H2H</SectionHeader>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '4px', display: 'block' }}>Jugador A</label>
+                  <label style={{
+                    fontSize: '10px', color: 'var(--text-muted)', marginBottom: '6px',
+                    display: 'block', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px'
+                  }}>Jugador A</label>
                   <select
                     value={h2hUserA}
                     onChange={e => {
@@ -1295,7 +1469,10 @@ export default function Stats({ demoMode }) {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '4px', display: 'block' }}>Jugador B</label>
+                  <label style={{
+                    fontSize: '10px', color: 'var(--text-muted)', marginBottom: '6px',
+                    display: 'block', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px'
+                  }}>Jugador B</label>
                   <select
                     value={h2hUserB}
                     onChange={e => {
@@ -1316,24 +1493,55 @@ export default function Stats({ demoMode }) {
             {/* H2H Summary */}
             {h2hUserA && h2hUserB && !h2hLoading && lbA && lbB && (
               <>
-                {/* Side-by-side stats */}
+                {/* Side-by-side stats with Avatars */}
                 <div className="stats-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--gold)', marginBottom: '2px' }}>
-                        {getProfileName(h2hUserA)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <Avatar
+                        url={getProfileAvatar(h2hUserA)}
+                        name={getProfileName(h2hUserA)}
+                        size={48}
+                        color="rgba(255,204,0,0.12)"
+                        border="1px solid rgba(255,204,0,0.3)"
+                        textColor="var(--gold)"
+                      />
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px'
+                        }}>
+                          {getProfileName(h2hUserA)}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--gold)', fontWeight: '700', marginTop: '2px' }}>
+                          #{rankA || '-'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>#{rankA || '-'}</div>
                     </div>
                     <div style={{
-                      fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)',
-                      padding: '4px 10px', background: 'var(--bg-input)', borderRadius: '4px'
+                      fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)',
+                      padding: '5px 11px', background: 'var(--bg-input)', borderRadius: '20px',
+                      letterSpacing: '1px'
                     }}>VS</div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--green)', marginBottom: '2px' }}>
-                        {getProfileName(h2hUserB)}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <Avatar
+                        url={getProfileAvatar(h2hUserB)}
+                        name={getProfileName(h2hUserB)}
+                        size={48}
+                        color="rgba(0,144,81,0.18)"
+                        border="1px solid rgba(0,144,81,0.4)"
+                        textColor="#4ade80"
+                      />
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{
+                          fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px'
+                        }}>
+                          {getProfileName(h2hUserB)}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--green)', fontWeight: '700', marginTop: '2px' }}>
+                          #{rankB || '-'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>#{rankB || '-'}</div>
                     </div>
                   </div>
 
@@ -1391,16 +1599,16 @@ export default function Stats({ demoMode }) {
                   <SectionHeader>Partido a partido</SectionHeader>
 
                   {/* Group selector */}
-                  <div className="group-tabs" style={{ marginBottom: '12px' }}>
+                  <div className="group-tabs" style={{ marginBottom: '12px', gap: '6px' }}>
                     {groups.map(g => (
                       <button
                         key={g}
                         onClick={() => setH2hGroup(g)}
                         style={{
-                          padding: '5px 12px', borderRadius: '20px', border: 'none',
+                          padding: '6px 12px', borderRadius: '20px', border: 'none',
                           background: h2hGroup === g ? 'var(--green)' : 'var(--bg-input)',
                           color: h2hGroup === g ? '#fff' : 'var(--text-muted)',
-                          cursor: 'pointer', fontSize: '11px', fontWeight: h2hGroup === g ? '600' : '400',
+                          cursor: 'pointer', fontSize: '12px', fontWeight: h2hGroup === g ? '700' : '500',
                           whiteSpace: 'nowrap', flexShrink: 0,
                           transition: 'all 0.2s ease'
                         }}
@@ -1624,9 +1832,9 @@ export default function Stats({ demoMode }) {
 
             {h2hUserA && h2hUserB && !h2hLoading && (!lbA || !lbB) && (
               <div style={{
-                padding: '30px 20px', textAlign: 'center', color: 'var(--text-dim)',
-                fontSize: '12px', background: 'var(--bg-secondary)', borderRadius: '8px',
-                border: '0.5px solid var(--border)'
+                padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)',
+                fontSize: '13px', background: 'var(--bg-secondary)', borderRadius: '12px',
+                fontWeight: '500'
               }}>
                 Aun no hay datos en el leaderboard para estos usuarios.
               </div>
@@ -1634,9 +1842,9 @@ export default function Stats({ demoMode }) {
 
             {(!h2hUserA || !h2hUserB) && (
               <div style={{
-                padding: '30px 20px', textAlign: 'center', color: 'var(--text-dim)',
-                fontSize: '12px', background: 'var(--bg-secondary)', borderRadius: '8px',
-                border: '0.5px solid var(--border)'
+                padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)',
+                fontSize: '13px', background: 'var(--bg-secondary)', borderRadius: '12px',
+                fontWeight: '500'
               }}>
                 Selecciona dos participantes para comparar sus predicciones
               </div>
@@ -1673,7 +1881,7 @@ export default function Stats({ demoMode }) {
               <>
                 <div className="stats-card">
                   <SectionHeader>Ver predicciones de otros</SectionHeader>
-                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '12px', lineHeight: '1.4' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: '1.5' }}>
                     Todas las predicciones de cada participante
                   </div>
                   <select
@@ -1683,10 +1891,10 @@ export default function Stats({ demoMode }) {
                       if (e.target.value) fetchViewUser(e.target.value)
                     }}
                     style={{
-                      width: '100%', padding: '10px 12px', borderRadius: '6px',
-                      border: '0.5px solid var(--border)', background: 'var(--bg-input)',
+                      width: '100%', padding: '10px 12px', borderRadius: '8px',
+                      border: '1px solid var(--border)', background: 'var(--bg-input)',
                       color: 'var(--text-primary)', fontSize: '13px', outline: 'none',
-                      appearance: 'auto'
+                      appearance: 'auto', fontWeight: '500'
                     }}
                   >
                     <option value="">Seleccionar participante...</option>
@@ -1694,6 +1902,27 @@ export default function Stats({ demoMode }) {
                       <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
                     ))}
                   </select>
+                  {viewUser && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      marginTop: '12px', padding: '10px 12px',
+                      background: 'var(--bg-input)', borderRadius: '8px'
+                    }}>
+                      <Avatar
+                        url={getProfileAvatar(viewUser)}
+                        name={getProfileName(viewUser)}
+                        size={36}
+                        color="rgba(255,255,255,0.05)"
+                        border="1px solid rgba(255,255,255,0.06)"
+                      />
+                      <div style={{
+                        fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                      }}>
+                        {getProfileName(viewUser)}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {viewLoading && (
@@ -1715,29 +1944,24 @@ export default function Stats({ demoMode }) {
                       const signs = viewPredictions.filter(p => p.points_earned === 1).length
                       return (
                         <div style={{
-                          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px'
+                          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px'
                         }}>
-                          <div style={{
-                            background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
-                            border: '0.5px solid var(--border)', textAlign: 'center'
-                          }}>
-                            <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>{totalPts}</div>
-                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Puntos</div>
-                          </div>
-                          <div style={{
-                            background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
-                            border: '0.5px solid var(--border)', textAlign: 'center'
-                          }}>
-                            <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--gold)' }}>{exacts}</div>
-                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Exactos</div>
-                          </div>
-                          <div style={{
-                            background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
-                            border: '0.5px solid var(--border)', textAlign: 'center'
-                          }}>
-                            <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--green)' }}>{signs}</div>
-                            <div style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Signos</div>
-                          </div>
+                          {[
+                            { value: totalPts, label: 'Puntos', color: 'var(--text-primary)' },
+                            { value: exacts, label: 'Exactos', color: 'var(--gold)' },
+                            { value: signs, label: 'Signos', color: 'var(--green)' }
+                          ].map((s, i) => (
+                            <div key={i} style={{
+                              background: 'var(--bg-secondary)', borderRadius: '10px',
+                              padding: '14px 8px', textAlign: 'center'
+                            }}>
+                              <div style={{ fontSize: '22px', fontWeight: '800', color: s.color, lineHeight: 1 }}>{s.value}</div>
+                              <div style={{
+                                fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase',
+                                letterSpacing: '1px', marginTop: '6px', fontWeight: '700'
+                              }}>{s.label}</div>
+                            </div>
+                          ))}
                         </div>
                       )
                     })()}
@@ -1747,16 +1971,16 @@ export default function Stats({ demoMode }) {
                       <SectionHeader>Predicciones de partidos</SectionHeader>
 
                       {/* Group selector */}
-                      <div className="group-tabs" style={{ marginBottom: '12px' }}>
+                      <div className="group-tabs" style={{ marginBottom: '12px', gap: '6px' }}>
                         {groups.map(g => (
                           <button
                             key={g}
                             onClick={() => setViewGroup(g)}
                             style={{
-                              padding: '5px 12px', borderRadius: '20px', border: 'none',
+                              padding: '6px 12px', borderRadius: '20px', border: 'none',
                               background: viewGroup === g ? 'var(--green)' : 'var(--bg-input)',
                               color: viewGroup === g ? '#fff' : 'var(--text-muted)',
-                              cursor: 'pointer', fontSize: '11px', fontWeight: viewGroup === g ? '600' : '400',
+                              cursor: 'pointer', fontSize: '12px', fontWeight: viewGroup === g ? '700' : '500',
                               whiteSpace: 'nowrap', flexShrink: 0,
                               transition: 'all 0.2s ease'
                             }}
