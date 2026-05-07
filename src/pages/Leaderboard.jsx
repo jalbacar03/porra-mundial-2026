@@ -4,6 +4,7 @@ import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonLeaderboard } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
+import Avatar from '../components/Avatar'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 function calcProvisionalPoints(pred, match) {
@@ -30,18 +31,22 @@ export default function Leaderboard({ demoMode }) {
   }, [demoMode, userId])
 
   const [paidUsers, setPaidUsers] = useState(new Set())
+  const [profileAvatars, setProfileAvatars] = useState({})
 
   useEffect(() => {
     fetchData()
-    supabase.from('profiles').select('id, full_name, nickname, has_paid').then(({ data }) => {
+    supabase.from('profiles').select('id, full_name, nickname, has_paid, avatar_url').then(({ data }) => {
       if (data) {
         const map = {}
+        const avatars = {}
         const paid = new Set()
         data.forEach(p => {
           map[p.id] = p.nickname || p.full_name || 'Participante'
+          if (p.avatar_url) avatars[p.id] = p.avatar_url
           if (p.has_paid) paid.add(p.id)
         })
         setProfileNames(map)
+        setProfileAvatars(avatars)
         setPaidUsers(paid)
       }
     })
@@ -300,18 +305,16 @@ export default function Leaderboard({ demoMode }) {
                   {rankLabel}
                 </div>
 
-                {/* Avatar (muted) */}
-                <div style={{
-                  width: '34px', height: '34px', borderRadius: '50%',
-                  marginLeft: '6px', marginRight: '12px', flexShrink: 0,
-                  background: isMe ? 'rgba(0,144,81,0.25)' : 'rgba(255,255,255,0.05)',
-                  border: isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid rgba(255,255,255,0.06)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '13px', fontWeight: '700',
-                  color: isBot ? 'var(--text-dim)' : isMe ? '#4ade80' : 'var(--text-muted)'
-                }}>
-                  {isBot ? 'B' : firstLetter(user.full_name)}
-                </div>
+                {/* Avatar (img if uploaded, otherwise muted initial) */}
+                <Avatar
+                  url={!isBot ? profileAvatars[user.user_id] : null}
+                  name={isBot ? 'B' : user.full_name}
+                  size={34}
+                  color={isMe ? 'rgba(0,144,81,0.25)' : 'rgba(255,255,255,0.05)'}
+                  border={isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid rgba(255,255,255,0.06)'}
+                  textColor={isBot ? 'var(--text-dim)' : isMe ? '#4ade80' : 'var(--text-muted)'}
+                  style={{ marginLeft: '6px', marginRight: '12px' }}
+                />
 
                 {/* Name + delta */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>

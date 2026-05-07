@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
+import Avatar from '../components/Avatar'
 
 const ADMIN_ID = 'e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'
 const REACTION_EMOJIS = ['👍', '⚽', '🔥', '😂']
@@ -14,6 +15,7 @@ export default function Forum({ session }) {
   const [reactions, setReactions] = useState({}) // { messageId: { emoji: [userId, ...] } }
   const [replyTo, setReplyTo] = useState(null) // message object being replied to
   const [showReactionPicker, setShowReactionPicker] = useState(null) // message id
+  const [activeMsgId, setActiveMsgId] = useState(null) // tap a bubble to reveal actions
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -213,10 +215,15 @@ export default function Forum({ session }) {
   async function fetchProfiles() {
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname')
+      .select('id, full_name, nickname, avatar_url')
     if (data) {
       const map = {}
-      data.forEach(p => { map[p.id] = p.nickname || p.full_name })
+      data.forEach(p => {
+        map[p.id] = {
+          name: p.nickname || p.full_name,
+          avatar_url: p.avatar_url
+        }
+      })
       setProfiles(map)
     }
   }
@@ -408,7 +415,7 @@ export default function Forum({ session }) {
     const original = findMessage(msg.reply_to)
     if (!original) return null
 
-    const originalName = profiles[original.user_id] || 'Usuario'
+    const originalName = profiles[original.user_id]?.name || 'Usuario'
     const preview = original.message.length > 60
       ? original.message.slice(0, 60) + '...'
       : original.message
@@ -432,16 +439,21 @@ export default function Forum({ session }) {
 
   return (
     <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
       maxWidth: '600px',
       margin: '0 auto',
       display: 'flex',
       flexDirection: 'column',
-      height: 'calc(100svh - 120px)',
-      padding: '0'
+      background: 'var(--bg-primary, #1a1d26)',
+      paddingTop: 'env(safe-area-inset-top, 0px)'
     }}>
       {/* Header */}
       <div style={{
-        padding: '16px 16px 0',
+        padding: '14px 16px 0',
         borderBottom: '1px solid #2a2d38'
       }}>
         <h2 style={{ margin: '0 0 8px', color: '#e0e3ea', fontSize: '18px', fontWeight: '700' }}>
@@ -489,7 +501,7 @@ export default function Forum({ session }) {
           flexDirection: 'column',
           gap: '4px'
         }}
-        onClick={() => setShowReactionPicker(null)}
+        onClick={() => { setShowReactionPicker(null); setActiveMsgId(null) }}
       >
         {activeTab === 'announcements' && (
           <div style={{
@@ -522,20 +534,29 @@ export default function Forum({ session }) {
 
         {activeMessages.map((msg, i) => {
           const isMine = msg.user_id === myId
-          const name = profiles[msg.user_id] || 'Cargando...'
+          const profile = profiles[msg.user_id] || {}
+          const name = profile.name || 'Cargando...'
+          const avatarUrl = profile.avatar_url
           const isAdminMsg = msg.user_id === ADMIN_ID
           const isAnnouncement = activeTab === 'announcements'
 
           const prevMsg = activeMessages[i - 1]
+          const nextMsg = activeMessages[i + 1]
           const showDateSep = !prevMsg || getDateLabel(msg.created_at) !== getDateLabel(prevMsg.created_at)
           const showName = showDateSep || !prevMsg || prevMsg.user_id !== msg.user_id
+          // Group consecutive messages from same sender within 5 min — last one in the group shows time
+          const isLastInGroup = !nextMsg
+            || nextMsg.user_id !== msg.user_id
+            || getDateLabel(nextMsg.created_at) !== getDateLabel(msg.created_at)
+            || (new Date(nextMsg.created_at) - new Date(msg.created_at)) > 5 * 60000
+          const isActive = activeMsgId === msg.id
 
           return (
             <div key={msg.id}>
               {showDateSep && (
                 <div style={{
                   textAlign: 'center',
-                  margin: '16px 0 8px',
+                  margin: '14px 0 6px',
                   fontSize: '11px',
                   color: '#4a4f5e',
                   textTransform: 'capitalize'
@@ -554,7 +575,7 @@ export default function Forum({ session }) {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: isAnnouncement ? 'flex-start' : (isMine ? 'flex-end' : 'flex-start'),
-                marginTop: showName ? '10px' : '2px'
+                marginTop: showName ? '8px' : '1px'
               }}>
                 {showName && (!isMine || isAnnouncement) && (
                   <div style={{
@@ -564,20 +585,23 @@ export default function Forum({ session }) {
                     marginBottom: '3px',
                     marginLeft: '4px'
                   }}>
-                    <div style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      background: isAnnouncement ? '#c0a050' : '#007a45',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      fontWeight: '700',
-                      color: '#fff'
-                    }}>
-                      {isAnnouncement ? '📢' : getInitials(name)}
-                    </div>
+                    {isAnnouncement ? (
+                      <div style={{
+                        width: '22px', height: '22px', borderRadius: '50%',
+                        background: '#c0a050',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '11px'
+                      }}>📢</div>
+                    ) : (
+                      <Avatar
+                        url={avatarUrl}
+                        name={name}
+                        size={22}
+                        color="rgba(255,255,255,0.05)"
+                        border="none"
+                        textColor="var(--text-muted)"
+                      />
+                    )}
                     <span style={{
                       fontSize: '11px',
                       fontWeight: '600',
@@ -589,59 +613,66 @@ export default function Forum({ session }) {
                 )}
 
                 <div
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (typeof msg.id === 'number') {
+                      setActiveMsgId(activeMsgId === msg.id ? null : msg.id)
+                    }
+                  }}
                   style={{
                     maxWidth: isAnnouncement ? '100%' : '80%',
-                    position: 'relative'
+                    position: 'relative',
+                    cursor: typeof msg.id === 'number' ? 'pointer' : 'default'
                   }}
                 >
                   {/* Reply preview inside bubble */}
                   {renderReplyPreview(msg)}
 
                   <div style={{
-                    padding: isAnnouncement ? '12px 16px' : '8px 12px',
-                    borderRadius: isAnnouncement ? '8px' : (isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'),
+                    padding: isAnnouncement ? '10px 14px' : '7px 11px',
+                    borderRadius: isAnnouncement
+                      ? '10px'
+                      : isMine
+                        ? (isLastInGroup ? '16px 16px 4px 16px' : '16px 4px 4px 16px')
+                        : (isLastInGroup ? '16px 16px 16px 4px' : '4px 16px 16px 4px'),
                     background: isAnnouncement
                       ? 'linear-gradient(135deg, rgba(192,160,80,0.1), rgba(192,160,80,0.05))'
                       : (isMine ? '#007a45' : '#22252f'),
                     border: isAnnouncement
                       ? '0.5px solid rgba(255,204,0,0.2)'
-                      : (isMine ? 'none' : '0.5px solid #2a2d38'),
+                      : 'none',
                     boxShadow: (isAnnouncement && isAdminMsg)
                       ? '0 0 12px rgba(255,204,0,0.08)'
                       : 'none',
                     color: isMine && !isAnnouncement ? '#fff' : '#e0e3ea',
                     fontSize: '14px',
-                    lineHeight: '1.4',
+                    lineHeight: '1.35',
                     wordBreak: 'break-word'
                   }}>
                     {msg.message}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginTop: '3px',
-                      gap: '8px'
-                    }}>
+                    {isLastInGroup && (
                       <span style={{
+                        display: 'inline-block',
+                        marginLeft: '8px',
                         fontSize: '10px',
-                        color: isMine && !isAnnouncement ? 'rgba(255,255,255,0.6)' : '#4a4f5e',
-                        flex: 1,
-                        textAlign: 'right'
+                        color: isMine && !isAnnouncement ? 'rgba(255,255,255,0.55)' : '#5b6271',
+                        verticalAlign: 'baseline',
+                        whiteSpace: 'nowrap'
                       }}>
                         {formatTime(msg.created_at)}
                       </span>
-                    </div>
+                    )}
                   </div>
 
                   {/* Reactions display */}
                   {renderReactions(msg)}
 
-                  {/* Action row: reply + add reaction + admin */}
-                  {typeof msg.id === 'number' && (
+                  {/* Action row — hidden until bubble tapped */}
+                  {typeof msg.id === 'number' && isActive && (
                     <div style={{
                       display: 'flex',
                       gap: '4px',
-                      marginTop: '2px',
+                      marginTop: '4px',
                       justifyContent: isMine && !isAnnouncement ? 'flex-end' : 'flex-start'
                     }}>
                       <button
@@ -784,7 +815,7 @@ export default function Forum({ session }) {
             overflow: 'hidden'
           }}>
             <div style={{ fontWeight: '600', color: '#007a45', fontSize: '10px', marginBottom: '1px' }}>
-              {profiles[replyTo.user_id] || 'Usuario'}
+              {profiles[replyTo.user_id]?.name || 'Usuario'}
             </div>
             <div style={{
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'

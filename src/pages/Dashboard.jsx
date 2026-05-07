@@ -4,6 +4,8 @@ import { supabase } from '../supabase'
 import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonDashboard } from '../components/Skeleton'
 import PointsChart from '../components/PointsChart'
+import Avatar from '../components/Avatar'
+import AvatarUploadModal from '../components/AvatarUploadModal'
 import { useNotifications } from '../hooks/useNotifications'
 
 export default function Dashboard({ session, demoMode }) {
@@ -21,6 +23,7 @@ export default function Dashboard({ session, demoMode }) {
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
+  const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission } = useNotifications()
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
@@ -318,12 +321,15 @@ export default function Dashboard({ session, demoMode }) {
           }}>
             Hola, {userName}
           </h1>
-          <div style={{
-            width: '40px', height: '40px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #2dbf7e, #1a6f4d)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '14px', fontWeight: '700', color: '#fff', flexShrink: 0
-          }}>{userInitial}</div>
+          <Avatar
+            url={profile?.avatar_url}
+            name={profile?.nickname || profile?.full_name}
+            size={40}
+            color="rgba(0,144,81,0.18)"
+            border="1px solid rgba(0,144,81,0.3)"
+            textColor="#4ade80"
+            onClick={() => setShowAvatarModal(true)}
+          />
         </div>
       </div>
 
@@ -961,6 +967,15 @@ export default function Dashboard({ session, demoMode }) {
 
       {/* Points history chart */}
       {!demoMode && <PointsChart userId={session.user.id} />}
+
+      {showAvatarModal && (
+        <AvatarUploadModal
+          profile={profile}
+          userId={session.user.id}
+          onClose={() => setShowAvatarModal(false)}
+          onUpdated={(url) => setProfile(p => ({ ...p, avatar_url: url }))}
+        />
+      )}
     </div>
   )
 }
