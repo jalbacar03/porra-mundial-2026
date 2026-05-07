@@ -16,6 +16,24 @@ export default function Forum({ session }) {
   const [replyTo, setReplyTo] = useState(null) // message object being replied to
   const [showReactionPicker, setShowReactionPicker] = useState(null) // message id
   const [activeMsgId, setActiveMsgId] = useState(null) // tap a bubble to reveal actions
+  const [keyboardOffset, setKeyboardOffset] = useState(0) // px the iOS keyboard is covering
+
+  // Track on-screen keyboard via visualViewport so the input bar stays above it
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return
+    const vv = window.visualViewport
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      setKeyboardOffset(offset)
+    }
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    update()
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [])
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -437,19 +455,25 @@ export default function Forum({ session }) {
     )
   }
 
+  // Bottom: when keyboard is up, sit right above it; otherwise above the bottom nav
+  const bottomCalc = keyboardOffset > 0
+    ? `${keyboardOffset}px`
+    : 'calc(60px + env(safe-area-inset-bottom, 0px))'
+
   return (
     <div style={{
       position: 'fixed',
       top: 0,
-      left: 0,
-      right: 0,
-      bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+      bottom: bottomCalc,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: '100%',
       maxWidth: '600px',
-      margin: '0 auto',
       display: 'flex',
       flexDirection: 'column',
       background: 'var(--bg-primary, #1a1d26)',
-      paddingTop: 'env(safe-area-inset-top, 0px)'
+      paddingTop: 'env(safe-area-inset-top, 0px)',
+      transition: 'bottom 0.2s ease'
     }}>
       {/* Header */}
       <div style={{
@@ -866,6 +890,10 @@ export default function Forum({ session }) {
             value={newMessage}
             onChange={e => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              // Bring the latest message into view once the keyboard animates in
+              setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 250)
+            }}
             placeholder={activeTab === 'announcements' ? 'Escribir comunicado...' : 'Escribe un mensaje...'}
             rows={1}
             style={{
