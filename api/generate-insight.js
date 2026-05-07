@@ -71,13 +71,58 @@ async function supaFetch(path) {
 
 async function gatherData() {
   const leaderboard = await supaFetch('leaderboard?select=*&order=total_points.desc&limit=20') || []
-  const profiles = await supaFetch('profiles?select=id,full_name,has_paid') || []
+  const profiles = await supaFetch('profiles?select=id,full_name,nickname,has_paid') || []
   const matches = await supaFetch(
     'matches?status=eq.finished&select=id,home_score,away_score,match_date,group_name,home_team:teams!matches_home_team_id_fkey(name),away_team:teams!matches_away_team_id_fkey(name)&order=match_date.desc&limit=10'
   ) || []
 
-  // Filter out Bot365 from leaderboard
-  const filteredLeaderboard = leaderboard.filter(r => r.user_id !== BOT365_ID)
+  // Filter out Bot365 + use nicknames where available
+  const nameById = {}
+  profiles.forEach(p => { nameById[p.id] = p.nickname || p.full_name })
+  const filteredLeaderboard = leaderboard
+    .filter(r => r.user_id !== BOT365_ID)
+    .map(r => ({ ...r, full_name: nameById[r.user_id] || r.full_name }))
+
+  // === Today's leaderboard movements ===
+  // For each user, sum points earned from matches finished TODAY → that's
+  // their gain → yesterday's points = total - gain → yesterday's rank.
+  // Compare to today's rank to get the position delta.
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const todayMatchIds = matches
+    .filter(m => m.match_date && m.match_date.startsWith(todayISO))
+    .map(m => m.id)
+
+  let movements = []
+  if (todayMatchIds.length > 0) {
+    const todayPreds = await supaFetch(
+      `predictions?match_id=in.(${todayMatchIds.join(',')})&select=user_id,points_earned`
+    ) || []
+    const gains = {}
+    todayPreds.forEach(p => {
+      if (p.user_id === BOT365_ID) return
+      gains[p.user_id] = (gains[p.user_id] || 0) + (p.points_earned || 0)
+    })
+
+    // Today's rank = current order. Yesterday's rank = order by (total - gain).
+    const todayRank = {}
+    filteredLeaderboard.forEach((r, i) => { todayRank[r.user_id] = i + 1 })
+
+    const yesterdayOrdered = [...filteredLeaderboard]
+      .map(r => ({ ...r, ypts: r.total_points - (gains[r.user_id] || 0) }))
+      .sort((a, b) => b.ypts - a.ypts || (b.exact_hits || 0) - (a.exact_hits || 0))
+    const yesterdayRank = {}
+    yesterdayOrdered.forEach((r, i) => { yesterdayRank[r.user_id] = i + 1 })
+
+    movements = filteredLeaderboard
+      .map(r => ({
+        name: nameById[r.user_id] || r.full_name,
+        gain: gains[r.user_id] || 0,
+        delta: (yesterdayRank[r.user_id] || 0) - (todayRank[r.user_id] || 0)
+      }))
+      .filter(m => m.gain > 0 || m.delta !== 0)
+      .sort((a, b) => b.gain - a.gain)
+      .slice(0, 6)
+  }
 
   // Fetch latest news headlines for pre-tournament context
   let newsHeadlines = []
@@ -102,6 +147,7 @@ async function gatherData() {
   return {
     leaderboard: filteredLeaderboard.slice(0, 15),
     recentMatches: matches,
+    todayMovements: movements,
     totalParticipants: profiles.filter(p => p.id !== BOT365_ID).length,
     newsHeadlines: newsHeadlines.slice(0, 8),
     hasMatchesPlayed: matches.length > 0
@@ -124,43 +170,69 @@ async function generateWithGemini(data) {
       `${m.home_team?.name} ${m.home_score}-${m.away_score} ${m.away_team?.name}`
     ).join(', ')
 
-    prompt = `Eres un periodista deportivo que cubre una porra amistosa del Mundial 2026 entre amigos. Tono profesional pero cercano. Sin sensacionalismo, sin chistes forzados, sin superlativos exagerados. Hoy es ${today}.
+    const movementsText = data.todayMovements?.length
+      ? data.todayMovements.map(m => {
+          const arrow = m.delta > 0 ? `▲${m.delta}` : m.delta < 0 ? `▼${Math.abs(m.delta)}` : '·'
+          return `- ${m.name}: +${m.gain} pts (${arrow})`
+        }).join('\n')
+      : '- (sin partidos resueltos hoy)'
 
-DATOS DE LA PORRA:
-- ${data.totalParticipants} participantes
+    prompt = `Periodista deportivo cubriendo una porra amistosa del Mundial 2026.
 
-TOP 5 CLASIFICACIÓN:
+REGLAS DE ESTILO (estrictas):
+- Tono sobrio y factual. Como una nota breve de prensa deportiva.
+- Prohibido: exclamaciones múltiples, hype, superlativos exagerados, chistes, frases motivadoras, "¡atención!", "ojo", "este se pone caliente", emojis decorativos.
+- Permitido: 0-1 emojis SOLO si aportan información concreta (🏆 para líder, ⚽ para gol). Sin emojis si dudas.
+- Datos concretos > adjetivos. Nombres > genericos.
+
+CONTEXTO (${today}):
+- ${data.totalParticipants} participantes en juego.
+
+CLASIFICACIÓN ACTUAL (top 5):
 ${top5}
 
-ÚLTIMOS RESULTADOS:
+MOVIMIENTOS DE HOY (puntos sumados + cambio de posición):
+${movementsText}
+
+RESULTADOS RECIENTES:
 ${recentResults}
 
-Redacta la crónica del día en español (máximo 200 palabras), con esta estructura:
-1. Titular sobrio (un emoji solo si aporta)
-2. Movimiento del ranking en la jornada (quién subió, quién bajó, las predicciones más certeras)
-3. Un dato relevante: el resultado más sorprendente, una racha, un patrón
-4. Una frase de cierre breve sobre lo que viene
+Redacta la crónica en español. ESTRICTO: MÁXIMO 100 PALABRAS. Sin markdown.
 
-Formato: texto plano, sin markdown ni HTML. Párrafos cortos. Evita exclamaciones múltiples. Máximo 1-2 emojis en toda la crónica.`
+Estructura:
+1. Titular corto (5-8 palabras) sobre lo más relevante del día
+2. 1-2 frases sobre los movimientos del ranking, con nombres
+3. 1 frase con un dato del día (un resultado, una racha)
+4. Cierre breve (lo que viene mañana o consecuencia para la clasificación)
+
+Cuenta las palabras antes de devolver. No te pases.`
   } else {
     const newsContext = data.newsHeadlines.length > 0
       ? `\nÚLTIMAS NOTICIAS DEL MUNDO DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
       : ''
 
-    prompt = `Eres un periodista deportivo que cubre una porra amistosa del Mundial 2026 entre amigos. Tono profesional pero cercano. Sin sensacionalismo, sin chistes forzados, sin superlativos exagerados. Hoy es ${today}.
+    prompt = `Periodista deportivo cubriendo una porra amistosa del Mundial 2026.
 
-CONTEXTO:
-- ${data.totalParticipants} participantes registrados
-- El Mundial empieza el 11 de junio de 2026
-- Predicciones especiales abiertas (campeón, goleador, revelación, etc.)
+REGLAS DE ESTILO (estrictas):
+- Tono sobrio y factual. Como una nota breve de prensa deportiva.
+- Prohibido: exclamaciones múltiples, hype, superlativos exagerados, chistes, frases motivadoras, "¡atención!", "ojo", emojis decorativos.
+- Permitido: 0-1 emoji solo si aporta. Sin emojis si dudas.
+- Datos concretos > adjetivos.
+
+CONTEXTO (${today}):
+- ${data.totalParticipants} participantes registrados.
+- El Mundial empieza el 11 de junio de 2026.
+- Plazo de predicciones de grupos y especiales: cierra el 9 de junio.
 ${newsContext}
 
-Redacta una crónica pre-torneo en español (máximo 150 palabras), con esta estructura:
-1. Titular sobrio (un emoji solo si aporta)
-2. Análisis breve de una noticia relevante y su posible impacto en las predicciones especiales
-3. Recordatorio del cierre de plazo de predicciones (9 de junio, 48h antes del primer partido)
+Redacta la crónica en español. ESTRICTO: MÁXIMO 100 PALABRAS. Sin markdown.
 
-Formato: texto plano, sin markdown ni HTML. Párrafos cortos. Evita exclamaciones múltiples. Máximo 1-2 emojis en toda la crónica.`
+Estructura:
+1. Titular corto (5-8 palabras).
+2. 1-2 frases sobre alguna noticia y su posible efecto en las predicciones (campeón, revelación, goleador).
+3. 1 frase con el plazo restante hasta el cierre de predicciones.
+
+Cuenta las palabras antes de devolver. No te pases.`
   }
 
   const response = await fetch(
@@ -170,7 +242,7 @@ Formato: texto plano, sin markdown ni HTML. Párrafos cortos. Evita exclamacione
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 500 }
+        generationConfig: { temperature: 0.45, maxOutputTokens: 300 }
       })
     }
   )

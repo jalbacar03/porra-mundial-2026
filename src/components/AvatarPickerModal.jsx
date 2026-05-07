@@ -1,21 +1,30 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import Avatar from './Avatar'
+import { SYMBOL_AVATARS } from './avatarLibrary'
 
 /**
- * Modal to pick an avatar from a curated library (the 48 World Cup team flags).
- * Replaces free uploads — keeps the app safe from inappropriate images.
+ * Avatar picker — choose from 48 World Cup team flags or 12 soccer symbols.
  *
- * Existing users with free-uploaded avatars stay unchanged until they pick one
- * from the library; nothing is force-migrated.
+ * Modes:
+ *  - mandatory=true: shown when user has no avatar yet (initial pick during
+ *    onboarding). No close button, no quit option, must pick to dismiss.
+ *  - mandatory=false: regular change. Limited to ONE change after the
+ *    initial pick — once profile.avatar_changes_count >= 1 the picker is
+ *    read-only.
  */
-export default function AvatarPickerModal({ profile, userId, onClose, onUpdated }) {
+export default function AvatarPickerModal({ profile, userId, onClose, onUpdated, mandatory = false }) {
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [tab, setTab] = useState('teams') // 'teams' | 'symbols'
   const [query, setQuery] = useState('')
   const [selectedUrl, setSelectedUrl] = useState(profile?.avatar_url || null)
+
+  const isInitialPick = !profile?.avatar_url
+  const changesUsed = profile?.avatar_changes_count || 0
+  const locked = !isInitialPick && changesUsed >= 1
 
   useEffect(() => {
     supabase
@@ -29,22 +38,32 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated 
       })
   }, [])
 
-  const filtered = useMemo(() => {
+  const filteredTeams = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return teams
     return teams.filter(t => t.name.toLowerCase().includes(q))
   }, [teams, query])
 
+  const filteredSymbols = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return SYMBOL_AVATARS
+    return SYMBOL_AVATARS.filter(s => s.name.toLowerCase().includes(q))
+  }, [query])
+
   async function handleSave() {
+    if (locked) return
     setSaving(true)
     setError(null)
     try {
+      const update = { avatar_url: selectedUrl }
+      // If this is a CHANGE (not the initial pick), bump the counter.
+      if (!isInitialPick) update.avatar_changes_count = changesUsed + 1
       const { error: e } = await supabase
         .from('profiles')
-        .update({ avatar_url: selectedUrl })
+        .update(update)
         .eq('id', userId)
       if (e) throw e
-      onUpdated?.(selectedUrl)
+      onUpdated?.(selectedUrl, update.avatar_changes_count ?? changesUsed)
       onClose?.()
     } catch (e) {
       setError(e.message || 'Error al guardar')
@@ -53,34 +72,18 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated 
     }
   }
 
-  async function handleRemove() {
-    setSaving(true)
-    setError(null)
-    try {
-      const { error: e } = await supabase
-        .from('profiles')
-        .update({ avatar_url: null })
-        .eq('id', userId)
-      if (e) throw e
-      onUpdated?.(null)
-      onClose?.()
-    } catch (e) {
-      setError(e.message || 'Error al quitar')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const name = profile?.nickname || profile?.full_name
+  const canDismiss = !mandatory
+  const canSave = !locked && selectedUrl && selectedUrl !== profile?.avatar_url
 
   return (
     <div
-      onClick={onClose}
+      onClick={canDismiss ? onClose : undefined}
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.65)',
+        background: 'rgba(0,0,0,0.7)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        padding: '0'
+        padding: 0
       }}
     >
       <div
@@ -90,24 +93,38 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated 
           borderRadius: '16px 16px 0 0',
           padding: '20px 16px',
           width: '100%', maxWidth: '500px',
-          maxHeight: '85vh',
+          maxHeight: '90vh',
           display: 'flex', flexDirection: 'column',
           paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))'
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
           <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: 'var(--text-primary)' }}>
-            Elige tu avatar
+            {mandatory ? 'Elige tu avatar' : locked ? 'Tu avatar' : 'Cambiar avatar'}
           </h3>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', color: 'var(--text-muted)',
-            fontSize: '22px', cursor: 'pointer', padding: '0 4px'
-          }}>×</button>
+          {canDismiss && (
+            <button onClick={onClose} style={{
+              background: 'none', border: 'none', color: 'var(--text-muted)',
+              fontSize: '22px', cursor: 'pointer', padding: '0 4px'
+            }}>×</button>
+          )}
         </div>
 
+        {/* Status note */}
+        <p style={{
+          fontSize: '11px', color: locked ? '#e24b4a' : 'var(--text-dim)',
+          margin: '0 0 12px', lineHeight: '1.4'
+        }}>
+          {locked
+            ? '🔒 Ya usaste tu único cambio. El avatar queda fijo a partir de ahora.'
+            : isInitialPick
+              ? 'Tu avatar inicial. Después solo podrás cambiarlo una vez más.'
+              : 'Tienes un cambio disponible. Después quedará fijo.'}
+        </p>
+
         {/* Current preview */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
           <Avatar
             url={selectedUrl}
             name={name}
@@ -117,7 +134,7 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated 
             textColor="#4ade80"
           />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Vista previa</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Vista previa</div>
             <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {name || 'Tu nombre'}
@@ -125,10 +142,33 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated 
           </div>
         </div>
 
+        {/* Tabs */}
+        <div style={{
+          display: 'flex', gap: '4px', padding: '3px',
+          background: 'var(--bg-input)', borderRadius: '8px', marginBottom: '10px'
+        }}>
+          {[
+            { key: 'teams', label: `Selecciones (${teams.length})` },
+            { key: 'symbols', label: `Símbolos (${SYMBOL_AVATARS.length})` }
+          ].map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                flex: 1, padding: '8px 6px', borderRadius: '6px', border: 'none',
+                background: tab === t.key ? 'var(--bg-secondary)' : 'transparent',
+                color: tab === t.key ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontSize: '12px', fontWeight: tab === t.key ? '700' : '500',
+                cursor: 'pointer'
+              }}
+            >{t.label}</button>
+          ))}
+        </div>
+
         {/* Search */}
         <input
           type="text"
-          placeholder="Buscar selección…"
+          placeholder={tab === 'teams' ? 'Buscar selección…' : 'Buscar símbolo…'}
           value={query}
           onChange={e => setQuery(e.target.value)}
           style={{
@@ -149,7 +189,7 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated 
 
         {/* Grid */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          {loading ? (
+          {loading && tab === 'teams' ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando…</div>
           ) : (
             <div style={{
@@ -157,76 +197,69 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated 
               gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
               gap: '10px'
             }}>
-              {filtered.map(t => {
-                const isSelected = selectedUrl === t.flag_url
+              {(tab === 'teams' ? filteredTeams : filteredSymbols).map(item => {
+                const url = item.flag_url || item.url
+                const label = item.name
+                const isSel = selectedUrl === url
                 return (
                   <button
-                    key={t.id}
-                    onClick={() => setSelectedUrl(t.flag_url)}
+                    key={item.id}
+                    onClick={() => !locked && setSelectedUrl(url)}
+                    disabled={locked}
                     style={{
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                       padding: '8px 4px',
-                      background: isSelected ? 'rgba(0,144,81,0.18)' : 'transparent',
-                      border: isSelected ? '2px solid var(--green)' : '2px solid transparent',
+                      background: isSel ? 'rgba(0,144,81,0.18)' : 'transparent',
+                      border: isSel ? '2px solid var(--green)' : '2px solid transparent',
                       borderRadius: '10px',
-                      cursor: 'pointer'
+                      cursor: locked ? 'not-allowed' : 'pointer',
+                      opacity: locked && !isSel ? 0.5 : 1
                     }}
                   >
                     <img
-                      src={t.flag_url}
-                      alt={t.name}
+                      src={url}
+                      alt={label}
                       style={{
                         width: '52px', height: '52px', borderRadius: '50%',
                         objectFit: 'cover', objectPosition: 'center',
-                        border: '1px solid rgba(255,255,255,0.08)'
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'var(--bg-input)'
                       }}
                     />
                     <span style={{
-                      fontSize: '10px', color: isSelected ? 'var(--green)' : 'var(--text-muted)',
-                      fontWeight: isSelected ? '700' : '500',
+                      fontSize: '10px', color: isSel ? 'var(--green)' : 'var(--text-muted)',
+                      fontWeight: isSel ? '700' : '500',
                       textAlign: 'center', lineHeight: '1.2',
                       maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>{t.name}</span>
+                    }}>{label}</span>
                   </button>
                 )
               })}
-              {filtered.length === 0 && (
+              {(tab === 'teams' ? filteredTeams : filteredSymbols).length === 0 && (
                 <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px 0', color: 'var(--text-dim)', fontSize: '13px' }}>
-                  Ninguna selección coincide
+                  Nada coincide
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-          {profile?.avatar_url && (
-            <button
-              onClick={handleRemove}
-              disabled={saving}
-              style={{
-                flex: '0 0 auto', padding: '12px 16px', borderRadius: '10px',
-                border: '1px solid rgba(231,76,60,0.3)', background: 'transparent',
-                color: '#e74c3c', fontSize: '13px', fontWeight: '600',
-                cursor: saving ? 'not-allowed' : 'pointer'
-              }}
-            >Quitar</button>
-          )}
+        {/* Save */}
+        {!locked && (
           <button
             onClick={handleSave}
-            disabled={saving || selectedUrl === profile?.avatar_url}
+            disabled={saving || !canSave}
             style={{
-              flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
+              marginTop: '14px', padding: '12px', borderRadius: '10px', border: 'none',
               background: 'var(--green)', color: '#fff',
               fontSize: '14px', fontWeight: '700', letterSpacing: '0.3px',
-              cursor: (saving || selectedUrl === profile?.avatar_url) ? 'not-allowed' : 'pointer',
-              opacity: (saving || selectedUrl === profile?.avatar_url) ? 0.6 : 1
+              cursor: (saving || !canSave) ? 'not-allowed' : 'pointer',
+              opacity: (saving || !canSave) ? 0.6 : 1
             }}
           >
-            {saving ? 'Guardando…' : 'Guardar'}
+            {saving ? 'Guardando…' : isInitialPick ? 'Confirmar avatar' : 'Usar mi cambio'}
           </button>
-        </div>
+        )}
       </div>
     </div>
   )
