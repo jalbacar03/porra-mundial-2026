@@ -213,31 +213,59 @@ export default function Leaderboard({ demoMode }) {
     ? currentRankings.filter(u => u.effective_points > bot365Entry.effective_points).length
     : -1
 
+  // Build a unified ranking list including Bot365 inline (no separator)
+  const fullRankings = bot365Entry
+    ? [
+        ...currentRankings.slice(0, bot365InsertAfter),
+        { ...bot365Entry, isBot: true },
+        ...currentRankings.slice(bot365InsertAfter)
+      ]
+    : currentRankings
+  const maxPts = Math.max(...fullRankings.map(u => hasLive ? u.effective_points : u.total_points), 1)
+  const initials = (name) => {
+    if (!name) return '?'
+    const parts = name.trim().split(/\s+/)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return (parts[0][0] + (parts[parts.length - 1][0] || '')).toUpperCase()
+  }
+  const avatarColors = [
+    'linear-gradient(135deg, #d4af37, #8b6f1c)',
+    'linear-gradient(135deg, #4a90e2, #2c5fa3)',
+    'linear-gradient(135deg, #e07b39, #a14e1e)',
+    'linear-gradient(135deg, #2dbf7e, #1a6f4d)',
+    'linear-gradient(135deg, #b454c4, #6f2c7c)',
+    'linear-gradient(135deg, #5b6cf2, #3243aa)',
+    'linear-gradient(135deg, #ec5f7a, #a82d44)',
+    'linear-gradient(135deg, #58c4d4, #2c7a85)'
+  ]
+  const colorFor = (uid) => {
+    let h = 0
+    for (const c of (uid || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0
+    return avatarColors[h % avatarColors.length]
+  }
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <h2 style={{
-          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
-          margin: '0 0 4px', letterSpacing: '0.3px'
+          fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)',
+          margin: 0, letterSpacing: '-0.5px'
         }}>
           Clasificación
-          {hasLive && (
-            <span className="live-pulse" style={{
-              display: 'inline-flex', alignItems: 'center', gap: '4px',
-              marginLeft: '10px', padding: '2px 8px', borderRadius: '20px',
-              background: 'rgba(226,75,74,0.15)', border: '1px solid rgba(226,75,74,0.3)',
-              fontSize: '10px', fontWeight: '700', color: 'var(--red)',
-              textTransform: 'uppercase', letterSpacing: '1px'
-            }}>
-              <span className="live-dot" /> LIVE
-            </span>
-          )}
         </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-          {currentRankings.length} participantes
-        </p>
+        {hasLive && (
+          <span className="live-pulse" style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px',
+            padding: '3px 9px', borderRadius: '20px',
+            background: 'rgba(226,75,74,0.15)', border: '1px solid rgba(226,75,74,0.3)',
+            fontSize: '10px', fontWeight: '700', color: 'var(--red)',
+            textTransform: 'uppercase', letterSpacing: '1px'
+          }}>
+            <span className="live-dot" /> LIVE
+          </span>
+        )}
       </div>
 
       {isEmpty ? (
@@ -247,144 +275,125 @@ export default function Leaderboard({ demoMode }) {
           subtitle="Se rellenará cuando empiecen los partidos del Mundial."
         />
       ) : (
-        <>
-          {/* Table header */}
-          <div style={{
-            display: 'flex', padding: '8px 12px', fontSize: '10px',
-            color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px',
-            borderBottom: '0.5px solid var(--border)'
-          }}>
-            <span style={{ width: '36px' }}>#</span>
-            <span style={{ flex: 1, minWidth: 0 }}>Nombre</span>
-            <span style={{ minWidth: '55px', textAlign: 'center' }}>Puntos</span>
-          </div>
-
-          {/* Table rows */}
-          {currentRankings.map((user, index) => {
+        <div>
+          {fullRankings.map((user, idx) => {
             const isMe = user.user_id === userId
-            const { rank, tied } = getTiedRank(index)
-            const rankLabel = tied ? `T${rank}` : `${rank}`
-            const showBot365Line = bot365Entry && index === bot365InsertAfter
-            const delta = positionChanges[user.user_id] || 0
+            const isBot = user.isBot
+            // Compute tied rank within currentRankings (skip Bot for ranking)
+            let rankLabel, isTied
+            if (isBot) {
+              rankLabel = ''
+              isTied = false
+            } else {
+              const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
+              const { rank, tied } = getTiedRank(realIdx)
+              rankLabel = tied ? `T${rank}` : `${rank}`
+              isTied = tied
+            }
+            const delta = isBot ? 0 : (positionChanges[user.user_id] || 0)
+            const pts = hasLive ? user.effective_points : user.total_points
+            const barPct = Math.max(8, Math.round((pts / maxPts) * 100))
 
             return (
-              <div key={user.user_id}>
-                {showBot365Line && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', padding: '4px 12px',
-                    borderTop: '1px dashed var(--border)',
-                    borderBottom: '1px dashed var(--border)',
-                    margin: '1px 0'
-                  }}>
-                    <span style={{
-                      flex: 1, fontSize: '10px', fontWeight: '500', color: 'var(--text-dim)',
-                      textTransform: 'uppercase', letterSpacing: '0.6px'
-                    }}>
-                      — casas de apuestas —
-                    </span>
-                    <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      {bot365Entry.total_points}
-                      {bot365Entry.provisional > 0 && (
-                        <span className="live-pulse" style={{ fontSize: '10px', color: 'var(--red)', fontWeight: '700' }}>
-                          +{bot365Entry.provisional}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                )}
+              <div
+                key={user.user_id + idx}
+                className={!isMe && !isBot ? 'tap-scale' : ''}
+                onClick={() => !isMe && !isBot && setH2hRival({ id: user.user_id, name: user.full_name })}
+                style={{
+                  position: 'relative',
+                  display: 'flex', alignItems: 'center',
+                  padding: '14px 14px 16px',
+                  marginBottom: '6px',
+                  borderRadius: '12px',
+                  background: isMe ? 'rgba(0,122,69,0.1)' : isBot ? 'rgba(255,255,255,0.02)' : 'var(--bg-secondary)',
+                  border: isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid transparent',
+                  cursor: !isMe && !isBot ? 'pointer' : 'default',
+                  opacity: isBot ? 0.7 : 1
+                }}>
 
-                <div
-                  className={!isMe ? 'tap-scale' : ''}
-                  onClick={() => !isMe && setH2hRival({ id: user.user_id, name: user.full_name })}
-                  style={{
-                    display: 'flex', alignItems: 'center', padding: '10px 12px',
-                    borderBottom: '0.5px solid var(--border-light)',
-                    background: isMe ? 'rgba(255, 204, 0, 0.04)' : 'transparent',
-                    borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent',
-                    cursor: isMe ? 'default' : 'pointer',
-                    transition: 'background 0.15s ease',
-                  }}>
-                  <div style={{ width: '36px' }}>
-                    {rank <= 3 ? (
-                      <div style={{
-                        width: '24px', height: '24px', borderRadius: '50%',
-                        background: medals[rank - 1],
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: tied ? '9px' : '11px', fontWeight: '700', color: '#1a1d26'
-                      }}>
-                        {rankLabel}
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>
-                        {rankLabel}
-                      </span>
-                    )}
-                  </div>
+                {/* Rank number */}
+                <div style={{
+                  width: '28px', textAlign: 'center', flexShrink: 0,
+                  fontSize: '15px', fontWeight: '600',
+                  color: isBot ? 'var(--text-dim)' : isMe ? '#fff' : 'var(--text-muted)'
+                }}>
+                  {rankLabel}
+                </div>
 
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                    <span style={{
-                      fontSize: '13px',
-                      fontWeight: isMe ? '600' : '400',
-                      color: isMe ? 'var(--gold)' : 'var(--text-primary)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
-                      {user.full_name}{isMe ? ' (Tú)' : ''}
-                    </span>
+                {/* Avatar */}
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  marginLeft: '6px', marginRight: '12px', flexShrink: 0,
+                  background: isBot ? '#3a3d48' : colorFor(user.user_id),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '12px', fontWeight: '700',
+                  color: isBot ? '#9da3b0' : '#fff',
+                  letterSpacing: '0.5px'
+                }}>
+                  {isBot ? 'B' : initials(user.full_name)}
+                </div>
 
-                    {delta !== 0 && (
-                      <span style={{
-                        fontSize: '9px', fontWeight: '700',
-                        color: delta > 0 ? '#4ade80' : '#e74c3c',
-                        flexShrink: 0
-                      }}>
-                        {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
-                      </span>
-                    )}
-                  </div>
-
+                {/* Name + delta */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{
-                    minWidth: '55px', textAlign: 'center', fontSize: '14px', fontWeight: '600',
-                    color: rank === 1 ? 'var(--gold)' : 'var(--text-primary)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px'
+                    fontSize: '15px',
+                    fontWeight: isMe ? '700' : '500',
+                    color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                  }}>
+                    {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
+                  </span>
+                  {delta !== 0 && (
+                    <span style={{
+                      fontSize: '11px', fontWeight: '700',
+                      color: delta > 0 ? '#4ade80' : '#e74c3c',
+                      flexShrink: 0
+                    }}>
+                      {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                    </span>
+                  )}
+                  {!isBot && delta === 0 && !isTied && (
+                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', flexShrink: 0 }}>·</span>
+                  )}
+                </div>
+
+                {/* Points */}
+                <div style={{
+                  textAlign: 'right', flexShrink: 0,
+                  display: 'flex', alignItems: 'baseline', gap: '4px'
+                }}>
+                  <span style={{
+                    fontSize: '17px', fontWeight: '700',
+                    color: isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)'
                   }}>
                     {user.total_points}
-                    {user.provisional > 0 && (
-                      <span className="live-pulse" style={{
-                        fontSize: '11px', fontWeight: '700', color: 'var(--red)'
-                      }}>
-                        +{user.provisional}
-                      </span>
-                    )}
                   </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>pts</span>
+                  {user.provisional > 0 && (
+                    <span className="live-pulse" style={{
+                      fontSize: '11px', fontWeight: '700', color: 'var(--red)', marginLeft: '2px'
+                    }}>
+                      +{user.provisional}
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress bar at bottom of row */}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: '14px', right: '14px',
+                  height: '2px', borderRadius: '2px', overflow: 'hidden',
+                  background: 'rgba(255,255,255,0.04)'
+                }}>
+                  <div style={{
+                    width: `${barPct}%`, height: '100%',
+                    background: isBot ? 'rgba(255,255,255,0.1)' : isMe ? 'var(--gold)' : 'var(--green)',
+                    transition: 'width 0.4s ease'
+                  }} />
                 </div>
               </div>
             )
           })}
-
-          {/* Bot365 at the bottom */}
-          {bot365Entry && bot365InsertAfter >= currentRankings.length && (
-            <div style={{
-              display: 'flex', alignItems: 'center', padding: '4px 12px',
-              borderTop: '1px dashed var(--border)',
-              margin: '1px 0'
-            }}>
-              <span style={{
-                flex: 1, fontSize: '10px', fontWeight: '500', color: 'var(--text-dim)',
-                textTransform: 'uppercase', letterSpacing: '0.6px'
-              }}>
-                — casas de apuestas —
-              </span>
-              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                {bot365Entry.total_points}
-                {bot365Entry.provisional > 0 && (
-                  <span className="live-pulse" style={{ fontSize: '10px', color: 'var(--red)', fontWeight: '700' }}>
-                    +{bot365Entry.provisional}
-                  </span>
-                )}
-              </span>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
       {/* H2H Modal */}

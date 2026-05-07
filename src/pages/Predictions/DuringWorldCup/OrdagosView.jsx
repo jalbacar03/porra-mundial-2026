@@ -18,6 +18,7 @@ export default function OrdagosView({ session }) {
   const [saving, setSaving] = useState({})
   const [now, setNow] = useState(new Date())
   const [localScores, setLocalScores] = useState({}) // ordago_id → { home, away }
+  const [expandedId, setExpandedId] = useState(null)
 
   const userId = session?.user?.id
 
@@ -203,49 +204,54 @@ export default function OrdagosView({ session }) {
     .filter(Boolean)
   const totalPoints = resolvedEntries.reduce((sum, r) => sum + r.points, 0)
 
+  // Max possible net reward: sum of (exact - cost) for all
+  const maxNetReward = ordagos.reduce((sum, o) => {
+    const c = ORDAGO_CONFIG[o.number] || {}
+    return sum + ((c.exact || 0) - (c.cost || 0))
+  }, 0)
+  const dateLabel = (dateStr) => {
+    if (!dateStr) return ''
+    const d = new Date(dateStr); const today = new Date(); const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1)
+    const same = (a, b) => a.toDateString() === b.toDateString()
+    const day = same(d, today) ? 'Hoy' : same(d, tomorrow) ? 'Mañana' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')
+    const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    return `${day} · ${time}`
+  }
+
   return (
     <div>
-      {/* Header */}
+      {/* ===== Header card ===== */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(255,204,0,0.08), rgba(255,204,0,0.03))',
-        borderRadius: '10px', padding: '16px',
-        border: '0.5px solid rgba(255,204,0,0.15)',
+        background: 'linear-gradient(135deg, rgba(0,122,69,0.18), rgba(0,122,69,0.06))',
+        borderRadius: '12px', padding: '14px 16px',
+        border: '1px solid rgba(0,144,81,0.3)',
         marginBottom: '14px'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gold)' }}>
-            Órdagos del Mundial
-          </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '4px' }}>
           <span style={{
-            fontSize: '10px', padding: '3px 8px', borderRadius: '4px',
-            background: 'rgba(255,204,0,0.1)', color: 'var(--gold)', fontWeight: '600'
+            fontSize: '10px', fontWeight: '700', color: 'var(--green)',
+            textTransform: 'uppercase', letterSpacing: '1.2px'
           }}>
-            {visibleOrdagos.filter(o => o.status === 'resolved').length}/{totalOrdagos}
+            Recompensa máx. neta
+          </span>
+          <span style={{ fontSize: '22px', fontWeight: '800', color: 'var(--gold)' }}>
+            +{maxNetReward} pts
           </span>
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: 0 }}>
-          Predice el resultado exacto de partidos concretos. Cada órdago tiene un coste de entrada
-          y una recompensa mayor. Son 100% opcionales.
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4', margin: 0 }}>
+          Seis predicciones opcionales. Se desbloquean en cadena según avanza el torneo.
         </p>
-
         {resolvedEntries.length > 0 && (
-          <div style={{
-            marginTop: '10px', padding: '8px 12px',
-            background: totalPoints >= 0 ? 'rgba(0,122,69,0.08)' : 'rgba(231,76,60,0.08)',
-            borderRadius: '6px', textAlign: 'center'
-          }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Tu balance: </span>
-            <span style={{
-              fontSize: '14px', fontWeight: '700',
-              color: totalPoints > 0 ? '#4ade80' : totalPoints < 0 ? '#e74c3c' : 'var(--text-muted)'
-            }}>
+          <div style={{ marginTop: '10px', padding: '6px 12px', borderRadius: '6px', background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Tu balance</span>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: totalPoints > 0 ? '#4ade80' : totalPoints < 0 ? '#e74c3c' : 'var(--text-muted)' }}>
               {totalPoints > 0 ? '+' : ''}{totalPoints} pts
             </span>
           </div>
         )}
       </div>
 
-      {/* Ordago cards */}
+      {/* ===== Compact list ===== */}
       {visibleOrdagos.map(ordago => {
         const config = ORDAGO_CONFIG[ordago.number] || {}
         const entry = entries[ordago.id]
@@ -255,109 +261,129 @@ export default function OrdagosView({ session }) {
         const countdown = match ? formatCountdown(match) : null
         const result = getResult(ordago, entry)
         const isSaving = saving[ordago.id]
+        const isExpanded = expandedId === ordago.id
 
         const hasUnsaved = entry
           ? (scores.home !== entry.predicted_home || scores.away !== entry.predicted_away)
           : (scores.home !== undefined && scores.home !== '' && scores.away !== undefined && scores.away !== '')
 
+        // Status color: open → gold, locked → muted, resolved depends on result
+        const statusColor = result
+          ? (result.type === 'exact' ? 'var(--gold)' : result.type === 'sign' ? 'var(--green)' : '#e74c3c')
+          : open ? 'var(--gold)' : ordago.status === 'locked' ? 'var(--text-dim)' : 'var(--green)'
+        const borderColor = result
+          ? (result.type === 'exact' ? 'var(--gold)' : result.type === 'sign' ? 'rgba(0,144,81,0.5)' : 'rgba(231,76,60,0.4)')
+          : open ? 'rgba(255,204,0,0.5)' : 'transparent'
+
+        // Match label: real teams or generic placeholder
+        let matchLabel = ordago.title
+        if (match?.home_team?.name && match?.away_team?.name) {
+          matchLabel = `${match.home_team.name} · ${match.away_team.name}`
+        }
+
         return (
           <div key={ordago.id} style={{
-            background: 'var(--bg-secondary)',
-            borderRadius: '10px',
-            padding: '14px',
             marginBottom: '8px',
-            border: result
-              ? result.type === 'exact' ? '1px solid var(--gold)' :
-                result.type === 'sign' ? '1px solid var(--green)' :
-                '1px solid rgba(231,76,60,0.3)'
-              : open ? '1px solid rgba(255,204,0,0.2)' : '0.5px solid var(--border)',
-            opacity: ordago.status === 'locked' ? 0.7 : 1
+            borderRadius: '12px',
+            background: 'var(--bg-secondary)',
+            border: `1px solid ${borderColor}`,
+            opacity: ordago.status === 'locked' && !match ? 0.55 : ordago.status === 'locked' ? 0.75 : 1,
+            overflow: 'hidden'
           }}>
-            {/* Top row: number + title + status */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* COMPACT ROW (always visible) */}
+            <div
+              onClick={() => setExpandedId(isExpanded ? null : ordago.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px', cursor: 'pointer'
+              }}
+            >
+              <span style={{
+                fontSize: '15px', fontWeight: '700', color: 'var(--text-dim)',
+                fontVariantNumeric: 'tabular-nums', minWidth: '20px'
+              }}>
+                {String(ordago.number).padStart(2, '0')}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  width: '30px', height: '30px', borderRadius: '50%',
-                  background: ordago.status === 'resolved'
-                    ? (result?.type === 'fallo' ? 'rgba(231,76,60,0.15)' : 'rgba(0,122,69,0.15)')
-                    : ordago.number === 1 || open ? 'var(--gold)' : 'var(--bg-input)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '13px', fontWeight: '700',
-                  color: ordago.number === 1 || open ? '#1a1d26' : 'var(--text-dim)'
+                  fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                 }}>
-                  {ordago.status === 'resolved' ? (
-                    result?.type === 'fallo' ? '✗' : '✓'
-                  ) : ordago.number}
+                  {matchLabel}
                 </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                    {ordago.title}
-                  </div>
-                  {ordago.description && (
-                    <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '1px' }}>
-                      {ordago.description}
-                    </div>
-                  )}
+                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                  {match?.match_date ? dateLabel(match.match_date) : ordago.description || 'Por determinar'}
                 </div>
               </div>
-
-              {/* Status badge */}
-              <div>
-                {ordago.status === 'locked' && (
-                  <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: 'var(--bg-input)', color: 'var(--text-dim)', fontWeight: '600' }}>
-                    🔒 Bloqueado
-                  </span>
-                )}
-                {ordago.status === 'open' && open && (
-                  <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: 'rgba(255,204,0,0.1)', color: 'var(--gold)', fontWeight: '600' }}>
-                    ⏱ {countdown || 'Abierto'}
-                  </span>
-                )}
-                {ordago.status === 'open' && !open && (
-                  <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: 'rgba(231,76,60,0.1)', color: '#e74c3c', fontWeight: '600' }}>
-                    🔒 Cerrado
-                  </span>
-                )}
-                {ordago.status === 'resolved' && (
+              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
                   <span style={{
-                    fontSize: '10px', padding: '3px 8px', borderRadius: '4px', fontWeight: '600',
-                    background: result?.points > 0 ? 'rgba(0,122,69,0.1)' : result?.points < 0 ? 'rgba(231,76,60,0.1)' : 'var(--bg-input)',
-                    color: result?.points > 0 ? '#4ade80' : result?.points < 0 ? '#e74c3c' : 'var(--text-dim)'
+                    fontSize: '11px', fontWeight: '700',
+                    color: config.cost === 0 ? 'var(--green)' : '#e74c3c'
                   }}>
-                    {result ? `${result.points > 0 ? '+' : ''}${result.points} pts` : 'Resuelto'}
+                    {config.cost === 0 ? 'GRATIS' : `−${config.cost}`}
                   </span>
-                )}
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--gold)' }}>
+                    +{config.exact}
+                  </span>
+                </div>
+                <span style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: statusColor,
+                  flexShrink: 0
+                }} />
               </div>
             </div>
 
-            {/* Cost/Reward info — always visible */}
-            {(
+            {/* EXPANDED (only when tapped) */}
+            {isExpanded && (
               <div style={{
-                display: 'flex', gap: '6px', marginBottom: '10px',
-                fontSize: '10px', flexWrap: 'wrap'
+                borderTop: '1px solid var(--border-light)',
+                padding: '12px 14px', background: 'rgba(0,0,0,0.15)'
               }}>
+            {/* Status info row inside expanded */}
+            <div style={{
+              display: 'flex', gap: '6px', marginBottom: '12px', fontSize: '10px',
+              flexWrap: 'wrap', alignItems: 'center'
+            }}>
+              <span style={{
+                padding: '3px 8px', borderRadius: '4px',
+                background: 'rgba(74,222,128,0.08)', color: '#4ade80', fontWeight: '600'
+              }}>
+                Exacto +{config.exact}
+              </span>
+              <span style={{
+                padding: '3px 8px', borderRadius: '4px',
+                background: 'rgba(255,204,0,0.08)', color: 'var(--gold)', fontWeight: '600'
+              }}>
+                Signo +{config.sign}
+              </span>
+              {ordago.status === 'open' && open && countdown && (
                 <span style={{
-                  padding: '3px 8px', borderRadius: '4px',
-                  background: config.cost === 0 ? 'rgba(0,122,69,0.08)' : 'rgba(231,76,60,0.08)',
-                  color: config.cost === 0 ? '#4ade80' : '#e74c3c',
-                  fontWeight: '600'
-                }}>
-                  {config.cost === 0 ? 'GRATIS' : `Coste: -${config.cost}`}
+                  marginLeft: 'auto', fontSize: '10px', padding: '3px 8px', borderRadius: '4px',
+                  background: 'rgba(255,204,0,0.1)', color: 'var(--gold)', fontWeight: '600'
+                }}>⏱ {countdown}</span>
+              )}
+              {ordago.status === 'locked' && (
+                <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--text-dim)', fontWeight: '600' }}>
+                  🔒 Bloqueado
                 </span>
+              )}
+              {ordago.status === 'open' && !open && (
+                <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#e74c3c', fontWeight: '600' }}>
+                  🔒 Cerrado
+                </span>
+              )}
+              {ordago.status === 'resolved' && (
                 <span style={{
-                  padding: '3px 8px', borderRadius: '4px',
-                  background: 'rgba(74,222,128,0.08)', color: '#4ade80', fontWeight: '600'
+                  marginLeft: 'auto', fontSize: '10px', padding: '3px 8px', borderRadius: '4px', fontWeight: '700',
+                  background: result?.points > 0 ? 'rgba(0,122,69,0.1)' : result?.points < 0 ? 'rgba(231,76,60,0.1)' : 'var(--bg-input)',
+                  color: result?.points > 0 ? '#4ade80' : result?.points < 0 ? '#e74c3c' : 'var(--text-dim)'
                 }}>
-                  Exacto: +{config.exact}
+                  {result ? `${result.points > 0 ? '+' : ''}${result.points} pts` : 'Resuelto'}
                 </span>
-                <span style={{
-                  padding: '3px 8px', borderRadius: '4px',
-                  background: 'rgba(255,204,0,0.08)', color: 'var(--gold)', fontWeight: '600'
-                }}>
-                  1X2: +{config.sign}
-                </span>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Match + score input (when not locked) */}
             {match && ordago.status !== 'locked' && (
@@ -560,6 +586,8 @@ export default function OrdagosView({ session }) {
                 {ordago.number === 1
                   ? '🔒 Se desbloqueará cuando empiece el Mundial (11 jun 2026)'
                   : '🔒 Se desbloqueará cuando se resuelva el órdago anterior'}
+              </div>
+            )}
               </div>
             )}
           </div>

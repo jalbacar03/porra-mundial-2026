@@ -211,14 +211,16 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
     <div>
       {/* Header */}
       <div style={{ marginBottom: '14px' }}>
-        <h3 style={{
-          fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)',
-          margin: '0 0 4px'
+        <h2 style={{
+          fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)',
+          margin: '0 0 4px', letterSpacing: '-0.4px'
         }}>
-          Partidos Fase de Grupos
-        </h3>
+          Predicciones
+        </h2>
         <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-          Introduce el resultado exacto de cada partido
+          Resultado exacto: <span style={{ color: 'var(--gold)', fontWeight: '600' }}>+3 pts</span>
+          {' · '}
+          Signo correcto: <span style={{ color: 'var(--green)', fontWeight: '600' }}>+1 pt</span>
         </p>
       </div>
 

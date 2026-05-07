@@ -209,56 +209,200 @@ export default function BracketView({ session }) {
     )
   }
 
-  const activeRoundData = ROUNDS.find(r => r.key === activeRound)
+  // === Column-based view (4 columns: R16 / QF / SF / Final) ===
+  // R32 picks happen automatically when there are matchups (auto-fill behind the scenes)
+  // The user picks R16 onwards. Show them as a 4-column grid of compact team cards.
+
+  // Auto-fill R32 picks: when matchup has both teams, default winner = the team with higher group ranking (1st > 2nd > 3rd)
+  // This lets the cascade flow without requiring user input on R32. They can still tap to change.
+
+  // Total picks needed: 8 R16 + 4 QF + 2 SF + 1 Final = 15
+  const totalNeeded = 15
+  const totalDone = totalR16Picked + totalQFPicked + totalSFPicked + totalFinalPicked
+  // Potential points: sum of round.pointsPerWin × matches in round + champion bonus if final picked
+  const potentialPts = (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 5) + (totalFinalPicked * 8)
+
+  const COLUMNS = [
+    { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES },
+    { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES },
+    { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES },
+    { key: 'final', label: 'Final', pts: 5, matches: FINAL_MATCH }
+  ]
 
   return (
     <div>
       {/* Header */}
-      <div style={{ marginBottom: '12px' }}>
-        <h3 style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px' }}>
-          🏆 Bracket de eliminatorias
-        </h3>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-          Elige el ganador de cada partido. Tu campeón acumula hasta 20 pts.
-        </p>
+      <div style={{ marginBottom: '14px' }}>
+        <h2 style={{
+          fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)',
+          margin: '0 0 10px', letterSpacing: '-0.4px'
+        }}>
+          Cuadro ciego
+        </h2>
+
+        {/* Progress bar with potential pts */}
+        <div style={{
+          padding: '10px 12px', borderRadius: '10px',
+          background: 'var(--bg-secondary)',
+          display: 'flex', alignItems: 'center', gap: '12px'
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)',
+              marginBottom: '6px', display: 'flex', justifyContent: 'space-between'
+            }}>
+              <span>{totalDone} / {totalNeeded} elegidos</span>
+              <span style={{ color: 'var(--gold)' }}>+{potentialPts} potenciales</span>
+            </div>
+            <div style={{
+              height: '6px', borderRadius: '3px',
+              background: 'rgba(255,255,255,0.05)', overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${(totalDone / totalNeeded) * 100}%`, height: '100%',
+                background: 'linear-gradient(90deg, var(--green), var(--gold))',
+                transition: 'width 0.4s ease'
+              }} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Round tabs */}
-      <div className="group-tabs" style={{ marginBottom: '14px' }}>
-        {ROUNDS.map(round => {
-          const isActive = activeRound === round.key
-          const progress = roundProgress[round.key]
+      {/* 4-column grid */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px',
+        marginBottom: '14px'
+      }}>
+        {COLUMNS.map(col => (
+          <div key={col.key} style={{
+            fontSize: '9px', fontWeight: '700', color: 'var(--text-dim)',
+            textTransform: 'uppercase', letterSpacing: '0.8px', textAlign: 'center',
+            paddingBottom: '6px'
+          }}>{col.label}</div>
+        ))}
+      </div>
+
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px',
+        marginBottom: '20px'
+      }}>
+        {COLUMNS.map(col => {
+          const matchups = allMatchups[col.key]
           return (
-            <button
-              key={round.key}
-              onClick={() => setActiveRound(round.key)}
-              style={{
-                padding: '6px 12px', borderRadius: '20px', border: 'none',
-                background: isActive ? 'var(--green)' : 'var(--bg-secondary)',
-                color: isActive ? '#fff' : 'var(--text-muted)',
-                cursor: 'pointer', fontSize: '11px', fontWeight: isActive ? '600' : '400',
-                whiteSpace: 'nowrap', flexShrink: 0,
-                transition: 'all 0.2s ease'
-              }}
-            >
-              {round.label} <span style={{ opacity: 0.6, fontSize: '10px' }}>{progress}</span>
-            </button>
+            <div key={col.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px', justifyContent: 'space-around' }}>
+              {col.matches.map(m => {
+                const matchup = matchups[m.matchNumber]
+                const pick = picks[m.matchNumber]
+                const winnerId = pick?.predicted_winner_id
+                const winnerTeam = winnerId === matchup?.home?.id ? matchup.home : winnerId === matchup?.away?.id ? matchup.away : null
+                const isFinal = col.key === 'final'
+                // Points: round points; if final picked → add champion bonus 8
+                const pts = isFinal && winnerTeam ? col.pts + 8 : col.pts
+
+                const togglePick = () => {
+                  if (!matchup?.home || !matchup?.away) return
+                  // If no pick → pick home; if home → switch to away; if away → switch to home
+                  const next = winnerId === matchup.home.id ? matchup.away.id
+                             : winnerId === matchup.away.id ? matchup.home.id
+                             : matchup.home.id
+                  handlePickWinner(m.matchNumber, next)
+                }
+
+                if (!matchup?.home || !matchup?.away) {
+                  return (
+                    <div key={m.matchNumber} style={{
+                      padding: '8px 6px', borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px dashed rgba(255,255,255,0.06)',
+                      fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center'
+                    }}>—</div>
+                  )
+                }
+
+                return (
+                  <button
+                    key={m.matchNumber}
+                    onClick={togglePick}
+                    style={{
+                      padding: isFinal ? '12px 6px' : '8px 6px',
+                      borderRadius: '8px', cursor: 'pointer',
+                      background: isFinal && winnerTeam ? 'var(--gold)' : 'var(--bg-secondary)',
+                      border: winnerTeam
+                        ? (isFinal ? '1px solid var(--gold)' : '1px solid var(--green)')
+                        : '1px solid var(--border-light)',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                      minHeight: isFinal ? '70px' : 'auto'
+                    }}
+                  >
+                    {winnerTeam ? (
+                      <>
+                        {winnerTeam.flag_url && (
+                          <img src={winnerTeam.flag_url} alt="" style={{
+                            width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover'
+                          }} />
+                        )}
+                        <span style={{
+                          fontSize: '10px', fontWeight: '700',
+                          color: isFinal ? '#1a1d26' : 'var(--text-primary)',
+                          textAlign: 'center', lineHeight: '1.1',
+                          maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                        }}>{winnerTeam.name}</span>
+                        <span style={{
+                          fontSize: '9px', fontWeight: '800',
+                          color: isFinal ? 'rgba(0,0,0,0.7)' : 'var(--gold)'
+                        }}>
+                          {isFinal ? '🏆 +' : '+'}{pts}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Elegir</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           )
         })}
       </div>
 
-      {/* Active round */}
-      <BracketRound
-        roundKey={activeRoundData.key}
-        label={activeRoundData.label}
-        matches={activeRoundData.matches}
-        matchups={allMatchups[activeRoundData.key]}
-        picks={picks}
-        points={activeRoundData.pointsPerWin}
-        onPickWinner={handlePickWinner}
-        disabled={false}
-        r32Sources={activeRoundData.key === 'r32'}
-      />
+      {/* Footer: cadena campeón hint + tab switcher (for R32 visibility) */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-secondary)',
+        marginBottom: '14px'
+      }}>
+        <div>
+          <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600' }}>
+            Cadena campeón
+          </div>
+          <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--gold)', marginTop: '2px' }}>
+            hasta +20
+          </div>
+        </div>
+      </div>
+
+      {/* R32 advanced view (collapsible) */}
+      <details style={{ marginBottom: '14px' }}>
+        <summary style={{
+          padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-secondary)',
+          cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)'
+        }}>
+          Ver dieciseisavos (R32) — auto-rellenado desde tus predicciones de grupo
+        </summary>
+        <div style={{ marginTop: '8px' }}>
+          <BracketRound
+            roundKey="r32"
+            label="Dieciseisavos"
+            matches={R32_MATCHES}
+            matchups={r32Matchups}
+            picks={picks}
+            points={0}
+            onPickWinner={handlePickWinner}
+            disabled={false}
+            r32Sources={true}
+          />
+        </div>
+      </details>
     </div>
   )
 }
