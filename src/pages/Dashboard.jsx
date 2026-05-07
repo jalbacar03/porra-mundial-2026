@@ -5,7 +5,7 @@ import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonDashboard } from '../components/Skeleton'
 import PointsChart from '../components/PointsChart'
 import Avatar from '../components/Avatar'
-import AvatarUploadModal from '../components/AvatarUploadModal'
+import AvatarPickerModal from '../components/AvatarPickerModal'
 import { useNotifications } from '../hooks/useNotifications'
 
 export default function Dashboard({ session, demoMode }) {
@@ -1010,7 +1010,7 @@ export default function Dashboard({ session, demoMode }) {
       {!demoMode && <PointsChart userId={session.user.id} />}
 
       {showAvatarModal && (
-        <AvatarUploadModal
+        <AvatarPickerModal
           profile={profile}
           userId={session.user.id}
           onClose={() => setShowAvatarModal(false)}

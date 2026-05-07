@@ -25,9 +25,9 @@ const STEPS = [
     text: 'Durante el Mundial se abrirán predicciones extra sobre partidos concretos. ¡Arriesga para escalar posiciones!',
   },
   {
-    icon: '📸',
+    icon: '🚩',
     title: 'Personaliza tu perfil',
-    text: 'Toca tu inicial arriba a la derecha en Inicio para subir una foto. Aparecerá en la clasificación, el foro y los órdagos.',
+    text: 'Toca tu inicial arriba a la derecha en Inicio para elegir la bandera de tu selección como avatar. Aparecerá en la clasificación, el foro y los órdagos.',
   },
 ]
 
