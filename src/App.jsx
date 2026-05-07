@@ -589,16 +589,18 @@ function AppLayout({ session }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [hasPaid, setHasPaid] = useState(null) // null = cargando
   const [rulesAccepted, setRulesAccepted] = useState(null) // null = cargando
+  const [profile, setProfile] = useState(null)
   const { demoMode, toggle: toggleDemo } = useDemoMode(isAdmin)
 
   useEffect(() => {
     async function checkProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('is_admin, has_paid, rules_accepted')
+        .select('is_admin, has_paid, rules_accepted, onboarding_seen_at, access_requested_at')
         .eq('id', session.user.id)
         .single()
       if (data) {
+        setProfile(data)
         setIsAdmin(!!data.is_admin)
         setHasPaid(!!data.has_paid)
         setRulesAccepted(!!data.rules_accepted)
@@ -622,10 +624,10 @@ function AppLayout({ session }) {
   return (
     <div>
       {/* Si no está admitido, mostrar popup de inscripción */}
-      {!hasPaid && <PaymentWall />}
+      {!hasPaid && <PaymentWall session={session} profile={profile} />}
 
       {/* Onboarding para nuevos usuarios */}
-      {hasPaid && rulesAccepted && <Onboarding />}
+      {hasPaid && rulesAccepted && <Onboarding session={session} profile={profile} />}
 
       {/* Si ha pagado pero no ha aceptado normas, mostrar popup de normas */}
       {hasPaid && !rulesAccepted && (

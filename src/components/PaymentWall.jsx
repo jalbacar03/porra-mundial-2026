@@ -1,8 +1,24 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 
-export default function PaymentWall() {
-  const [confirmed, setConfirmed] = useState(false)
+export default function PaymentWall({ session, profile }) {
+  // Confirmed if they've already requested OR they tap "Solicitar" in this session
+  const [confirmed, setConfirmed] = useState(!!profile?.access_requested_at)
+  const [requesting, setRequesting] = useState(false)
+
+  async function handleRequest() {
+    if (requesting) return
+    setRequesting(true)
+    setConfirmed(true) // Optimistic
+    if (session?.user?.id) {
+      await supabase
+        .from('profiles')
+        .update({ access_requested_at: new Date().toISOString() })
+        .eq('id', session.user.id)
+        .then(({ error }) => { if (error) console.warn('access request save failed', error) })
+    }
+    setRequesting(false)
+  }
 
   return (
     <div style={{
@@ -95,9 +111,9 @@ export default function PaymentWall() {
               </div>
             </div>
 
-            {/* Botón "Ya he pagado" */}
             <button
-              onClick={() => setConfirmed(true)}
+              onClick={handleRequest}
+              disabled={requesting}
               style={{
                 width: '100%',
                 padding: '13px',
@@ -105,16 +121,17 @@ export default function PaymentWall() {
                 color: '#f0e4e8',
                 border: '1px solid rgba(160, 60, 80, 0.3)',
                 borderRadius: '8px',
-                cursor: 'pointer',
+                cursor: requesting ? 'not-allowed' : 'pointer',
                 fontSize: '14px',
                 fontWeight: '600',
                 letterSpacing: '0.3px',
-                transition: 'opacity 0.2s'
+                transition: 'opacity 0.2s',
+                opacity: requesting ? 0.6 : 1
               }}
-              onMouseEnter={e => e.target.style.opacity = '0.85'}
-              onMouseLeave={e => e.target.style.opacity = '1'}
+              onMouseEnter={e => !requesting && (e.target.style.opacity = '0.85')}
+              onMouseLeave={e => !requesting && (e.target.style.opacity = '1')}
             >
-              Ya me he inscrito
+              {requesting ? 'Enviando…' : 'Solicitar acceso'}
             </button>
 
             {/* Cerrar sesión */}

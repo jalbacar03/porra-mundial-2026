@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../supabase'
 
 const STORAGE_KEY = 'porra26_onboarding_seen'
 
@@ -30,19 +31,35 @@ const STEPS = [
   },
 ]
 
-export default function Onboarding() {
+export default function Onboarding({ session, profile }) {
   const [visible, setVisible] = useState(false)
   const [step, setStep] = useState(0)
+  const userId = session?.user?.id
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
+    // Show if neither the DB column nor localStorage say it's been seen.
+    // DB takes priority — it persists across devices and cache clears.
+    const seenInDb = !!profile?.onboarding_seen_at
+    const seenLocal = localStorage.getItem(STORAGE_KEY) === '1'
+    if (!seenInDb && !seenLocal) {
       setVisible(true)
+    } else if (seenInDb && !seenLocal) {
+      // Backfill localStorage so we don't query DB unnecessarily next time
+      localStorage.setItem(STORAGE_KEY, '1')
     }
-  }, [])
+  }, [profile?.onboarding_seen_at])
 
-  function finish() {
+  async function finish() {
     localStorage.setItem(STORAGE_KEY, '1')
     setVisible(false)
+    // Persist to DB so it survives cache clears + new devices
+    if (userId) {
+      await supabase
+        .from('profiles')
+        .update({ onboarding_seen_at: new Date().toISOString() })
+        .eq('id', userId)
+        .then(({ error }) => { if (error) console.warn('onboarding flag save failed', error) })
+    }
   }
 
   if (!visible) return null
