@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
+import { FootballSpinner } from '../components/Skeleton'
 
 const ORDAGO_CONFIG = {
   1: { cost: 0, exact: 2, sign: 1 },
@@ -142,11 +143,7 @@ export default function MatchDetail({ session }) {
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        Cargando partido...
-      </div>
-    )
+    return <FootballSpinner text="Cargando partido…" />
   }
 
   if (!match) {

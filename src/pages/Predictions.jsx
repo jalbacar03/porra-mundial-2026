@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { useCountdown, PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
+import { FootballSpinner } from '../components/Skeleton'
 
 export default function Predictions({ session }) {
   const [matches, setMatches] = useState([])
@@ -144,11 +145,7 @@ export default function Predictions({ session }) {
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando partidos...
-      </div>
-    )
+    return <FootballSpinner text="Cargando partidos…" />
   }
 
   const groupMatches = matches.filter(m => m.group_name === activeGroup)

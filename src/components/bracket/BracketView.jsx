@@ -6,6 +6,7 @@ import {
   resolveR32Matchups, resolveRoundMatchups
 } from '../../utils/bracketStructure'
 import BracketRound from './BracketRound'
+import { FootballSpinner } from '../Skeleton'
 
 export default function BracketView({ session }) {
   const [matches, setMatches] = useState([])
@@ -178,11 +179,7 @@ export default function BracketView({ session }) {
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando bracket...
-      </div>
-    )
+    return <FootballSpinner text="Cargando cuadro…" />
   }
 
   if (filledPredictions < matches.length * 0.5) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { useToast } from '../components/Toast'
+import { FootballSpinner } from '../components/Skeleton'
 
 export default function Admin({ session }) {
   const [matches, setMatches] = useState([])
@@ -172,11 +173,7 @@ export default function Admin({ session }) {
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando...
-      </div>
-    )
+    return <FootballSpinner text="Cargando…" />
   }
 
   if (!isAdmin) {

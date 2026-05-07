@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { FootballSpinner } from '../components/Skeleton'
 
 const FEEDS = [
   {
@@ -176,13 +177,7 @@ export default function News() {
       </div>
 
       {/* Loading */}
-      {loading && (
-        <div style={{
-          padding: '60px 20px', textAlign: 'center', color: '#6b7080', fontSize: '14px'
-        }}>
-          Cargando noticias...
-        </div>
-      )}
+      {loading && <FootballSpinner text="Cargando noticias…" />}
 
       {/* Error */}
       {error && !loading && (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { FootballSpinner } from './Skeleton'
 
 /**
  * Head-to-head comparison modal between current user and a rival.
@@ -100,9 +101,7 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '13px' }}>
-            Cargando comparación...
-          </div>
+          <FootballSpinner text="Cargando comparación…" />
         ) : !data || data.total === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '13px' }}>
             Aún no hay partidos resueltos para comparar.

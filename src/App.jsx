@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router
 import { supabase } from './supabase'
 import './App.css'
 import { ToastProvider } from './components/Toast'
-import { SkeletonDashboard } from './components/Skeleton'
+import { SkeletonDashboard, FootballSpinner } from './components/Skeleton'
 import ErrorBoundary from './components/ErrorBoundary'
 import PageTransition from './components/PageTransition'
 import Onboarding from './components/Onboarding'
@@ -613,10 +613,9 @@ function AppLayout({ session }) {
   if (hasPaid === null) {
     return (
       <div style={{
-        minHeight: '100svh', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', color: 'var(--text-muted)', fontSize: '14px'
+        minHeight: '100svh', display: 'flex', alignItems: 'center', justifyContent: 'center'
       }}>
-        Cargando...
+        <FootballSpinner size={36} text="Cargando…" />
       </div>
     )
   }
@@ -705,11 +704,9 @@ export default function App() {
         minHeight: '100svh',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--text-muted)',
-        fontSize: '14px'
+        justifyContent: 'center'
       }}>
-        Cargando...
+        <FootballSpinner size={36} />
       </div>
     )
   }

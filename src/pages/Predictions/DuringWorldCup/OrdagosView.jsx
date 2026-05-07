@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../../supabase'
+import { FootballSpinner } from '../../../components/Skeleton'
 
 // Fixed structure for the 6 órdagos
 const ORDAGO_CONFIG = {
@@ -182,7 +183,7 @@ export default function OrdagosView({ session }) {
   }
 
   if (loading) {
-    return <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>Cargando órdagos...</div>
+    return <FootballSpinner text="Cargando órdagos…" />
   }
 
   if (ordagos.length === 0) {

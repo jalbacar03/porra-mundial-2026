@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { FootballSpinner } from '../components/Skeleton'
 
 const STAGE_ORDER = ['r32', 'r16', 'quarter_final', 'semi_final', 'final']
 const STAGE_LABELS = {
@@ -29,11 +30,7 @@ export default function Bracket() {
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-        Cargando cuadro...
-      </div>
-    )
+    return <FootballSpinner text="Cargando cuadro…" />
   }
 
   if (matches.length === 0) {
