@@ -8,9 +8,18 @@
  * API-Football free tier: 100 requests/day
  */
 
+import webpush from 'web-push'
+
 const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
+const VAPID_PUBLIC_KEY = process.env.VITE_VAPID_PUBLIC_KEY
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:noreply@porra-mundial.app'
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+}
 
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
@@ -57,6 +66,7 @@ export default async function handler(req, res) {
     // 3. Update finished match scores
     // IMPORTANT: Update any match that is NOT yet finished (includes live → finished transition)
     let updatedCount = 0
+    const newlyFinished = [] // matches that transitioned to finished IN THIS RUN — for push notifications
     for (const apiMatch of finished) {
       const homeApiId = apiMatch.teams.home.id
       const awayApiId = apiMatch.teams.away.id
@@ -95,10 +105,24 @@ export default async function handler(req, res) {
           body: JSON.stringify(updateData)
         })
         updatedCount++
+        newlyFinished.push({
+          id: ourMatch.id,
+          home_score: homeScore,
+          away_score: awayScore,
+          home_team_id: homeTeamId,
+          away_team_id: awayTeamId
+        })
         log.push(`   ✅ Match ${ourMatch.id}: ${homeScore}-${awayScore}${updateData.winner_team_id ? ` (winner: ${updateData.winner_team_id})` : ''}`)
       }
     }
     log.push(`📊 Updated ${updatedCount} match scores`)
+
+    // 3b. Web Push: notify users who predicted matches that just finished
+    let pushed = 0
+    if (newlyFinished.length > 0) {
+      pushed = await sendMatchFinishedPushes(newlyFinished, ourTeams, log)
+      log.push(`📲 Sent ${pushed} push notifications`)
+    }
 
     // 3a. Update live match scores (intermediate, status='live')
     let liveUpdated = 0
@@ -172,6 +196,7 @@ export default async function handler(req, res) {
     const summary = {
       timestamp: new Date().toISOString(),
       matchesUpdated: updatedCount,
+      pushNotificationsSent: pushed,
       totalFinished: finished.length,
       betsResolved: resolvedBets,
       knockoutTeamsSynced: knockoutSynced,
@@ -798,4 +823,67 @@ async function supaFetch(path, options = {}) {
 
   if (options.method === 'PATCH') return null
   return res.json()
+}
+
+/**
+ * Send Web Push notifications to users who predicted any of the just-finished
+ * matches. Idempotent at the cron level: a match only enters newlyFinished the
+ * first run that detects its status transition (subsequent runs filter it out
+ * because status='finished' already).
+ *
+ * On 404/410 from a push endpoint, the subscription is dead and is purged.
+ */
+async function sendMatchFinishedPushes(newlyFinished, ourTeams, log) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    log.push('   ⚠️ VAPID keys not set, skipping push')
+    return 0
+  }
+
+  const teamName = id => ourTeams.find(t => t.id === id)?.name || ''
+  let totalSent = 0
+
+  for (const m of newlyFinished) {
+    // Find users who predicted this match (excluding bot)
+    const preds = await supaFetch(
+      `/rest/v1/predictions?match_id=eq.${m.id}&user_id=neq.${BOT365_ID}&select=user_id`
+    )
+    const userIds = [...new Set((preds || []).map(p => p.user_id))]
+    if (userIds.length === 0) continue
+
+    // Get push subscriptions for those users
+    const idsList = userIds.map(id => `"${id}"`).join(',')
+    const subs = await supaFetch(
+      `/rest/v1/push_subscriptions?user_id=in.(${idsList})&select=id,endpoint,p256dh,auth`
+    )
+    if (!subs || subs.length === 0) continue
+
+    const home = teamName(m.home_team_id)
+    const away = teamName(m.away_team_id)
+    const payload = JSON.stringify({
+      title: `Final: ${home} ${m.home_score}-${m.away_score} ${away}`,
+      body: 'Abre la app para ver tus puntos.',
+      url: '/'
+    })
+
+    // Fan-out: send to every subscription (parallel) and clean up dead ones
+    await Promise.all(subs.map(async sub => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload
+        )
+        totalSent++
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          // Subscription gone — remove from DB
+          await supaFetch(`/rest/v1/push_subscriptions?id=eq.${sub.id}`, { method: 'DELETE' })
+          log.push(`   🧹 Pruned dead subscription ${sub.id}`)
+        } else {
+          log.push(`   ⚠️ Push error for ${sub.id}: ${err.statusCode || err.message}`)
+        }
+      }
+    }))
+  }
+
+  return totalSent
 }

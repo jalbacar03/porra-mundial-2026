@@ -25,7 +25,7 @@ export default function Dashboard({ session, demoMode }) {
   const [livePredictions, setLivePredictions] = useState({})
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [loading, setLoading] = useState(true)
-  const { permission: notifPerm, requestPermission, sendLocal } = useNotifications()
+  const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -42,6 +42,14 @@ export default function Dashboard({ session, demoMode }) {
     fetchInsight()
     fetchActiveOrdago()
   }, [])
+
+  // If permission was already granted previously (e.g. user reinstalled the
+  // PWA), make sure the push subscription is registered server-side. Idempotent.
+  useEffect(() => {
+    if (notifPerm === 'granted' && session?.user?.id) {
+      subscribePush(session.user.id)
+    }
+  }, [notifPerm, session?.user?.id])
 
   // Realtime: when any match changes, refetch + (foreground) push notification
   // when a match the user predicted finishes. notifiedRef prevents duplicates
@@ -901,6 +909,9 @@ export default function Dashboard({ session, demoMode }) {
             <button
               onClick={async () => {
                 const result = await requestPermission()
+                if (result === 'granted') {
+                  await subscribePush(session.user.id)
+                }
                 if (result === 'granted' || result === 'denied') setNotifDismissed(true)
               }}
               style={{
