@@ -288,7 +288,7 @@ export default function BracketResults({ session }) {
                       fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)',
                       textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.home_team?.name || 'TBD'}
+                      {match.home_team?.name || 'Por determinar'}
                     </span>
                     {match.home_team?.flag_url && (
                       <img src={match.home_team.flag_url} alt="" style={{
@@ -363,7 +363,7 @@ export default function BracketResults({ session }) {
                       fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.away_team?.name || 'TBD'}
+                      {match.away_team?.name || 'Por determinar'}
                     </span>
                   </div>
                 </div>

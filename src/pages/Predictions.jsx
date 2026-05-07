@@ -355,7 +355,7 @@ export default function Predictions({ session }) {
                       fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.home_team?.name || 'TBD'}
+                      {match.home_team?.name || 'Por determinar'}
                     </span>
                   </div>
 
@@ -410,7 +410,7 @@ export default function Predictions({ session }) {
                       fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.away_team?.name || 'TBD'}
+                      {match.away_team?.name || 'Por determinar'}
                     </span>
                     {match.away_team?.flag_url && (
                       <img

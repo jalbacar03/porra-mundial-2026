@@ -413,7 +413,7 @@ export default function MatchDayLive({ session }) {
                   }} />
                 )}
                 <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600', textAlign: 'center' }}>
-                  {match.home_team?.name || 'TBD'}
+                  {match.home_team?.name || 'Por determinar'}
                 </span>
               </div>
 
@@ -454,7 +454,7 @@ export default function MatchDayLive({ session }) {
                   }} />
                 )}
                 <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600', textAlign: 'center' }}>
-                  {match.away_team?.name || 'TBD'}
+                  {match.away_team?.name || 'Por determinar'}
                 </span>
               </div>
             </div>

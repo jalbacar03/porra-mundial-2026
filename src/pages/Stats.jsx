@@ -398,14 +398,14 @@ export default function Stats({ demoMode }) {
     <div className="stagger-in" style={{ maxWidth: '500px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '14px' }}>
         <h2 style={{
-          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
-          margin: '0 0 4px', letterSpacing: '0.3px'
+          fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)',
+          margin: '0 0 4px', letterSpacing: '-0.4px'
         }}>
-          Stats del Mundial
+          Stats
         </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
           {finishedMatches.length} de {totalMatches} partidos jugados
           {demoMode && <span style={{ color: 'var(--gold)', marginLeft: '6px', fontSize: '10px', fontWeight: '600' }}>(DEMO)</span>}
         </p>
@@ -985,7 +985,7 @@ export default function Stats({ demoMode }) {
                         }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                              {d.match.home_team?.name || 'TBD'} vs {d.match.away_team?.name || 'TBD'}
+                              {d.match.home_team?.name || 'Por determinar'} vs {d.match.away_team?.name || 'Por determinar'}
                             </div>
                             <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
                               {d.match.stage === 'group' ? `Grupo ${d.match.group_name}` : d.match.stage?.replace('_', ' ')}
@@ -1091,7 +1091,7 @@ export default function Stats({ demoMode }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
                     <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {match.home_team?.name || 'TBD'}
+                      {match.home_team?.name || 'Por determinar'}
                     </span>
                     {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '28px', height: '20px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />}
                   </div>
@@ -1116,7 +1116,7 @@ export default function Stats({ demoMode }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                     {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '28px', height: '20px', borderRadius: '3px', objectFit: 'cover', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />}
                     <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {match.away_team?.name || 'TBD'}
+                      {match.away_team?.name || 'Por determinar'}
                     </span>
                   </div>
                 </div>

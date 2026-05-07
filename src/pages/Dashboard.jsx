@@ -737,11 +737,11 @@ export default function Dashboard({ session, demoMode }) {
                   {activeOrdago.match.home_team?.flag_url && (
                     <img src={activeOrdago.match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
                   )}
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.home_team?.name || 'TBD'}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.home_team?.name || 'Por determinar'}</span>
                 </div>
                 <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>vs</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.away_team?.name || 'TBD'}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.away_team?.name || 'Por determinar'}</span>
                   {activeOrdago.match.away_team?.flag_url && (
                     <img src={activeOrdago.match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
                   )}
@@ -806,7 +806,7 @@ export default function Dashboard({ session, demoMode }) {
               const hasOrdago = activeOrdago?.match?.id === match.id
               const d = new Date(match.match_date)
               return (
-                <div key={match.id} onClick={() => navigate('/predictions')} style={{
+                <div key={match.id} onClick={() => navigate(`/match/${match.id}`)} style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
                   padding: '12px 14px', marginBottom: '6px',
                   background: 'var(--bg-secondary)', borderRadius: '10px', cursor: 'pointer'
@@ -817,9 +817,9 @@ export default function Dashboard({ session, demoMode }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />}
-                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.home_team?.name || 'TBD'}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.home_team?.name || 'Por determinar'}</span>
                     <span style={{ fontSize: '11px', color: 'var(--text-dim)', flexShrink: 0 }}>vs</span>
-                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.away_team?.name || 'TBD'}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.away_team?.name || 'Por determinar'}</span>
                     {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />}
                   </div>
                   <div style={{

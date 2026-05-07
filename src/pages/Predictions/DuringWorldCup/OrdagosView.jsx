@@ -399,7 +399,7 @@ export default function OrdagosView({ session }) {
                       fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)',
                       textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.home_team?.name || 'TBD'}
+                      {match.home_team?.name || 'Por determinar'}
                     </span>
                     {match.home_team?.flag_url && (
                       <img src={match.home_team.flag_url} alt="" style={{
@@ -474,7 +474,7 @@ export default function OrdagosView({ session }) {
                       fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.away_team?.name || 'TBD'}
+                      {match.away_team?.name || 'Por determinar'}
                     </span>
                   </div>
                 </div>
@@ -561,11 +561,11 @@ export default function OrdagosView({ session }) {
                     {match.home_team?.flag_url && (
                       <img src={match.home_team.flag_url} alt="" style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
                     )}
-                    <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{match.home_team?.name || 'TBD'}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{match.home_team?.name || 'Por determinar'}</span>
                   </div>
                   <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>vs</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{match.away_team?.name || 'TBD'}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{match.away_team?.name || 'Por determinar'}</span>
                     {match.away_team?.flag_url && (
                       <img src={match.away_team.flag_url} alt="" style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover' }} />
                     )}

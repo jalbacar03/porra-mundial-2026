@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../supabase'
 import { calculateGroupStandings } from '../../../utils/groupStandings'
 import { generateMockPredictions, generateDemoMatchStatuses } from '../../../hooks/useDemoMode'
@@ -8,6 +9,7 @@ import { useRateLimit } from '../../../hooks/useRateLimit'
 import { PulseDots } from '../../../components/Skeleton'
 
 export default function GroupMatchPredictions({ session, deadline, demoMode }) {
+  const navigate = useNavigate()
   const [matches, setMatches] = useState([])
   const [predictions, setPredictions] = useState({})
   const [savedPredictions, setSavedPredictions] = useState({})
@@ -358,7 +360,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                       fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.home_team?.name || 'TBD'}
+                      {match.home_team?.name || 'Por determinar'}
                     </span>
                   </div>
 
@@ -403,7 +405,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                       fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {match.away_team?.name || 'TBD'}
+                      {match.away_team?.name || 'Por determinar'}
                     </span>
                     {match.away_team?.flag_url && (
                       <img src={match.away_team.flag_url} alt=""
@@ -441,6 +443,20 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                     <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--bg-secondary)', color: 'var(--text-dim)' }}>
                       Pendiente
                     </span>
+                  )}
+                  {!demoMode && (
+                    <button
+                      onClick={() => navigate(`/match/${match.id}`)}
+                      style={{
+                        marginLeft: '6px', padding: '2px 8px',
+                        background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)',
+                        borderRadius: '4px', color: 'var(--text-muted)',
+                        fontSize: '10px', fontWeight: '600', cursor: 'pointer',
+                        letterSpacing: '0.3px'
+                      }}
+                    >
+                      Detalle →
+                    </button>
                   )}
                 </div>
               </div>

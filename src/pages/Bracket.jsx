@@ -114,7 +114,7 @@ export default function Bracket() {
                 fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)',
                 marginBottom: '2px'
               }}>
-                {finalMatch.home_team?.name || 'TBD'}
+                {finalMatch.home_team?.name || 'Por determinar'}
               </div>
             </div>
 
@@ -150,7 +150,7 @@ export default function Bracket() {
                 fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)',
                 marginBottom: '2px'
               }}>
-                {finalMatch.away_team?.name || 'TBD'}
+                {finalMatch.away_team?.name || 'Por determinar'}
               </div>
             </div>
           </div>
@@ -339,7 +339,7 @@ export default function Bracket() {
                       color: homeWon ? 'var(--green)' : 'var(--text-primary)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1
                     }}>
-                      {match.home_team?.name || 'TBD'}
+                      {match.home_team?.name || 'Por determinar'}
                     </span>
                     {isFinished && (
                       <span style={{
@@ -373,7 +373,7 @@ export default function Bracket() {
                       color: awayWon ? 'var(--green)' : 'var(--text-primary)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1
                     }}>
-                      {match.away_team?.name || 'TBD'}
+                      {match.away_team?.name || 'Por determinar'}
                     </span>
                     {isFinished && (
                       <span style={{

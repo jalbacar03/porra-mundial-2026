@@ -789,7 +789,7 @@ export default function Admin({ session }) {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                           <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                            {match.home_team?.name || 'TBD'}
+                            {match.home_team?.name || 'Por determinar'}
                           </span>
                           {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />}
                         </div>
@@ -805,7 +805,7 @@ export default function Admin({ session }) {
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />}
                           <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                            {match.away_team?.name || 'TBD'}
+                            {match.away_team?.name || 'Por determinar'}
                           </span>
                         </div>
                       </div>

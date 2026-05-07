@@ -23,6 +23,11 @@ const STEPS = [
     title: 'Órdagos',
     text: 'Durante el Mundial se abrirán predicciones extra sobre partidos concretos. ¡Arriesga para escalar posiciones!',
   },
+  {
+    icon: '📸',
+    title: 'Personaliza tu perfil',
+    text: 'Toca tu inicial arriba a la derecha en Inicio para subir una foto. Aparecerá en la clasificación, el foro y los órdagos.',
+  },
 ]
 
 export default function Onboarding() {
