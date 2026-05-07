@@ -177,16 +177,17 @@ async function generateWithGemini(data) {
         }).join('\n')
       : '- (sin partidos resueltos hoy)'
 
-    prompt = `Periodista deportivo cubriendo una porra amistosa del Mundial 2026.
+    prompt = `Eres un teletipo de prensa deportiva. Redactas la crónica diaria de una porra amistosa del Mundial 2026.
 
-REGLAS DE ESTILO (estrictas):
-- Tono sobrio y factual. Como una nota breve de prensa deportiva.
-- Prohibido: exclamaciones múltiples, hype, superlativos exagerados, chistes, frases motivadoras, "¡atención!", "ojo", "este se pone caliente", emojis decorativos.
-- Permitido: 0-1 emojis SOLO si aportan información concreta (🏆 para líder, ⚽ para gol). Sin emojis si dudas.
-- Datos concretos > adjetivos. Nombres > genericos.
+REGLAS NO NEGOCIABLES:
+- MÁXIMO 100 PALABRAS TOTALES. Cuenta dos veces antes de devolver. Si pasas, recorta.
+- Tono: factual, neutro, periodístico. Como una nota de agencia. No conversacional, no opinativo, no emotivo.
+- PROHIBIDO usar: "¡", "?!", "atención", "ojo", "tensión", "presagio", "imparable", "candidato", "sin duda", "no te pierdas", "se mueve", "se calienta", emojis decorativos.
+- Permitido: máximo 1 emoji (solo si aporta dato: 🏆 líder, ⚽ gol). Mejor sin emoji.
+- Datos concretos > adjetivos. Nombres > genéricos.
 
 CONTEXTO (${today}):
-- ${data.totalParticipants} participantes en juego.
+- ${data.totalParticipants} participantes.
 
 CLASIFICACIÓN ACTUAL (top 5):
 ${top5}
@@ -197,42 +198,38 @@ ${movementsText}
 RESULTADOS RECIENTES:
 ${recentResults}
 
-Redacta la crónica en español. ESTRICTO: MÁXIMO 100 PALABRAS. Sin markdown.
+ESTRUCTURA EXACTA:
+- Titular (5-8 palabras, sin signos de exclamación).
+- 1 párrafo: cambios en la clasificación con nombres concretos y deltas (▲n / ▼n).
+- 1 línea: dato concreto del día (resultado, racha, hito).
+- 1 línea de cierre: lo que viene mañana o efecto sobre el liderato.
 
-Estructura:
-1. Titular corto (5-8 palabras) sobre lo más relevante del día
-2. 1-2 frases sobre los movimientos del ranking, con nombres
-3. 1 frase con un dato del día (un resultado, una racha)
-4. Cierre breve (lo que viene mañana o consecuencia para la clasificación)
-
-Cuenta las palabras antes de devolver. No te pases.`
+Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
   } else {
     const newsContext = data.newsHeadlines.length > 0
       ? `\nÚLTIMAS NOTICIAS DEL MUNDO DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
       : ''
 
-    prompt = `Periodista deportivo cubriendo una porra amistosa del Mundial 2026.
+    prompt = `Eres un teletipo de prensa deportiva. Redactas la crónica diaria de una porra amistosa del Mundial 2026.
 
-REGLAS DE ESTILO (estrictas):
-- Tono sobrio y factual. Como una nota breve de prensa deportiva.
-- Prohibido: exclamaciones múltiples, hype, superlativos exagerados, chistes, frases motivadoras, "¡atención!", "ojo", emojis decorativos.
-- Permitido: 0-1 emoji solo si aporta. Sin emojis si dudas.
-- Datos concretos > adjetivos.
+REGLAS NO NEGOCIABLES:
+- MÁXIMO 100 PALABRAS TOTALES. Cuenta dos veces antes de devolver. Si pasas, recorta.
+- Tono: factual, neutro, periodístico. No conversacional, no opinativo, no emotivo.
+- PROHIBIDO usar: "¡", "¿", "?!", "atención", "ojo", "tensión se palpa", "pitido inicial", "presagio", "vuelta de la esquina", "apuesta segura", "cuenta atrás", "imparable", "candidatos", "sin duda", "no te pierdas", "espectáculo", emojis decorativos.
+- Permitido: máximo 1 emoji (solo si aporta dato: 🏆 líder, ⚽ gol). Mejor sin emoji.
 
 CONTEXTO (${today}):
-- ${data.totalParticipants} participantes registrados.
-- El Mundial empieza el 11 de junio de 2026.
-- Plazo de predicciones de grupos y especiales: cierra el 9 de junio.
+- ${data.totalParticipants} participantes inscritos.
+- Mundial empieza 11 de junio 2026.
+- Plazo predicciones grupos + especiales: cierra 9 junio (48h antes).
 ${newsContext}
 
-Redacta la crónica en español. ESTRICTO: MÁXIMO 100 PALABRAS. Sin markdown.
+ESTRUCTURA EXACTA:
+- Titular (5-8 palabras, sin signos de exclamación).
+- 1 párrafo: noticia relevante y su efecto concreto sobre alguna predicción especial. Nombres concretos.
+- 1 línea final: días que faltan para el cierre de predicciones.
 
-Estructura:
-1. Titular corto (5-8 palabras).
-2. 1-2 frases sobre alguna noticia y su posible efecto en las predicciones (campeón, revelación, goleador).
-3. 1 frase con el plazo restante hasta el cierre de predicciones.
-
-Cuenta las palabras antes de devolver. No te pases.`
+Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
   }
 
   const response = await fetch(
