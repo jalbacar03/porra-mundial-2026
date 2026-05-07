@@ -43,6 +43,17 @@ export default function Dashboard({ session, demoMode }) {
     fetchActiveOrdago()
   }, [])
 
+  // Realtime: when any match changes (score/status), refetch live + next matches
+  useEffect(() => {
+    const channel = supabase
+      .channel('dash-matches-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, () => {
+        fetchAll()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
   async function fetchActiveOrdago() {
     try {
       const { data } = await supabase.from('ordagos')

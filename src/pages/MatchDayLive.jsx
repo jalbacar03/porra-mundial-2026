@@ -128,13 +128,24 @@ export default function MatchDayLive({ session }) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Auto-refresh every 60s when there are live matches
+  // Auto-refresh every 30s when there are live matches (fallback in case Realtime drops)
   useEffect(() => {
     const hasLive = matches.some(m => isLive(m))
     if (!hasLive) return
-    const interval = setInterval(fetchData, 60000)
+    const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
   }, [matches, fetchData])
+
+  // Realtime push: instant refetch on any match update (goals, status changes)
+  useEffect(() => {
+    const channel = supabase
+      .channel('mdl-matches-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, () => {
+        fetchData()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchData])
 
   const paidUserIds = useMemo(() => new Set(profiles.filter(p => p.has_paid).map(p => p.id)), [profiles])
 

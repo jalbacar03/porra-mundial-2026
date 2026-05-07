@@ -153,12 +153,23 @@ export default function Leaderboard({ demoMode }) {
 
   const hasLive = liveMatches.length > 0
 
-  // Auto-refresh every 60s when there are live matches
+  // Auto-refresh every 30s when there are live matches (fallback in case Realtime drops)
   useEffect(() => {
     if (!hasLive) return
-    const interval = setInterval(fetchData, 60000)
+    const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
   }, [hasLive])
+
+  // Realtime push: when ANY match row changes (score, status), refetch immediately
+  useEffect(() => {
+    const channel = supabase
+      .channel('lb-matches-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, () => {
+        fetchData()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   if (loading) {
     return (
