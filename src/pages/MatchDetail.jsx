@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { FootballSpinner } from '../components/Skeleton'
+import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 
 const ORDAGO_CONFIG = {
   1: { cost: 0, exact: 2, sign: 1 },
@@ -177,7 +178,20 @@ export default function MatchDetail({ session }) {
   const stageLabel = stageLabels[match.stage] || 'Partido'
   const matchdayLabel = match.matchday ? ` · J${match.matchday}` : ''
 
-  const isLocked = match.status === 'finished' || match.status === 'live'
+  // Lock criteria:
+  //   - For group-stage matches: global deadline (48h before tournament start)
+  //   - For ANY match: locked once it has started or finished
+  // The DB enforces these too via RLS — frontend lock here is purely UX.
+  const now = new Date()
+  const isGroup = match.stage === 'group'
+  const groupDeadlineExpired = isGroup && now >= PREDICTIONS_DEADLINE
+  const matchStarted = match.status === 'finished' || match.status === 'live' || new Date(match.match_date) <= now
+  const isLocked = matchStarted || groupDeadlineExpired
+  const lockReason = matchStarted
+    ? (match.status === 'finished' ? '🔒 Partido finalizado' : '🔴 Partido en curso')
+    : groupDeadlineExpired
+      ? '🔒 Plazo cerrado (48h antes del Mundial)'
+      : ''
 
   return (
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '14px 16px 24px' }}>
@@ -380,7 +394,7 @@ export default function MatchDetail({ session }) {
           background: 'rgba(255,255,255,0.04)',
           fontSize: '12px', color: 'var(--text-muted)'
         }}>
-          {match.status === 'finished' ? '🔒 Partido finalizado' : '🔴 Partido en curso'}
+          {lockReason}
           {savedPred && ` · Tu predicción: ${savedPred.predicted_home}-${savedPred.predicted_away}`}
         </div>
       )}

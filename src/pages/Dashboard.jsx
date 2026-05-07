@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { generateMockLeaderboard } from '../hooks/useDemoMode'
@@ -25,7 +25,7 @@ export default function Dashboard({ session, demoMode }) {
   const [livePredictions, setLivePredictions] = useState({})
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [loading, setLoading] = useState(true)
-  const { permission: notifPerm, requestPermission } = useNotifications()
+  const { permission: notifPerm, requestPermission, sendLocal } = useNotifications()
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -43,16 +43,35 @@ export default function Dashboard({ session, demoMode }) {
     fetchActiveOrdago()
   }, [])
 
-  // Realtime: when any match changes (score/status), refetch live + next matches
+  // Realtime: when any match changes, refetch + (foreground) push notification
+  // when a match the user predicted finishes. notifiedRef prevents duplicates
+  // if multiple updates arrive for the same match.
+  const notifiedRef = useRef(new Set())
   useEffect(() => {
     const channel = supabase
       .channel('dash-matches-realtime')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, () => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'matches' }, async (payload) => {
         fetchAll()
+        const m = payload.new
+        if (!m || m.status !== 'finished') return
+        if (notifiedRef.current.has(m.id)) return
+        if (!userPredictions[m.id]) return // user didn't predict this match → skip
+        notifiedRef.current.add(m.id)
+        // Fetch team names for the title (cheap)
+        const { data: teams } = await supabase
+          .from('matches')
+          .select('home_team:teams!matches_home_team_id_fkey(name), away_team:teams!matches_away_team_id_fkey(name)')
+          .eq('id', m.id).maybeSingle()
+        const home = teams?.home_team?.name || ''
+        const away = teams?.away_team?.name || ''
+        sendLocal(`Final: ${home} ${m.home_score}-${m.away_score} ${away}`, {
+          body: 'Abre la app para ver tus puntos.',
+          tag: `match-${m.id}`
+        })
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [userPredictions, sendLocal])
 
   async function fetchActiveOrdago() {
     try {

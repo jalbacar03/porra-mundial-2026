@@ -13,6 +13,7 @@ export default function BracketView({ session }) {
   const [predictions, setPredictions] = useState({})
   const [picks, setPicks] = useState({}) // { matchNumber: { predicted_winner_id, home_team_id, away_team_id } }
   const [teamsById, setTeamsById] = useState({})
+  const [knockoutDates, setKnockoutDates] = useState({}) // { match_number: Date } — for per-match locking
   const [loading, setLoading] = useState(true)
   const [activeRound, setActiveRound] = useState('r32')
   const debounceTimers = useRef({})
@@ -25,7 +26,7 @@ export default function BracketView({ session }) {
   }, [])
 
   async function fetchData() {
-    const [matchesRes, predsRes, picksRes, teamsRes] = await Promise.all([
+    const [matchesRes, predsRes, picksRes, teamsRes, knockoutRes] = await Promise.all([
       supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(id, name, code, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, code, flag_url)')
@@ -41,10 +42,20 @@ export default function BracketView({ session }) {
         .eq('user_id', session.user.id),
       supabase
         .from('teams')
-        .select('id, name, code, flag_url')
+        .select('id, name, code, flag_url'),
+      supabase
+        .from('matches')
+        .select('id, match_date, status')
+        .neq('stage', 'group')
     ])
 
     if (matchesRes.data) setMatches(matchesRes.data)
+
+    if (knockoutRes.data) {
+      const dates = {}
+      knockoutRes.data.forEach(m => { dates[m.id] = { date: new Date(m.match_date), status: m.status } })
+      setKnockoutDates(dates)
+    }
 
     if (predsRes.data) {
       const map = {}
@@ -296,7 +307,12 @@ export default function BracketView({ session }) {
                 // Points: round points; if final picked → add champion bonus 8
                 const pts = isFinal && winnerTeam ? col.pts + 8 : col.pts
 
+                // Per-match deadline: lock when the match has already started
+                const matchInfo = knockoutDates[m.matchNumber]
+                const matchLocked = matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled')
+
                 const togglePick = () => {
+                  if (matchLocked) return
                   if (!matchup?.home || !matchup?.away) return
                   // If no pick → pick home; if home → switch to away; if away → switch to home
                   const next = winnerId === matchup.home.id ? matchup.away.id
@@ -320,15 +336,19 @@ export default function BracketView({ session }) {
                   <button
                     key={m.matchNumber}
                     onClick={togglePick}
+                    disabled={matchLocked}
+                    title={matchLocked ? 'Partido ya iniciado' : ''}
                     style={{
                       padding: isFinal ? '12px 6px' : '8px 6px',
-                      borderRadius: '8px', cursor: 'pointer',
+                      borderRadius: '8px',
+                      cursor: matchLocked ? 'not-allowed' : 'pointer',
                       background: isFinal && winnerTeam ? 'var(--gold)' : 'var(--bg-secondary)',
                       border: winnerTeam
                         ? (isFinal ? '1px solid var(--gold)' : '1px solid var(--green)')
                         : '1px solid var(--border-light)',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
-                      minHeight: isFinal ? '70px' : 'auto'
+                      minHeight: isFinal ? '70px' : 'auto',
+                      opacity: matchLocked ? 0.6 : 1
                     }}
                   >
                     {winnerTeam ? (
