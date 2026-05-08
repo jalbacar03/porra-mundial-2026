@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import { useToast } from '../components/Toast'
 import { FootballSpinner } from '../components/Skeleton'
+import Avatar from '../components/Avatar'
+
+const SYNC_HISTORY_KEY = 'admin_sync_history_v1'
 
 export default function Admin({ session }) {
   const [matches, setMatches] = useState([])
@@ -15,6 +18,14 @@ export default function Admin({ session }) {
   const [activeTab, setActiveTab] = useState('results') // 'results' | 'payments' | 'sync' | 'bets'
   const [syncing, setSyncing] = useState(false)
   const [syncLog, setSyncLog] = useState(null)
+  const [syncHistory, setSyncHistory] = useState([])
+
+  // Results tab — search filter
+  const [matchSearch, setMatchSearch] = useState('')
+
+  // Admisiones tab — filters
+  const [admissionsFilter, setAdmissionsFilter] = useState('pending') // 'pending' | 'admitted' | 'all'
+  const [admissionsSort, setAdmissionsSort] = useState('requested') // 'requested' | 'created' | 'name'
 
   // Bets tab state
   const [allPredictions, setAllPredictions] = useState([])
@@ -31,6 +42,11 @@ export default function Admin({ session }) {
 
   useEffect(() => {
     checkAdmin()
+    // Load sync history from localStorage
+    try {
+      const raw = localStorage.getItem(SYNC_HISTORY_KEY)
+      if (raw) setSyncHistory(JSON.parse(raw))
+    } catch {}
   }, [])
 
   async function checkAdmin() {
@@ -68,7 +84,7 @@ export default function Admin({ session }) {
   async function fetchProfiles() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, has_paid, created_at')
+      .select('id, full_name, nickname, has_paid, created_at, access_requested_at, avatar_url')
       .order('created_at', { ascending: true })
 
     if (!error && data) setProfiles(data)
@@ -172,8 +188,55 @@ export default function Admin({ session }) {
     })
   }
 
+  function formatRelative(dateStr) {
+    if (!dateStr) return '—'
+    const d = new Date(dateStr)
+    const diffMs = Date.now() - d.getTime()
+    const diffMin = Math.round(diffMs / 60000)
+    if (diffMin < 1) return 'ahora'
+    if (diffMin < 60) return `hace ${diffMin} min`
+    const diffHr = Math.round(diffMin / 60)
+    if (diffHr < 24) return `hace ${diffHr} h`
+    const diffDay = Math.round(diffHr / 24)
+    if (diffDay < 7) return `hace ${diffDay} d`
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  }
+
+  function pushSyncHistory(entry) {
+    const next = [entry, ...syncHistory].slice(0, 3)
+    setSyncHistory(next)
+    try { localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(next)) } catch {}
+  }
+
+  async function runSync() {
+    setSyncing(true)
+    setSyncLog(null)
+    const startedAt = new Date().toISOString()
+    try {
+      const res = await fetch('/api/sync-results')
+      const data = await res.json()
+      setSyncLog(data)
+      if (data.matchesUpdated > 0) {
+        fetchMatches()
+      }
+      pushSyncHistory({
+        timestamp: data.timestamp || startedAt,
+        matchesUpdated: data.matchesUpdated || 0,
+        betsResolved: data.betsResolved || 0,
+        totalFinished: data.totalFinished || 0,
+        notificationsSent: data.notificationsSent || 0,
+        ok: !data.error,
+        error: data.error || null
+      })
+    } catch (err) {
+      setSyncLog({ error: err.message })
+      pushSyncHistory({ timestamp: startedAt, ok: false, error: err.message })
+    }
+    setSyncing(false)
+  }
+
   if (loading) {
-    return <FootballSpinner text="Cargando…" />
+    return <FootballSpinner text="Cargando panel de admin…" />
   }
 
   if (!isAdmin) {
@@ -187,11 +250,21 @@ export default function Admin({ session }) {
   // Stats
   const totalMatches = matches.length
   const finishedMatches = matches.filter(m => m.status === 'finished').length
+  const liveMatches = matches.filter(m => m.status === 'live').length
   const totalUsers = profiles.length
   const admittedUsers = profiles.filter(p => p.has_paid).length
+  const pendingUsers = totalUsers - admittedUsers
 
-  // Group matches
-  const groupMatches = matches.filter(m => m.group_name === activeGroup)
+  // Group matches with optional search filter
+  const searchLower = matchSearch.trim().toLowerCase()
+  const groupMatches = matches.filter(m => {
+    if (searchLower) {
+      const home = (m.home_team?.name || '').toLowerCase()
+      const away = (m.away_team?.name || '').toLowerCase()
+      return home.includes(searchLower) || away.includes(searchLower)
+    }
+    return m.group_name === activeGroup
+  })
 
   function countGroupFinished(group) {
     return matches.filter(m => m.group_name === group && m.status === 'finished').length
@@ -200,92 +273,146 @@ export default function Admin({ session }) {
     return matches.filter(m => m.group_name === group).length
   }
 
+  // Match status helper for visual distinction
+  function getMatchStatus(m) {
+    if (m.status === 'finished') return 'finished'
+    if (m.status === 'live') return 'live'
+    const start = new Date(m.match_date).getTime()
+    const now = Date.now()
+    if (now < start) return 'upcoming'
+    return 'pending' // past start time but no result entered
+  }
+
+  const STATUS_META = {
+    finished: { label: 'Finalizado', color: 'var(--green)', bg: 'var(--green-light)' },
+    live: { label: 'En vivo', color: '#fff', bg: '#e74c3c' },
+    pending: { label: 'Pendiente', color: 'var(--gold)', bg: 'rgba(255,204,0,0.1)' },
+    upcoming: { label: 'Por jugar', color: 'var(--text-muted)', bg: 'var(--bg-input)' }
+  }
+
+  // Section header style — used across the page
+  const sectionHeader = {
+    fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
+    letterSpacing: '1.2px', color: 'var(--text-muted)',
+    margin: '0 0 10px'
+  }
+
+  // Pill-tab style helper
+  function pillStyle(active) {
+    return {
+      padding: '6px 12px', borderRadius: '20px', border: 'none',
+      background: active ? 'var(--green)' : 'var(--bg-secondary)',
+      color: active ? '#fff' : 'var(--text-muted)',
+      cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 500,
+      whiteSpace: 'nowrap', flexShrink: 0,
+      transition: 'all 0.15s ease'
+    }
+  }
+
+  // Filter & sort profiles for the Admisiones tab
+  const filteredProfiles = (() => {
+    let arr = profiles
+    if (admissionsFilter === 'pending') arr = arr.filter(p => !p.has_paid)
+    else if (admissionsFilter === 'admitted') arr = arr.filter(p => p.has_paid)
+
+    if (admissionsSort === 'requested') {
+      arr = [...arr].sort((a, b) => {
+        const ta = a.access_requested_at ? new Date(a.access_requested_at).getTime() : 0
+        const tb = b.access_requested_at ? new Date(b.access_requested_at).getTime() : 0
+        return tb - ta // newest request first
+      })
+    } else if (admissionsSort === 'created') {
+      arr = [...arr].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    } else if (admissionsSort === 'name') {
+      arr = [...arr].sort((a, b) =>
+        (a.nickname || a.full_name || '').localeCompare(b.nickname || b.full_name || '')
+      )
+    }
+    return arr
+  })()
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <h2 style={{
-          fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)',
-          margin: '0 0 4px', letterSpacing: '0.3px'
+      {/* ===== Header ===== */}
+      <div style={{ marginBottom: '18px' }}>
+        <h1 style={{
+          fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)',
+          margin: '0 0 4px', letterSpacing: '-0.4px'
         }}>
           Panel de Admin
-        </h2>
-        <p style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-          Gestión de la porra
+        </h1>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+          Resultados, admisiones y sincronización con API-Football
         </p>
       </div>
 
-      {/* Stats cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+      {/* ===== Stats overview ===== */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '18px' }}>
         <div style={{
-          background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
+          background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px 12px',
           border: '0.5px solid var(--border)', textAlign: 'center'
         }}>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
-            {finishedMatches}/{totalMatches}
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+            {finishedMatches}<span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 600 }}>/{totalMatches}</span>
           </div>
-          <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '2px', fontWeight: 600 }}>
             Partidos
           </div>
         </div>
         <div style={{
-          background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
+          background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px 12px',
           border: '0.5px solid var(--border)', textAlign: 'center'
         }}>
-          <div style={{ fontSize: '20px', fontWeight: '700', color: admittedUsers === totalUsers ? 'var(--green)' : 'var(--gold)' }}>
-            {admittedUsers}/{totalUsers}
+          <div style={{
+            fontSize: '22px', fontWeight: 800, letterSpacing: '-0.5px',
+            color: pendingUsers === 0 ? 'var(--green)' : 'var(--gold)'
+          }}>
+            {pendingUsers}
           </div>
-          <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px' }}>
-            Admitidos
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '2px', fontWeight: 600 }}>
+            Pendientes
+          </div>
+        </div>
+        <div style={{
+          background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px 12px',
+          border: '0.5px solid var(--border)', textAlign: 'center'
+        }}>
+          <div style={{
+            fontSize: '22px', fontWeight: 800, letterSpacing: '-0.5px',
+            color: liveMatches > 0 ? '#e74c3c' : 'var(--text-primary)'
+          }}>
+            {liveMatches}
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '2px', fontWeight: 600 }}>
+            En vivo
           </div>
         </div>
       </div>
 
-      {/* Tab switcher: Resultados / Solicitudes / Sync */}
-      <div style={{ display: 'flex', gap: '0', marginBottom: '16px', borderRadius: '6px', overflow: 'hidden', border: '0.5px solid var(--border)' }}>
-        <button
-          onClick={() => setActiveTab('results')}
-          style={{
-            flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
-            fontSize: '13px', fontWeight: '600',
-            background: activeTab === 'results' ? 'var(--green)' : 'var(--bg-secondary)',
-            color: activeTab === 'results' ? '#fff' : 'var(--text-muted)'
-          }}
-        >
+      {/* ===== Tab switcher (pills) ===== */}
+      <div style={{
+        display: 'flex', gap: '6px', marginBottom: '18px',
+        overflowX: 'auto', paddingBottom: '2px',
+        scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch'
+      }}>
+        <button onClick={() => setActiveTab('results')} style={pillStyle(activeTab === 'results')}>
           Resultados
         </button>
-        <button
-          onClick={() => setActiveTab('payments')}
-          style={{
-            flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
-            fontSize: '13px', fontWeight: '600',
-            background: activeTab === 'payments' ? 'var(--green)' : 'var(--bg-secondary)',
-            color: activeTab === 'payments' ? '#fff' : 'var(--text-muted)'
-          }}
-        >
-          Solicitudes
+        <button onClick={() => setActiveTab('payments')} style={pillStyle(activeTab === 'payments')}>
+          Admisiones {pendingUsers > 0 && (
+            <span style={{
+              marginLeft: '6px', padding: '1px 6px', borderRadius: '10px',
+              background: activeTab === 'payments' ? 'rgba(255,255,255,0.18)' : 'var(--gold)',
+              color: activeTab === 'payments' ? '#fff' : '#000',
+              fontSize: '10px', fontWeight: 700
+            }}>{pendingUsers}</span>
+          )}
         </button>
-        <button
-          onClick={() => setActiveTab('sync')}
-          style={{
-            flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
-            fontSize: '13px', fontWeight: '600',
-            background: activeTab === 'sync' ? 'var(--green)' : 'var(--bg-secondary)',
-            color: activeTab === 'sync' ? '#fff' : 'var(--text-muted)'
-          }}
-        >
-          ⚡ Sync
+        <button onClick={() => setActiveTab('sync')} style={pillStyle(activeTab === 'sync')}>
+          ⚡ Sync API
         </button>
-        <button
-          onClick={() => setActiveTab('bets')}
-          style={{
-            flex: 1, padding: '10px', border: 'none', cursor: 'pointer',
-            fontSize: '13px', fontWeight: '600',
-            background: activeTab === 'bets' ? 'var(--green)' : 'var(--bg-secondary)',
-            color: activeTab === 'bets' ? '#fff' : 'var(--text-muted)'
-          }}
-        >
+        <button onClick={() => setActiveTab('bets')} style={pillStyle(activeTab === 'bets')}>
           Predicciones
         </button>
       </div>
@@ -294,187 +421,257 @@ export default function Admin({ session }) {
       {/* ========== RESULTS TAB ========== */}
       {activeTab === 'results' && (
         <>
-          {/* Group selector */}
-          <div className="group-tabs" style={{ marginBottom: '14px' }}>
-            {groups.map(g => {
-              const total = countGroupTotal(g)
-              const done = countGroupFinished(g)
-              const isActive = activeGroup === g
-              const isComplete = done === total && total > 0
-              return (
-                <button
-                  key={g}
-                  onClick={() => setActiveGroup(g)}
-                  style={{
-                    padding: '6px 14px', borderRadius: '20px', border: 'none',
-                    background: isActive ? 'var(--green)' : isComplete ? 'var(--green-light)' : 'var(--bg-secondary)',
-                    color: isActive ? '#fff' : isComplete ? 'var(--green)' : 'var(--text-muted)',
-                    cursor: 'pointer', fontSize: '12px', fontWeight: isActive ? '600' : '400',
-                    whiteSpace: 'nowrap', flexShrink: 0
-                  }}
-                >
-                  {g} <span style={{ opacity: 0.6, fontSize: '10px' }}>{done}/{total}</span>
-                </button>
-              )
-            })}
+          {/* Search input */}
+          <div style={{ marginBottom: '12px' }}>
+            <input
+              type="text"
+              value={matchSearch}
+              onChange={e => setMatchSearch(e.target.value)}
+              placeholder="Buscar por equipo (ej: España, Brasil…)"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: '10px',
+                border: '0.5px solid var(--border)', background: 'var(--bg-input)',
+                color: 'var(--text-primary)', fontSize: '13px', outline: 'none',
+                boxSizing: 'border-box'
+              }}
+              onFocus={e => e.target.style.borderColor = 'var(--green)'}
+              onBlur={e => e.target.style.borderColor = 'var(--border)'}
+            />
           </div>
 
-          {/* Group progress */}
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: '6px',
-            marginBottom: '12px', border: '0.5px solid var(--border)'
-          }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Grupo {activeGroup}
-            </span>
-            <span style={{
-              fontSize: '12px', fontWeight: '600',
-              color: countGroupFinished(activeGroup) === countGroupTotal(activeGroup) && countGroupTotal(activeGroup) > 0 ? 'var(--green)' : 'var(--gold)'
+          {/* Group selector — hidden when searching */}
+          {!searchLower && (
+            <>
+              <div style={sectionHeader}>Grupos</div>
+              <div className="group-tabs" style={{ marginBottom: '14px' }}>
+                {groups.map(g => {
+                  const total = countGroupTotal(g)
+                  const done = countGroupFinished(g)
+                  const isActive = activeGroup === g
+                  const isComplete = done === total && total > 0
+                  return (
+                    <button
+                      key={g}
+                      onClick={() => setActiveGroup(g)}
+                      style={{
+                        padding: '6px 12px', borderRadius: '20px', border: 'none',
+                        background: isActive ? 'var(--green)' : isComplete ? 'var(--green-light)' : 'var(--bg-secondary)',
+                        color: isActive ? '#fff' : isComplete ? 'var(--green)' : 'var(--text-muted)',
+                        cursor: 'pointer', fontSize: '12px', fontWeight: isActive ? 600 : 500,
+                        whiteSpace: 'nowrap', flexShrink: 0
+                      }}
+                    >
+                      {g} <span style={{ opacity: 0.65, fontSize: '10px', marginLeft: '2px' }}>{done}/{total}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Group progress */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '10px',
+                marginBottom: '12px', border: '0.5px solid var(--border)'
+              }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  Grupo {activeGroup}
+                </span>
+                <span style={{
+                  fontSize: '12px', fontWeight: 700,
+                  color: countGroupFinished(activeGroup) === countGroupTotal(activeGroup) && countGroupTotal(activeGroup) > 0 ? 'var(--green)' : 'var(--gold)'
+                }}>
+                  {countGroupFinished(activeGroup)}/{countGroupTotal(activeGroup)} finalizados
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* Search summary */}
+          {searchLower && (
+            <div style={{
+              padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '10px',
+              marginBottom: '12px', border: '0.5px solid var(--border)',
+              fontSize: '12px', color: 'var(--text-muted)'
             }}>
-              {countGroupFinished(activeGroup)}/{countGroupTotal(activeGroup)} finalizados
-            </span>
-          </div>
+              {groupMatches.length} {groupMatches.length === 1 ? 'partido encontrado' : 'partidos encontrados'} con “{matchSearch.trim()}”
+            </div>
+          )}
 
           {/* Match list */}
-          {groupMatches.map(match => (
-            <div key={match.id} style={{
-              padding: '12px 0',
-              borderBottom: '0.5px solid var(--border-light)'
-            }}>
-              {/* Date */}
-              <div style={{
-                fontSize: '11px', color: 'var(--text-dim)',
-                marginBottom: '10px', textAlign: 'center'
-              }}>
-                {formatDate(match.match_date)}
-              </div>
-
-              {/* Teams and scores */}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                {/* Home team */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  {match.home_team?.flag_url && (
-                    <img src={match.home_team.flag_url} alt="" style={{
-                      width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0
-                    }} />
-                  )}
-                  <span style={{
-                    fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                  }}>
-                    {match.home_team?.name || 'Local'}
-                  </span>
-                </div>
-
-                {/* Score inputs */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 4px', flexShrink: 0 }}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    value={scores[match.id]?.home ?? ''}
-                    onChange={e => updateScore(match.id, 'home', e.target.value)}
-                    style={{
-                      width: '36px', height: '32px', textAlign: 'center',
-                      fontSize: '15px', fontWeight: '600', borderRadius: '4px',
-                      border: match.status === 'finished' ? '1px solid var(--green)' : '1px solid var(--border)',
-                      background: 'var(--bg-input)',
-                      color: scores[match.id]?.home !== '' ? 'var(--text-primary)' : 'var(--text-dim)',
-                      outline: 'none'
-                    }}
-                  />
-                  <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>:</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    value={scores[match.id]?.away ?? ''}
-                    onChange={e => updateScore(match.id, 'away', e.target.value)}
-                    style={{
-                      width: '36px', height: '32px', textAlign: 'center',
-                      fontSize: '15px', fontWeight: '600', borderRadius: '4px',
-                      border: match.status === 'finished' ? '1px solid var(--green)' : '1px solid var(--border)',
-                      background: 'var(--bg-input)',
-                      color: scores[match.id]?.away !== '' ? 'var(--text-primary)' : 'var(--text-dim)',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                {/* Away team */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', minWidth: 0 }}>
-                  <span style={{
-                    fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                  }}>
-                    {match.away_team?.name || 'Visitante'}
-                  </span>
-                  {match.away_team?.flag_url && (
-                    <img src={match.away_team.flag_url} alt="" style={{
-                      width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0
-                    }} />
-                  )}
-                </div>
-              </div>
-
-              {/* Status + Save button */}
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-                <span style={{
-                  fontSize: '10px', padding: '3px 10px', borderRadius: '3px',
-                  background: match.status === 'finished' ? 'var(--green-light)' : 'var(--bg-secondary)',
-                  color: match.status === 'finished' ? 'var(--green)' : 'var(--text-dim)'
-                }}>
-                  {match.status === 'finished' ? 'Finalizado' : 'Pendiente'}
-                </span>
-                <button
-                  onClick={() => saveResult(match.id)}
-                  disabled={saving === match.id}
-                  style={{
-                    padding: '5px 16px',
-                    background: match.status === 'finished' ? 'var(--bg-secondary)' : 'var(--green)',
-                    color: match.status === 'finished' ? 'var(--text-muted)' : '#fff',
-                    border: match.status === 'finished' ? '0.5px solid var(--border)' : 'none',
-                    borderRadius: '4px', cursor: 'pointer',
-                    fontSize: '11px', fontWeight: '600',
-                    opacity: saving === match.id ? 0.7 : 1
-                  }}
-                >
-                  {saving === match.id ? '...' : match.status === 'finished' ? 'Actualizar' : 'Guardar'}
-                </button>
-              </div>
+          {groupMatches.length === 0 && (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
+              Sin partidos
             </div>
-          ))}
+          )}
+          {groupMatches.map(match => {
+            const statusKey = getMatchStatus(match)
+            const meta = STATUS_META[statusKey]
+            // Subtle left-border accent for live + pending
+            const accentColor = statusKey === 'live' ? '#e74c3c'
+              : statusKey === 'pending' ? 'var(--gold)'
+              : statusKey === 'finished' ? 'var(--green)'
+              : 'transparent'
+            return (
+              <div key={match.id} style={{
+                padding: '12px 14px',
+                marginBottom: '8px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '10px',
+                border: '0.5px solid var(--border)',
+                borderLeft: `3px solid ${accentColor}`
+              }}>
+                {/* Date + group tag */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  fontSize: '11px', color: 'var(--text-dim)', marginBottom: '10px'
+                }}>
+                  <span>{formatDate(match.match_date)}</span>
+                  {searchLower && match.group_name && (
+                    <span style={{
+                      padding: '2px 8px', borderRadius: '20px', background: 'var(--bg-input)',
+                      color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600
+                    }}>
+                      Grupo {match.group_name}
+                    </span>
+                  )}
+                </div>
+
+                {/* Teams and scores */}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  {/* Home team */}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    {match.home_team?.flag_url && (
+                      <img src={match.home_team.flag_url} alt="" style={{
+                        width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0
+                      }} />
+                    )}
+                    <span style={{
+                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      {match.home_team?.name || 'Local'}
+                    </span>
+                  </div>
+
+                  {/* Score inputs */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 4px', flexShrink: 0 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={scores[match.id]?.home ?? ''}
+                      onChange={e => updateScore(match.id, 'home', e.target.value)}
+                      style={{
+                        width: '38px', height: '34px', textAlign: 'center',
+                        fontSize: '15px', fontWeight: 700, borderRadius: '6px',
+                        border: statusKey === 'finished' ? '1px solid var(--green)' : '1px solid var(--border)',
+                        background: 'var(--bg-input)',
+                        color: scores[match.id]?.home !== '' ? 'var(--text-primary)' : 'var(--text-dim)',
+                        outline: 'none'
+                      }}
+                    />
+                    <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={scores[match.id]?.away ?? ''}
+                      onChange={e => updateScore(match.id, 'away', e.target.value)}
+                      style={{
+                        width: '38px', height: '34px', textAlign: 'center',
+                        fontSize: '15px', fontWeight: 700, borderRadius: '6px',
+                        border: statusKey === 'finished' ? '1px solid var(--green)' : '1px solid var(--border)',
+                        background: 'var(--bg-input)',
+                        color: scores[match.id]?.away !== '' ? 'var(--text-primary)' : 'var(--text-dim)',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  {/* Away team */}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', minWidth: 0 }}>
+                    <span style={{
+                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      {match.away_team?.name || 'Visitante'}
+                    </span>
+                    {match.away_team?.flag_url && (
+                      <img src={match.away_team.flag_url} alt="" style={{
+                        width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0
+                      }} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Status badge + Save button */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                  <span style={{
+                    fontSize: '10px', padding: '4px 10px', borderRadius: '20px',
+                    background: meta.bg, color: meta.color,
+                    fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px',
+                    display: 'inline-flex', alignItems: 'center', gap: '5px'
+                  }}>
+                    {statusKey === 'live' && (
+                      <span style={{
+                        width: '6px', height: '6px', borderRadius: '50%',
+                        background: '#fff', display: 'inline-block', boxShadow: '0 0 8px #fff'
+                      }} />
+                    )}
+                    {meta.label}
+                  </span>
+                  <button
+                    onClick={() => saveResult(match.id)}
+                    disabled={saving === match.id}
+                    style={{
+                      padding: '6px 16px',
+                      background: statusKey === 'finished' ? 'var(--bg-input)' : 'var(--green)',
+                      color: statusKey === 'finished' ? 'var(--text-muted)' : '#fff',
+                      border: statusKey === 'finished' ? '0.5px solid var(--border)' : 'none',
+                      borderRadius: '6px', cursor: saving === match.id ? 'not-allowed' : 'pointer',
+                      fontSize: '11px', fontWeight: 700,
+                      opacity: saving === match.id ? 0.7 : 1,
+                      letterSpacing: '0.4px', textTransform: 'uppercase'
+                    }}
+                  >
+                    {saving === match.id ? '...' : statusKey === 'finished' ? 'Actualizar' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </>
       )}
 
-      {/* ========== SOLICITUDES TAB ========== */}
+      {/* ========== ADMISIONES TAB ========== */}
       {activeTab === 'payments' && (
         <>
-          {/* Summary */}
+          {/* Hero summary */}
           <div style={{
             background: 'linear-gradient(135deg, #00392a, #005e3a)',
-            borderRadius: '8px', padding: '14px 16px', marginBottom: '14px'
+            borderRadius: '12px', padding: '16px', marginBottom: '14px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                  Solicitudes
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: 700 }}>
+                  Admitidos
                 </div>
-                <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--gold)', marginTop: '2px' }}>
+                <div style={{ fontSize: '30px', fontWeight: 800, color: 'var(--gold)', marginTop: '2px', letterSpacing: '-0.5px' }}>
                   {admittedUsers}<span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)' }}>/{totalUsers}</span>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: 700 }}>
                   Pendientes
                 </div>
-                <div style={{ fontSize: '28px', fontWeight: '700', color: totalUsers - admittedUsers > 0 ? '#e74c3c' : 'var(--green)', marginTop: '2px' }}>
-                  {totalUsers - admittedUsers}
+                <div style={{
+                  fontSize: '30px', fontWeight: 800, marginTop: '2px', letterSpacing: '-0.5px',
+                  color: pendingUsers > 0 ? '#ffb4b4' : 'var(--green)'
+                }}>
+                  {pendingUsers}
                 </div>
               </div>
             </div>
-            {/* Progress bar */}
             <div style={{
               height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px',
               marginTop: '12px', overflow: 'hidden'
@@ -486,45 +683,104 @@ export default function Admin({ session }) {
             </div>
           </div>
 
-          {/* Header */}
+          {/* Filter pills */}
+          <div style={sectionHeader}>Filtrar</div>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <button onClick={() => setAdmissionsFilter('pending')} style={pillStyle(admissionsFilter === 'pending')}>
+              Pendientes {pendingUsers > 0 && (
+                <span style={{ marginLeft: '4px', opacity: 0.85 }}>({pendingUsers})</span>
+              )}
+            </button>
+            <button onClick={() => setAdmissionsFilter('admitted')} style={pillStyle(admissionsFilter === 'admitted')}>
+              Admitidos ({admittedUsers})
+            </button>
+            <button onClick={() => setAdmissionsFilter('all')} style={pillStyle(admissionsFilter === 'all')}>
+              Todos ({totalUsers})
+            </button>
+          </div>
+
+          {/* Sort */}
           <div style={{
-            display: 'flex', padding: '8px 12px', fontSize: '10px', color: 'var(--text-dim)',
-            textTransform: 'uppercase', letterSpacing: '0.6px', borderBottom: '0.5px solid var(--border)'
+            display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '12px',
+            fontSize: '11px', color: 'var(--text-muted)'
           }}>
-            <span style={{ flex: 1 }}>Nombre</span>
-            <span style={{ width: '70px', textAlign: 'center' }}>Estado</span>
-            <span style={{ width: '90px', textAlign: 'center' }}>Acción</span>
+            <span style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Ordenar:</span>
+            <select
+              value={admissionsSort}
+              onChange={e => setAdmissionsSort(e.target.value)}
+              style={{
+                padding: '5px 10px', borderRadius: '8px',
+                border: '0.5px solid var(--border)', background: 'var(--bg-input)',
+                color: 'var(--text-primary)', fontSize: '11px', outline: 'none'
+              }}
+            >
+              <option value="requested">Solicitud (recientes)</option>
+              <option value="created">Registro (recientes)</option>
+              <option value="name">Nombre A-Z</option>
+            </select>
           </div>
 
           {/* User list */}
-          {profiles.map(profile => (
-            <div key={profile.id} style={{
-              display: 'flex', alignItems: 'center', padding: '10px 12px',
-              borderBottom: '0.5px solid var(--border-light)'
+          {filteredProfiles.length === 0 && (
+            <div style={{
+              padding: '40px 16px', textAlign: 'center',
+              color: 'var(--text-dim)', fontSize: '13px',
+              background: 'var(--bg-secondary)', borderRadius: '10px',
+              border: '0.5px solid var(--border)'
             }}>
-              <span style={{
-                flex: 1, fontSize: '13px', fontWeight: '500',
-                color: profile.has_paid ? 'var(--text-primary)' : 'var(--text-muted)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+              Sin usuarios en esta vista
+            </div>
+          )}
+
+          {filteredProfiles.map(profile => {
+            const name = profile.nickname || profile.full_name || 'Sin nombre'
+            return (
+              <div key={profile.id} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '12px 14px', marginBottom: '6px',
+                background: 'var(--bg-secondary)', borderRadius: '10px',
+                border: '0.5px solid var(--border)'
               }}>
-                {profile.nickname || profile.full_name || 'Sin nombre'}
-              </span>
-              <span style={{
-                width: '70px', textAlign: 'center', fontSize: '10px',
-                padding: '3px 8px', borderRadius: '3px',
-                background: profile.has_paid ? 'var(--green-light)' : 'rgba(255,204,0,0.08)',
-                color: profile.has_paid ? 'var(--green)' : 'var(--gold)'
-              }}>
-                {profile.has_paid ? 'Admitido' : 'Pendiente'}
-              </span>
-              <div style={{ width: '90px', display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                <Avatar
+                  url={profile.avatar_url}
+                  name={name}
+                  size={36}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: '13px', fontWeight: 700,
+                    color: profile.has_paid ? 'var(--text-primary)' : 'var(--text-primary)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                  }}>
+                    {name}
+                  </div>
+                  <div style={{
+                    fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px',
+                    display: 'flex', gap: '8px', alignItems: 'center'
+                  }}>
+                    <span style={{
+                      padding: '1px 7px', borderRadius: '20px', fontSize: '10px',
+                      background: profile.has_paid ? 'var(--green-light)' : 'rgba(255,204,0,0.1)',
+                      color: profile.has_paid ? 'var(--green)' : 'var(--gold)',
+                      fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'
+                    }}>
+                      {profile.has_paid ? 'Admitido' : 'Pendiente'}
+                    </span>
+                    {profile.access_requested_at && (
+                      <span title={new Date(profile.access_requested_at).toLocaleString('es-ES')}>
+                        Solicitó {formatRelative(profile.access_requested_at)}
+                      </span>
+                    )}
+                  </div>
+                </div>
                 {!profile.has_paid ? (
                   <button
                     onClick={() => togglePayment(profile.id, profile.has_paid)}
                     style={{
-                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
-                      fontSize: '10px', fontWeight: '600', border: 'none',
-                      background: 'var(--green)', color: '#fff'
+                      padding: '7px 14px', borderRadius: '8px', cursor: 'pointer',
+                      fontSize: '11px', fontWeight: 700, border: 'none',
+                      background: 'var(--green)', color: '#fff',
+                      letterSpacing: '0.4px', textTransform: 'uppercase'
                     }}
                   >
                     Admitir
@@ -533,27 +789,26 @@ export default function Admin({ session }) {
                   <button
                     onClick={() => togglePayment(profile.id, profile.has_paid)}
                     style={{
-                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer',
-                      fontSize: '10px', fontWeight: '600', border: 'none',
-                      background: 'var(--bg-secondary)', color: 'var(--text-dim)'
+                      padding: '7px 14px', borderRadius: '8px', cursor: 'pointer',
+                      fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)',
+                      background: 'var(--bg-input)', color: 'var(--text-muted)',
+                      letterSpacing: '0.4px', textTransform: 'uppercase'
                     }}
                   >
                     Revocar
                   </button>
                 )}
               </div>
-            </div>
-          ))}
+            )
+          })}
 
-          {/* Clear Forum button */}
+          {/* Forum management */}
           <div style={{
             marginTop: '24px', padding: '16px',
-            background: 'var(--bg-secondary)', borderRadius: '8px',
+            background: 'var(--bg-secondary)', borderRadius: '12px',
             border: '0.5px solid var(--border)'
           }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
-              🗑 Gestión del foro
-            </div>
+            <div style={sectionHeader}>Gestión del foro</div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '12px' }}>
               Elimina todos los mensajes del foro general. Los comunicados oficiales no se borran.
             </div>
@@ -571,9 +826,10 @@ export default function Admin({ session }) {
                 }
               }}
               style={{
-                padding: '10px 20px', borderRadius: '6px', border: 'none',
-                cursor: 'pointer', fontSize: '12px', fontWeight: '600',
-                background: '#e74c3c', color: '#fff'
+                padding: '10px 20px', borderRadius: '8px', border: 'none',
+                cursor: 'pointer', fontSize: '12px', fontWeight: 700,
+                background: '#e74c3c', color: '#fff',
+                letterSpacing: '0.4px', textTransform: 'uppercase'
               }}
             >
               Limpiar foro general
@@ -585,87 +841,152 @@ export default function Admin({ session }) {
       {/* ========== SYNC TAB ========== */}
       {activeTab === 'sync' && (
         <>
+          {/* Action card */}
           <div style={{
-            background: 'var(--bg-secondary)', borderRadius: '8px',
-            padding: '16px', marginBottom: '14px',
-            border: '1px solid rgba(255,255,255,0.05)'
+            background: 'var(--bg-secondary)', borderRadius: '12px',
+            padding: '18px', marginBottom: '14px',
+            border: '0.5px solid var(--border)'
           }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
-              ⚡ Sincronización con API-Football
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', marginBottom: '12px' }}>
-              Actualiza resultados de partidos, resuelve predicciones pre-torneo y sincroniza estadísticas.
-              Se ejecuta automáticamente cada 2 horas durante el Mundial.
+            <div style={sectionHeader}>Sincronización con API-Football</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55', marginBottom: '14px' }}>
+              Actualiza resultados de partidos, resuelve predicciones pre-torneo y sincroniza estadísticas en vivo.
+              Se ejecuta automáticamente a las 9:00 UTC. Pulsa para forzar una sincronización inmediata.
             </div>
             <button
-              onClick={async () => {
-                setSyncing(true)
-                setSyncLog(null)
-                try {
-                  const res = await fetch('/api/sync-results')
-                  const data = await res.json()
-                  setSyncLog(data)
-                  if (data.matchesUpdated > 0) {
-                    fetchMatches() // Refresh matches
-                  }
-                } catch (err) {
-                  setSyncLog({ error: err.message })
-                }
-                setSyncing(false)
-              }}
+              onClick={runSync}
               disabled={syncing}
               style={{
-                width: '100%', padding: '12px', borderRadius: '6px',
+                width: '100%', padding: '14px', borderRadius: '10px',
                 border: 'none', cursor: syncing ? 'not-allowed' : 'pointer',
-                fontSize: '13px', fontWeight: '600',
+                fontSize: '13px', fontWeight: 700,
                 background: syncing ? 'var(--bg-input)' : 'var(--green)',
                 color: syncing ? 'var(--text-muted)' : '#fff',
-                letterSpacing: '0.5px', textTransform: 'uppercase'
+                letterSpacing: '0.6px', textTransform: 'uppercase',
+                transition: 'background 0.15s ease'
               }}
             >
-              {syncing ? '🔄 Sincronizando...' : '▶ Ejecutar sync ahora'}
+              {syncing ? 'Sincronizando…' : '⚡ Ejecutar sync ahora'}
             </button>
           </div>
 
-          {/* Sync results */}
-          {syncLog && (
+          {/* Loading state with FootballSpinner */}
+          {syncing && !syncLog && (
             <div style={{
-              background: '#0d1117', borderRadius: '8px', padding: '14px',
-              border: '1px solid rgba(255,255,255,0.08)', fontFamily: 'monospace'
+              background: 'var(--bg-secondary)', borderRadius: '12px',
+              padding: '20px', marginBottom: '14px',
+              border: '0.5px solid var(--border)'
             }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Resultado del sync
+              <FootballSpinner size={32} text="Llamando a API-Football, calculando puntos…" />
+            </div>
+          )}
+
+          {/* Result panel */}
+          {syncLog && !syncing && (
+            <div style={{
+              background: 'var(--bg-secondary)', borderRadius: '12px', padding: '16px',
+              border: '0.5px solid var(--border)', marginBottom: '14px'
+            }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                marginBottom: '12px'
+              }}>
+                <div style={sectionHeader}>
+                  {syncLog.error ? 'Error en el sync' : 'Resultado del último sync'}
+                </div>
+                {syncLog.timestamp && (
+                  <span style={{ fontSize: '10px', color: 'var(--text-dim)', margin: '0 0 10px' }}>
+                    {new Date(syncLog.timestamp).toLocaleTimeString('es-ES')}
+                  </span>
+                )}
               </div>
+
               {syncLog.error ? (
-                <div style={{ color: '#e74c3c', fontSize: '12px' }}>❌ Error: {syncLog.error}</div>
+                <div style={{
+                  padding: '12px', borderRadius: '8px',
+                  background: 'rgba(231,76,60,0.1)', border: '0.5px solid rgba(231,76,60,0.3)',
+                  color: '#e74c3c', fontSize: '12px', fontFamily: 'monospace'
+                }}>
+                  ❌ {syncLog.error}
+                </div>
               ) : (
                 <>
-                  <div style={{ display: 'flex', gap: '16px', marginBottom: '10px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--green)' }}>{syncLog.matchesUpdated}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Partidos</div>
+                  {/* Stat grid */}
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px',
+                    marginBottom: '14px'
+                  }}>
+                    <div style={{ textAlign: 'center', padding: '10px 4px', background: 'var(--bg-input)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--green)' }}>{syncLog.matchesUpdated || 0}</div>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: '2px', fontWeight: 600 }}>Partidos</div>
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '20px', fontWeight: '700', color: '#ffcc00' }}>{syncLog.betsResolved}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Predicciones</div>
+                    <div style={{ textAlign: 'center', padding: '10px 4px', background: 'var(--bg-input)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--gold)' }}>{syncLog.betsResolved || 0}</div>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: '2px', fontWeight: 600 }}>Predicc.</div>
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-muted)' }}>{syncLog.totalFinished}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Terminados</div>
+                    <div style={{ textAlign: 'center', padding: '10px 4px', background: 'var(--bg-input)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)' }}>{syncLog.notificationsSent || 0}</div>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: '2px', fontWeight: 600 }}>Push</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: '10px 4px', background: 'var(--bg-input)', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-muted)' }}>{syncLog.totalFinished || 0}</div>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginTop: '2px', fontWeight: 600 }}>Finaliz.</div>
                     </div>
                   </div>
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    {(syncLog.log || []).map((line, i) => (
-                      <div key={i} style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '2px 0', lineHeight: '1.4' }}>
-                        {line}
-                      </div>
-                    ))}
-                  </div>
+
+                  {/* Log lines */}
+                  {(syncLog.log || []).length > 0 && (
+                    <div style={{
+                      maxHeight: '200px', overflowY: 'auto',
+                      padding: '10px 12px', background: '#0d1117',
+                      borderRadius: '8px', border: '0.5px solid var(--border)',
+                      fontFamily: 'monospace'
+                    }}>
+                      {(syncLog.log || []).map((line, i) => (
+                        <div key={i} style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '2px 0', lineHeight: '1.4' }}>
+                          {line}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
-              <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '8px' }}>
-                {syncLog.timestamp && new Date(syncLog.timestamp).toLocaleString('es-ES')}
-              </div>
+            </div>
+          )}
+
+          {/* History */}
+          {syncHistory.length > 0 && (
+            <div>
+              <div style={sectionHeader}>Últimas sincronizaciones</div>
+              {syncHistory.map((entry, i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '12px 14px', marginBottom: '6px',
+                  background: 'var(--bg-secondary)', borderRadius: '10px',
+                  border: '0.5px solid var(--border)',
+                  borderLeft: `3px solid ${entry.ok ? 'var(--green)' : '#e74c3c'}`
+                }}>
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {entry.ok ? 'Sync correcto' : 'Sync con error'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                      {formatRelative(entry.timestamp)}
+                      {' · '}
+                      {new Date(entry.timestamp).toLocaleString('es-ES', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
+                    </div>
+                  </div>
+                  {entry.ok ? (
+                    <div style={{ display: 'flex', gap: '10px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span><b style={{ color: 'var(--green)' }}>{entry.matchesUpdated}</b> partidos</span>
+                      <span><b style={{ color: 'var(--gold)' }}>{entry.betsResolved}</b> predicc.</span>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '11px', color: '#e74c3c', maxWidth: '50%', textAlign: 'right' }}>
+                      {entry.error}
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </>
@@ -700,8 +1021,8 @@ export default function Admin({ session }) {
           <>
             {/* Sub-tab switcher */}
             <div style={{
-              display: 'flex', gap: '3px', marginBottom: '14px',
-              padding: '3px', background: 'var(--bg-input)', borderRadius: '6px'
+              display: 'flex', gap: '6px', marginBottom: '14px',
+              overflowX: 'auto', scrollbarWidth: 'none'
             }}>
               {[
                 { key: 'matches', label: 'Partidos' },
@@ -712,13 +1033,7 @@ export default function Admin({ session }) {
                 <button
                   key={tab.key}
                   onClick={() => setBetsSubTab(tab.key)}
-                  style={{
-                    flex: 1, padding: '8px 4px', borderRadius: '20px', border: 'none',
-                    background: betsSubTab === tab.key ? 'var(--green)' : 'var(--bg-secondary)',
-                    color: betsSubTab === tab.key ? '#fff' : 'var(--text-muted)',
-                    fontSize: '11px', fontWeight: betsSubTab === tab.key ? '600' : '400',
-                    cursor: 'pointer', transition: 'all 0.2s ease'
-                  }}
+                  style={pillStyle(betsSubTab === tab.key)}
                 >{tab.label}</button>
               ))}
             </div>
@@ -732,13 +1047,7 @@ export default function Admin({ session }) {
                     <button
                       key={g}
                       onClick={() => setBetsFilterGroup(g)}
-                      style={{
-                        padding: '5px 12px', borderRadius: '20px', border: 'none',
-                        background: betsFilterGroup === g ? 'var(--green)' : 'var(--bg-secondary)',
-                        color: betsFilterGroup === g ? '#fff' : 'var(--text-muted)',
-                        cursor: 'pointer', fontSize: '11px', fontWeight: betsFilterGroup === g ? '600' : '400',
-                        whiteSpace: 'nowrap', flexShrink: 0
-                      }}
+                      style={pillStyle(betsFilterGroup === g)}
                     >{g}</button>
                   ))}
                 </div>
@@ -748,10 +1057,10 @@ export default function Admin({ session }) {
                   value={betsFilterUser}
                   onChange={e => setBetsFilterUser(e.target.value)}
                   style={{
-                    width: '100%', padding: '8px 12px', borderRadius: '6px',
+                    width: '100%', padding: '10px 14px', borderRadius: '10px',
                     border: '0.5px solid var(--border)', background: 'var(--bg-input)',
                     color: 'var(--text-primary)', fontSize: '12px', outline: 'none',
-                    appearance: 'auto', marginBottom: '12px'
+                    appearance: 'auto', marginBottom: '12px', boxSizing: 'border-box'
                   }}
                 >
                   <option value="">Todos los participantes</option>
@@ -779,20 +1088,20 @@ export default function Admin({ session }) {
 
                   return (
                     <div key={match.id} style={{
-                      background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
+                      background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px',
                       marginBottom: '8px', border: '0.5px solid var(--border)'
                     }}>
                       {/* Teams */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
-                          <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
                             {match.home_team?.name || 'Por determinar'}
                           </span>
                           {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />}
                         </div>
                         <span style={{
                           fontSize: match.status === 'finished' ? '14px' : '11px',
-                          fontWeight: '700',
+                          fontWeight: 700,
                           color: match.status === 'finished' ? 'var(--green)' : 'var(--text-dim)',
                           padding: '2px 8px', background: match.status === 'finished' ? 'var(--green-light)' : 'var(--bg-input)',
                           borderRadius: '4px'
@@ -801,7 +1110,7 @@ export default function Admin({ session }) {
                         </span>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />}
-                          <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
                             {match.away_team?.name || 'Por determinar'}
                           </span>
                         </div>
@@ -817,7 +1126,7 @@ export default function Admin({ session }) {
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {topResults.map(([result, count], i) => (
                           <span key={result} style={{
-                            padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                            padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
                             background: i === 0 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)',
                             color: i === 0 ? 'var(--gold)' : 'var(--text-muted)'
                           }}>
@@ -835,7 +1144,7 @@ export default function Admin({ session }) {
                               <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '2px 0' }}>
                                 <span style={{ color: 'var(--text-muted)' }}>{prof?.nickname || prof?.full_name || 'Participante'}</span>
                                 <span style={{
-                                  fontWeight: '600',
+                                  fontWeight: 600,
                                   color: p.points_earned === 3 ? 'var(--green)' : p.points_earned === 1 ? 'var(--gold)' : 'var(--text-primary)'
                                 }}>
                                   {p.predicted_home}-{p.predicted_away}
@@ -868,12 +1177,12 @@ export default function Admin({ session }) {
 
                   return (
                     <div key={bet.id} style={{
-                      background: 'var(--bg-secondary)', borderRadius: '8px', padding: '14px',
+                      background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px',
                       marginBottom: '8px', border: '0.5px solid var(--border)'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                         <div>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '2px' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
                             {bet.name || bet.question}
                           </div>
                           <div style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
@@ -881,7 +1190,7 @@ export default function Admin({ session }) {
                           </div>
                         </div>
                         <span style={{
-                          padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
+                          padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700,
                           background: entries.length >= realProfiles.length * 0.8 ? 'var(--green-light)' : 'rgba(255,204,0,0.08)',
                           color: entries.length >= realProfiles.length * 0.8 ? 'var(--green)' : 'var(--gold)'
                         }}>
@@ -895,14 +1204,14 @@ export default function Admin({ session }) {
                             <div key={label}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
                                 <span style={{
-                                  fontSize: '12px', fontWeight: i === 0 ? '600' : '400',
+                                  fontSize: '12px', fontWeight: i === 0 ? 700 : 500,
                                   color: i === 0 ? 'var(--gold)' : 'var(--text-primary)',
                                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%'
                                 }}>
                                   {i === 0 ? '👑 ' : ''}{label}
                                 </span>
                                 <span style={{
-                                  fontSize: '11px', fontWeight: '600',
+                                  fontSize: '11px', fontWeight: 700,
                                   color: i === 0 ? 'var(--gold)' : 'var(--text-muted)'
                                 }}>
                                   {count} ({Math.round((count / entries.length) * 100)}%)
@@ -952,19 +1261,19 @@ export default function Admin({ session }) {
 
                     return (
                       <div key={ord.id} style={{
-                        background: 'var(--bg-secondary)', borderRadius: '8px', padding: '14px',
+                        background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px',
                         marginBottom: '8px', border: '0.5px solid var(--border)'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                           <div>
-                            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '2px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
                               {ord.title || `Ordago #${ord.number}`}
                             </div>
                             {ord.match && (
                               <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
                                 {ord.match.home_team?.name} vs {ord.match.away_team?.name}
                                 {ord.match.status === 'finished' && (
-                                  <span style={{ color: 'var(--green)', fontWeight: '600', marginLeft: '6px' }}>
+                                  <span style={{ color: 'var(--green)', fontWeight: 700, marginLeft: '6px' }}>
                                     {ord.match.home_score}-{ord.match.away_score}
                                   </span>
                                 )}
@@ -972,7 +1281,7 @@ export default function Admin({ session }) {
                             )}
                           </div>
                           <span style={{
-                            padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600',
+                            padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700,
                             background: ord.status === 'resolved' ? 'var(--green-light)' : 'rgba(255,204,0,0.08)',
                             color: ord.status === 'resolved' ? 'var(--green)' : 'var(--gold)'
                           }}>
@@ -988,7 +1297,7 @@ export default function Admin({ session }) {
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                             {topResults.map(([result, count], i) => (
                               <span key={result} style={{
-                                padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                                padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700,
                                 background: i === 0 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)',
                                 color: i === 0 ? 'var(--gold)' : 'var(--text-muted)'
                               }}>
@@ -1012,18 +1321,19 @@ export default function Admin({ session }) {
             {betsSubTab === 'completion' && (
               <>
                 <div style={{
-                  background: 'var(--bg-secondary)', borderRadius: '8px', padding: '12px',
+                  background: 'var(--bg-secondary)', borderRadius: '10px', padding: '12px 14px',
                   marginBottom: '12px', border: '0.5px solid var(--border)'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-dim)', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
                     <span>Totales: {totalMatchCount} partidos · {preTournamentBets.length} predicciones pre-torneo</span>
                   </div>
                 </div>
 
                 {/* Header */}
                 <div style={{
-                  display: 'flex', padding: '8px 12px', fontSize: '10px', color: 'var(--text-dim)',
-                  textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '0.5px solid var(--border)'
+                  display: 'flex', padding: '8px 12px', fontSize: '10px', color: 'var(--text-muted)',
+                  textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '0.5px solid var(--border)',
+                  fontWeight: 700
                 }}>
                   <span style={{ flex: 1 }}>Nombre</span>
                   <span style={{ width: '60px', textAlign: 'center' }}>Partidos</span>
@@ -1036,20 +1346,20 @@ export default function Admin({ session }) {
                     borderBottom: '0.5px solid var(--border-light)'
                   }}>
                     <span style={{
-                      flex: 1, fontSize: '12px', fontWeight: '500',
+                      flex: 1, fontSize: '12px', fontWeight: 600,
                       color: user.matchPct === 100 && user.betPct === 100 ? 'var(--green)' : 'var(--text-primary)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
                       {user.nickname || user.full_name || 'Sin nombre'}
                     </span>
                     <div style={{ width: '60px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: user.matchPct === 100 ? 'var(--green)' : user.matchPct > 50 ? 'var(--gold)' : 'var(--text-dim)' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: user.matchPct === 100 ? 'var(--green)' : user.matchPct > 50 ? 'var(--gold)' : 'var(--text-dim)' }}>
                         {user.matchPreds}
                       </div>
                       <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>{user.matchPct}%</div>
                     </div>
                     <div style={{ width: '60px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: user.betPct === 100 ? 'var(--green)' : user.betPct > 50 ? 'var(--gold)' : 'var(--text-dim)' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: user.betPct === 100 ? 'var(--green)' : user.betPct > 50 ? 'var(--gold)' : 'var(--text-dim)' }}>
                         {user.betCount}
                       </div>
                       <div style={{ fontSize: '9px', color: 'var(--text-dim)' }}>{user.betPct}%</div>
