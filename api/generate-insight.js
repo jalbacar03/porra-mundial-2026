@@ -173,45 +173,22 @@ async function generateWithGemini(data) {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
 
-  let prompt
-
+  // Shared context block — same data for both prompts
+  let context
   if (data.hasMatchesPlayed) {
     const top5 = data.leaderboard.slice(0, 5).map((r, i) =>
       `${i + 1}. ${r.full_name}: ${r.total_points} pts (${r.exact_hits} exactos, ${r.sign_hits} signos)`
     ).join('\n')
-
     const recentResults = data.recentMatches.slice(0, 5).map(m =>
       `${m.home_team?.name} ${m.home_score}-${m.away_score} ${m.away_team?.name}`
     ).join(', ')
-
     const movementsText = data.todayMovements?.length
       ? data.todayMovements.map(m => {
           const arrow = m.delta > 0 ? `▲${m.delta}` : m.delta < 0 ? `▼${Math.abs(m.delta)}` : '·'
           return `- ${m.name}: +${m.gain} pts (${arrow})`
         }).join('\n')
       : '- (sin partidos resueltos hoy)'
-
-    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026 entre amigos. Devuelve DOS versiones del mismo contenido en JSON: { "short": "...", "long": "..." }.
-
-REGLAS COMUNES:
-- Tono profesional pero cercano. Cero hype. Datos > adjetivos. Nombres > genéricos.
-- PROHIBIDO en ambas: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", emojis decorativos, signos "¡".
-- Permitido máximo 1 emoji por versión (solo si aporta: 🏆 ⚽).
-
-VERSIÓN SHORT (entre 45 y 55 palabras, ni una menos):
-- Titular (6-8 palabras).
-- 2-3 frases con datos concretos: nombres, números, deltas. El extracto que un usuario lee de un vistazo.
-- NUNCA menos de 45 palabras. Si necesitas más datos para llegar, añade un detalle del top 5 o de los movimientos.
-
-VERSIÓN LONG (entre 170 y 220 palabras, ni una menos, estilo The Economist en español):
-- Titular distinto al de short, más analítico (8-12 palabras).
-- 3-4 párrafos breves separados por línea en blanco.
-- Estructura analítica: contexto → análisis → implicación.
-- Permite frases comparativas ("a diferencia de X, Y..."), análisis de patrones, lectura entre líneas.
-- Tono editorial, mesurado, ligeramente irónico cuando proceda. Como un periodista de fondo, no un comentarista de partido.
-- Cierra con una observación sobre lo que viene o las implicaciones para la clasificación.
-
-CONTEXTO (${today}):
+    context = `CONTEXTO (${today}):
 - ${data.totalParticipants} participantes.
 
 CLASIFICACIÓN ACTUAL (top 5):
@@ -223,42 +200,72 @@ ${movementsText}
 RESULTADOS RECIENTES:
 ${recentResults}
 
-Devuelve únicamente el JSON. Sin markdown, sin code fences.`
+DÍAS HASTA EL CIERRE DE PREDICCIONES: ${data.daysToDeadline}`
   } else {
     const newsContext = data.newsHeadlines.length > 0
-      ? `\nÚLTIMAS NOTICIAS DEL MUNDO DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
+      ? `\nÚLTIMAS NOTICIAS DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
       : ''
-
-    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026. Devuelve DOS versiones del mismo contenido en JSON: { "short": "...", "long": "..." }.
-
-REGLAS COMUNES:
-- Tono profesional pero cercano. Cero hype. Datos > adjetivos.
-- PROHIBIDO en ambas: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "pitido inicial", "presagio", "vuelta de la esquina", "apuesta segura", "cuenta atrás", "imparable", emojis decorativos, signos "¡".
-- Permitido máximo 1 emoji por versión (solo si aporta).
-- Usa exactamente ${data.daysToDeadline} días para el cierre del plazo. No inventes el número.
-
-VERSIÓN SHORT (entre 45 y 55 palabras, ni una menos):
-- Titular (6-8 palabras).
-- 2-3 frases con datos concretos: noticia relevante de las que te paso + plazo de cierre con días exactos.
-- NUNCA menos de 45 palabras. Si necesitas más datos, añade contexto sobre el efecto en las predicciones.
-
-VERSIÓN LONG (entre 170 y 220 palabras, ni una menos, estilo The Economist en español):
-- Titular distinto al de short, más analítico (8-12 palabras).
-- 3-4 párrafos breves separados por línea en blanco.
-- Estructura analítica: contexto de la noticia → análisis de su impacto en las predicciones especiales (campeón, revelación, goleador) → implicación para el participante que aún no haya enviado predicciones.
-- Permite frases comparativas, análisis de patrones, lectura entre líneas.
-- Tono editorial, mesurado. Como un periodista de fondo, no un comentarista.
-- Cierra mencionando los ${data.daysToDeadline} días que faltan para el cierre del plazo.
-
-CONTEXTO:
+    context = `CONTEXTO:
 - Hoy: ${today}
 - ${data.totalParticipants} participantes inscritos
 - Plazo de predicciones: cierra el 9 de junio (faltan ${data.daysToDeadline} días)
 ${newsContext}
 
-Devuelve únicamente el JSON. Sin markdown, sin code fences.`
+DÍAS HASTA EL CIERRE DE PREDICCIONES: ${data.daysToDeadline}`
   }
 
+  const styleRules = `REGLAS:
+- Tono profesional pero cercano. Cero hype. Datos > adjetivos. Nombres > genéricos.
+- PROHIBIDO: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", emojis decorativos, signos "¡".
+- Permitido máximo 1 emoji solo si aporta dato (🏆 líder, ⚽ gol).
+- Usa exactamente ${data.daysToDeadline} días para el cierre. No inventes.`
+
+  const shortPrompt = `Redacta la SHORT del día — el extracto que un usuario lee de un vistazo en el dashboard.
+
+${styleRules}
+
+LONGITUD: entre 45 y 55 palabras. Cuenta antes de devolver. Si bajas de 45 añade un dato más. No pases de 55.
+
+ESTRUCTURA:
+- Titular (6-8 palabras).
+- 2-3 frases concretas con nombres, números o deltas.
+
+${context}
+
+Devuelve solo el texto plano. Sin markdown, sin comillas externas, sin meta-comentarios.`
+
+  const longPrompt = `Redacta la LONG del día — crónica completa estilo The Economist en español. La leerá quien pulse "leer más" desde el dashboard.
+
+${styleRules}
+
+LONGITUD: entre 170 y 220 palabras. Cuenta antes de devolver. Si bajas de 170 expande análisis. No pases de 220.
+
+ESTRUCTURA:
+- Titular analítico (8-12 palabras), distinto al de la versión corta.
+- 3-4 párrafos breves separados por línea en blanco.
+- Contexto de la noticia o jornada → análisis de su impacto sobre las predicciones (campeón, revelación, goleador, líder de la porra) → implicación para los participantes.
+- Permite frases comparativas, análisis de patrones, lectura entre líneas, ironía mesurada.
+- Tono editorial. Periodista de fondo, no comentarista.
+- Cierra mencionando los ${data.daysToDeadline} días que faltan para el cierre del plazo.
+
+${context}
+
+Devuelve solo el texto plano. Sin markdown, sin comillas externas, sin meta-comentarios.`
+
+  // Two parallel calls — one focused on each version. Simpler & more reliable
+  // than asking Gemini to produce both inside a JSON schema (it kept truncating).
+  const [shortText, longText] = await Promise.all([
+    callGemini(shortPrompt, 250),
+    callGemini(longPrompt, 800)
+  ])
+
+  return {
+    short: shortText.trim() || 'Sin crónica disponible hoy.',
+    long: longText.trim() || shortText.trim()
+  }
+}
+
+async function callGemini(prompt, maxTokens) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -266,43 +273,14 @@ Devuelve únicamente el JSON. Sin markdown, sin code fences.`
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.5,
-          // 1500 tokens leaves plenty of headroom: short ~80 + long ~280 +
-          // JSON overhead. Earlier 900 was hit and 'long' came back empty.
-          maxOutputTokens: 1500,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'OBJECT',
-            // propertyOrdering tells Gemini to generate `long` first so it
-            // never gets truncated if the budget runs short.
-            propertyOrdering: ['long', 'short'],
-            properties: {
-              long:  { type: 'STRING' },
-              short: { type: 'STRING' }
-            },
-            required: ['short', 'long']
-          }
-        }
+        generationConfig: { temperature: 0.55, maxOutputTokens: maxTokens }
       })
     }
   )
-
   if (!response.ok) {
     const errText = await response.text()
     throw new Error(`Gemini error ${response.status}: ${errText}`)
   }
-
   const result = await response.json()
-  const raw = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
-  try {
-    const parsed = JSON.parse(raw)
-    return {
-      short: parsed.short || 'Sin insight disponible hoy.',
-      long: parsed.long || parsed.short || ''
-    }
-  } catch (e) {
-    // Schema should guarantee JSON, but defensive fallback if Gemini returns plain text
-    return { short: raw.slice(0, 400), long: raw }
-  }
+  return result.candidates?.[0]?.content?.parts?.[0]?.text || ''
 }
