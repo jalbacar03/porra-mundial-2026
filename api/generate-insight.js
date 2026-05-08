@@ -14,6 +14,9 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST')
   if (req.method === 'OPTIONS') return res.status(200).end()
+  // Note: NOT auth-gated. The frontend calls this from any user's browser
+  // to display the daily insight on Dashboard. Cached per day in DB so
+  // spamming it = same cached response, no extra Gemini cost.
 
   if (!GEMINI_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     return res.status(500).json({ error: 'Missing env vars', details: {

@@ -31,22 +31,22 @@ export default function Leaderboard({ demoMode }) {
   }, [demoMode, userId])
 
   const [paidUsers, setPaidUsers] = useState(new Set())
-  const [profileAvatars, setProfileAvatars] = useState({})
+  const [profileFullNames, setProfileFullNames] = useState({})
 
   useEffect(() => {
     fetchData()
-    supabase.from('profiles').select('id, full_name, nickname, has_paid, avatar_url').then(({ data }) => {
+    supabase.from('profiles').select('id, full_name, nickname, has_paid').then(({ data }) => {
       if (data) {
         const map = {}
-        const avatars = {}
+        const fullNames = {}
         const paid = new Set()
         data.forEach(p => {
           map[p.id] = p.nickname || p.full_name || 'Participante'
-          if (p.avatar_url) avatars[p.id] = p.avatar_url
+          fullNames[p.id] = p.full_name || p.nickname || 'Participante'
           if (p.has_paid) paid.add(p.id)
         })
         setProfileNames(map)
-        setProfileAvatars(avatars)
+        setProfileFullNames(fullNames)
         setPaidUsers(paid)
       }
     })
@@ -316,10 +316,9 @@ export default function Leaderboard({ demoMode }) {
                   {rankLabel}
                 </div>
 
-                {/* Avatar (img if uploaded, otherwise muted initial) */}
+                {/* Avatar (initials only) */}
                 <Avatar
-                  url={!isBot ? profileAvatars[user.user_id] : null}
-                  name={isBot ? 'B' : user.full_name}
+                  name={isBot ? 'Bot365' : (profileFullNames[user.user_id] || user.full_name)}
                   size={34}
                   color={isMe ? 'rgba(0,144,81,0.25)' : 'rgba(255,255,255,0.05)'}
                   border={isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid rgba(255,255,255,0.06)'}

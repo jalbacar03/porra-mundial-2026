@@ -5,7 +5,8 @@ import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonDashboard } from '../components/Skeleton'
 import PointsChart from '../components/PointsChart'
 import Avatar from '../components/Avatar'
-import AvatarPickerModal from '../components/AvatarPickerModal'
+import PWAInstallBanner from '../components/PWAInstallBanner'
+import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
 
 export default function Dashboard({ session, demoMode }) {
@@ -14,6 +15,9 @@ export default function Dashboard({ session, demoMode }) {
   const [stats, setStats] = useState({ total: 0, completed: 0, points: 0, exactHits: 0, signHits: 0, rank: '-' })
   const [topRanking, setTopRanking] = useState([])
   const [groupProgress, setGroupProgress] = useState([])
+  const [specialsCount, setSpecialsCount] = useState(0)
+  const [bracketCount, setBracketCount] = useState(0)
+  const [activeBetsCount, setActiveBetsCount] = useState(0)
   const [nextMatches, setNextMatches] = useState([])
   const [userPredictions, setUserPredictions] = useState({})
   const [totalUsers, setTotalUsers] = useState(0)
@@ -25,7 +29,6 @@ export default function Dashboard({ session, demoMode }) {
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
-  const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
@@ -184,6 +187,16 @@ export default function Dashboard({ session, demoMode }) {
       return { group: g, total: gMatches.length, done: gPredicted }
     })
     setGroupProgress(gProgress)
+
+    // Pre-Mundial progress: count user's specials + bracket picks + active bets total
+    const [specialsRes, bracketRes, activeBetsRes] = await Promise.all([
+      supabase.from('pre_tournament_entries').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
+      supabase.from('bracket_picks').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).not('predicted_winner_id', 'is', null),
+      supabase.from('pre_tournament_bets').select('id', { count: 'exact', head: true }).eq('is_active', true)
+    ])
+    setSpecialsCount(specialsRes.count || 0)
+    setBracketCount(bracketRes.count || 0)
+    setActiveBetsCount(activeBetsRes.count || 18)
 
     // Live matches (status='live') and next upcoming
     const now = new Date()
@@ -363,16 +376,17 @@ export default function Dashboard({ session, demoMode }) {
             Hola, {userName}
           </h1>
           <Avatar
-            url={profile?.avatar_url}
-            name={profile?.nickname || profile?.full_name}
+            name={profile?.full_name || profile?.nickname}
             size={40}
             color="rgba(0,144,81,0.18)"
             border="1px solid rgba(0,144,81,0.3)"
             textColor="#4ade80"
-            onClick={() => setShowAvatarModal(true)}
           />
         </div>
       </div>
+
+      {/* PWA install prompt — only renders when applicable (not standalone, not dismissed) */}
+      {!demoMode && <PWAInstallBanner />}
 
       {/* ===== HERO: TU POSICIÓN · LIVE ===== */}
       <div style={{
@@ -481,6 +495,79 @@ export default function Dashboard({ session, demoMode }) {
           )}
         </div>
       </div>
+
+      {/* ===== TU PROGRESO (pre-Mundial only — pushes users to complete predictions) ===== */}
+      {!demoMode && new Date() < PREDICTIONS_DEADLINE && (() => {
+        const groupTotal = groupProgress.reduce((s, g) => s + g.total, 0) || 72
+        const groupDone = groupProgress.reduce((s, g) => s + g.done, 0)
+        const items = [
+          { label: 'Grupos', done: groupDone, total: groupTotal },
+          { label: 'Especiales', done: specialsCount, total: activeBetsCount },
+          { label: 'Cuadro', done: bracketCount, total: 15 }
+        ]
+        const allDone = items.every(i => i.done >= i.total)
+        return (
+          <div onClick={() => navigate('/predictions')} role="button" tabIndex={0}
+            style={{
+              marginBottom: '14px', padding: '14px 16px',
+              background: 'var(--bg-secondary)', borderRadius: '12px',
+              border: allDone ? '1px solid rgba(0,144,81,0.3)' : '1px solid var(--border-light)',
+              cursor: 'pointer'
+            }}>
+            <div style={{
+              display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '12px'
+            }}>
+              <span style={{
+                fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '1.2px'
+              }}>Tu progreso</span>
+              <span style={{
+                fontSize: '11px', fontWeight: '600',
+                color: allDone ? 'var(--green)' : 'var(--gold)'
+              }}>
+                {allDone ? '✓ Completo' : 'Cierra el 9 jun'}
+              </span>
+            </div>
+            {items.map(it => {
+              const pct = it.total > 0 ? Math.min(100, Math.round((it.done / it.total) * 100)) : 0
+              const complete = it.done >= it.total
+              return (
+                <div key={it.label} style={{ marginBottom: '10px', cursor: 'pointer' }}
+                     onClick={() => navigate('/predictions')}>
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                    marginBottom: '4px'
+                  }}>
+                    <span style={{
+                      fontSize: '12px', fontWeight: '600',
+                      color: complete ? 'var(--green)' : 'var(--text-primary)'
+                    }}>{it.label}</span>
+                    <span style={{
+                      fontSize: '12px', fontWeight: '700',
+                      color: complete ? 'var(--green)' : 'var(--text-muted)',
+                      fontVariantNumeric: 'tabular-nums'
+                    }}>
+                      {it.done} / {it.total}
+                    </span>
+                  </div>
+                  <div style={{
+                    height: '4px', borderRadius: '3px',
+                    background: 'rgba(255,255,255,0.04)', overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${pct}%`, height: '100%',
+                      background: complete
+                        ? 'var(--green)'
+                        : 'linear-gradient(90deg, var(--green), var(--gold))',
+                      transition: 'width 0.4s ease'
+                    }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* ===== EN DIRECTO (live match widget with prediction overlay) ===== */}
       {liveMatches.length > 0 && (
@@ -1068,14 +1155,6 @@ export default function Dashboard({ session, demoMode }) {
       {/* Points history chart */}
       {!demoMode && <PointsChart userId={session.user.id} />}
 
-      {showAvatarModal && (
-        <AvatarPickerModal
-          profile={profile}
-          userId={session.user.id}
-          onClose={() => setShowAvatarModal(false)}
-          onUpdated={(url) => setProfile(p => ({ ...p, avatar_url: url }))}
-        />
-      )}
     </div>
   )
 }

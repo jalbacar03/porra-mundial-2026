@@ -24,11 +24,6 @@ const STEPS = [
     title: 'Órdagos',
     text: 'Durante el Mundial se abrirán predicciones extra sobre partidos concretos. ¡Arriesga para escalar posiciones!',
   },
-  {
-    icon: '🚩',
-    title: 'Tu avatar',
-    text: 'Ya elegiste tu avatar. Si quieres cambiarlo, lo puedes hacer UNA vez más desde Inicio (toca tu avatar arriba a la derecha). Después queda fijo, así que elige bien.',
-  },
 ]
 
 export default function Onboarding({ session, profile }) {

@@ -213,7 +213,11 @@ export default function Admin({ session }) {
     setSyncLog(null)
     const startedAt = new Date().toISOString()
     try {
-      const res = await fetch('/api/sync-results')
+      // Send the user's Supabase JWT so the function can verify admin
+      // server-side (works whether or not CRON_SECRET is set in env).
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const headers = s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}
+      const res = await fetch('/api/sync-results', { headers })
       const data = await res.json()
       setSyncLog(data)
       if (data.matchesUpdated > 0) {

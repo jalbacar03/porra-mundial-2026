@@ -236,13 +236,13 @@ export default function Forum({ session }) {
   async function fetchProfiles() {
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, avatar_url')
+      .select('id, full_name, nickname')
     if (data) {
       const map = {}
       data.forEach(p => {
         map[p.id] = {
           name: p.nickname || p.full_name,
-          avatar_url: p.avatar_url
+          full_name: p.full_name
         }
       })
       setProfiles(map)
@@ -565,7 +565,7 @@ export default function Forum({ session }) {
           const isMine = msg.user_id === myId
           const profile = profiles[msg.user_id] || {}
           const name = profile.name || 'Cargando...'
-          const avatarUrl = profile.avatar_url
+          const fullName = profile.full_name || name
           const isAdminMsg = msg.user_id === ADMIN_ID
           const isAnnouncement = activeTab === 'announcements'
 
@@ -623,8 +623,7 @@ export default function Forum({ session }) {
                       }}>📢</div>
                     ) : (
                       <Avatar
-                        url={avatarUrl}
-                        name={name}
+                        name={fullName}
                         size={22}
                         color="rgba(255,255,255,0.05)"
                         border="none"

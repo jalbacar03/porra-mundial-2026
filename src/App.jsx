@@ -7,7 +7,6 @@ import { SkeletonDashboard, FootballSpinner } from './components/Skeleton'
 import ErrorBoundary from './components/ErrorBoundary'
 import PageTransition from './components/PageTransition'
 import Onboarding from './components/Onboarding'
-import AvatarPickerModal from './components/AvatarPickerModal'
 
 // Code splitting — lazy load pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -597,7 +596,7 @@ function AppLayout({ session }) {
     async function checkProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('is_admin, has_paid, rules_accepted, onboarding_seen_at, access_requested_at, avatar_url, avatar_changes_count, full_name, nickname')
+        .select('is_admin, has_paid, rules_accepted, onboarding_seen_at, access_requested_at, full_name, nickname')
         .eq('id', session.user.id)
         .single()
       if (data) {
@@ -626,18 +625,8 @@ function AppLayout({ session }) {
       {/* Si no está admitido, mostrar popup de inscripción */}
       {!hasPaid && <PaymentWall session={session} profile={profile} />}
 
-      {/* Mandatory avatar pick — wall after rules but before anything else */}
-      {hasPaid && rulesAccepted && profile && !profile.avatar_url && (
-        <AvatarPickerModal
-          profile={profile}
-          userId={session.user.id}
-          mandatory={true}
-          onUpdated={(url, changes) => setProfile(p => ({ ...p, avatar_url: url, avatar_changes_count: changes ?? p.avatar_changes_count }))}
-        />
-      )}
-
       {/* Onboarding para nuevos usuarios */}
-      {hasPaid && rulesAccepted && profile?.avatar_url && <Onboarding session={session} profile={profile} />}
+      {hasPaid && rulesAccepted && <Onboarding session={session} profile={profile} />}
 
       {/* Si ha pagado pero no ha aceptado normas, mostrar popup de normas */}
       {hasPaid && !rulesAccepted && (

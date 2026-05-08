@@ -31,6 +31,38 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  // Auth: only enforced if CRON_SECRET env var is set (opt-in hardening).
+  //   - Vercel cron requests carry Authorization: Bearer <CRON_SECRET>
+  //   - Admin manual button carries Authorization: Bearer <SUPABASE_JWT>
+  //     and we verify via Supabase that the user has is_admin = true.
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const authHeader = req.headers.authorization || ''
+    const token = authHeader.replace(/^Bearer\s+/i, '')
+    if (!token) return res.status(401).json({ error: 'Unauthorized' })
+
+    let allowed = (token === cronSecret)
+    if (!allowed) {
+      // Try as a Supabase user JWT — admin only
+      try {
+        const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` }
+        })
+        if (userRes.ok) {
+          const user = await userRes.json()
+          if (user?.id) {
+            const profRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=is_admin`, {
+              headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` }
+            })
+            const prof = await profRes.json().catch(() => [])
+            if (Array.isArray(prof) && prof[0]?.is_admin) allowed = true
+          }
+        }
+      } catch {}
+    }
+    if (!allowed) return res.status(401).json({ error: 'Unauthorized' })
+  }
+
   if (!API_FOOTBALL_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     return res.status(500).json({ error: 'Missing env vars' })
   }
