@@ -198,11 +198,12 @@ REGLAS COMUNES:
 - PROHIBIDO en ambas: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", emojis decorativos, signos "¡".
 - Permitido máximo 1 emoji por versión (solo si aporta: 🏆 ⚽).
 
-VERSIÓN SHORT (40-55 palabras, máximo 60):
-- Titular (5-8 palabras).
-- 2 frases: el dato más relevante del día (líder, sorpresa, movimiento clave) con nombres y números.
+VERSIÓN SHORT (entre 45 y 55 palabras, ni una menos):
+- Titular (6-8 palabras).
+- 2-3 frases con datos concretos: nombres, números, deltas. El extracto que un usuario lee de un vistazo.
+- NUNCA menos de 45 palabras. Si necesitas más datos para llegar, añade un detalle del top 5 o de los movimientos.
 
-VERSIÓN LONG (160-220 palabras, estilo The Economist en español):
+VERSIÓN LONG (entre 170 y 220 palabras, ni una menos, estilo The Economist en español):
 - Titular distinto al de short, más analítico (8-12 palabras).
 - 3-4 párrafos breves separados por línea en blanco.
 - Estructura analítica: contexto → análisis → implicación.
@@ -236,11 +237,12 @@ REGLAS COMUNES:
 - Permitido máximo 1 emoji por versión (solo si aporta).
 - Usa exactamente ${data.daysToDeadline} días para el cierre del plazo. No inventes el número.
 
-VERSIÓN SHORT (40-55 palabras, máximo 60):
-- Titular (5-8 palabras).
-- 2 frases: una noticia relevante de las que te paso + el plazo de cierre.
+VERSIÓN SHORT (entre 45 y 55 palabras, ni una menos):
+- Titular (6-8 palabras).
+- 2-3 frases con datos concretos: noticia relevante de las que te paso + plazo de cierre con días exactos.
+- NUNCA menos de 45 palabras. Si necesitas más datos, añade contexto sobre el efecto en las predicciones.
 
-VERSIÓN LONG (160-220 palabras, estilo The Economist en español):
+VERSIÓN LONG (entre 170 y 220 palabras, ni una menos, estilo The Economist en español):
 - Titular distinto al de short, más analítico (8-12 palabras).
 - 3-4 párrafos breves separados por línea en blanco.
 - Estructura analítica: contexto de la noticia → análisis de su impacto en las predicciones especiales (campeón, revelación, goleador) → implicación para el participante que aún no haya enviado predicciones.
