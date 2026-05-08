@@ -27,14 +27,19 @@ export default async function handler(req, res) {
     // Check cache first
     const cached = await supaFetch(`daily_insights?date=eq.${today}&select=*&limit=1`)
     if (cached && cached.length > 0) {
-      return res.status(200).json({ insight: cached[0].content, date: cached[0].date, cached: true })
+      return res.status(200).json({
+        insight: cached[0].content,
+        insightLong: cached[0].content_long || null,
+        date: cached[0].date,
+        cached: true
+      })
     }
 
-    // Generate new
+    // Generate new — Gemini returns { short, long } as JSON
     const data = await gatherData()
-    const insight = await generateWithGemini(data)
+    const { short, long } = await generateWithGemini(data)
 
-    // Save to cache (INSERT, ignore if duplicate)
+    // Save both versions to cache
     const saveRes = await fetch(`${SUPABASE_URL}/rest/v1/daily_insights`, {
       method: 'POST',
       headers: {
@@ -43,15 +48,19 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ date: today, content: insight })
+      body: JSON.stringify({ date: today, content: short, content_long: long })
     })
 
     if (!saveRes.ok) {
-      // Cache save failed but insight was generated — still return it
       console.warn('Cache save failed:', await saveRes.text())
     }
 
-    return res.status(200).json({ insight, date: today, cached: false })
+    return res.status(200).json({
+      insight: short,
+      insightLong: long,
+      date: today,
+      cached: false
+    })
   } catch (err) {
     console.error('Error:', err.message || err)
     return res.status(500).json({ error: 'Error generando insight', details: err.message })
@@ -182,14 +191,24 @@ async function generateWithGemini(data) {
         }).join('\n')
       : '- (sin partidos resueltos hoy)'
 
-    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026 entre amigos.
+    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026 entre amigos. Devuelve DOS versiones del mismo contenido en JSON: { "short": "...", "long": "..." }.
 
-REGLAS:
-- MÁXIMO 100 PALABRAS TOTALES. Cuenta antes de devolver. Si pasas, recorta.
-- Tono: profesional pero cercano. Como un compañero que te pone al día con calma. Permitido usar primera persona del plural ("nuestra porra", "tenemos") con moderación.
-- PROHIBIDO: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", "espectáculo", "no te pierdas", emojis decorativos. Cero hype.
-- Permitido máximo 1 emoji (solo si aporta dato: 🏆 ⚽).
-- Datos concretos > adjetivos. Nombres > genéricos.
+REGLAS COMUNES:
+- Tono profesional pero cercano. Cero hype. Datos > adjetivos. Nombres > genéricos.
+- PROHIBIDO en ambas: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", emojis decorativos, signos "¡".
+- Permitido máximo 1 emoji por versión (solo si aporta: 🏆 ⚽).
+
+VERSIÓN SHORT (40-55 palabras, máximo 60):
+- Titular (5-8 palabras).
+- 2 frases: el dato más relevante del día (líder, sorpresa, movimiento clave) con nombres y números.
+
+VERSIÓN LONG (160-220 palabras, estilo The Economist en español):
+- Titular distinto al de short, más analítico (8-12 palabras).
+- 3-4 párrafos breves separados por línea en blanco.
+- Estructura analítica: contexto → análisis → implicación.
+- Permite frases comparativas ("a diferencia de X, Y..."), análisis de patrones, lectura entre líneas.
+- Tono editorial, mesurado, ligeramente irónico cuando proceda. Como un periodista de fondo, no un comentarista de partido.
+- Cierra con una observación sobre lo que viene o las implicaciones para la clasificación.
 
 CONTEXTO (${today}):
 - ${data.totalParticipants} participantes.
@@ -203,25 +222,31 @@ ${movementsText}
 RESULTADOS RECIENTES:
 ${recentResults}
 
-ESTRUCTURA:
-- Titular corto (5-8 palabras, sin "¡").
-- 1 párrafo: cambios en la clasificación con nombres concretos y deltas (▲n / ▼n).
-- 1 línea: dato concreto del día (resultado, racha, hito).
-- 1 línea de cierre: lo que viene o efecto sobre el liderato.
-
-Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
+Devuelve únicamente el JSON. Sin markdown, sin code fences.`
   } else {
     const newsContext = data.newsHeadlines.length > 0
       ? `\nÚLTIMAS NOTICIAS DEL MUNDO DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
       : ''
 
-    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026 entre amigos.
+    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026. Devuelve DOS versiones del mismo contenido en JSON: { "short": "...", "long": "..." }.
 
-REGLAS:
-- MÁXIMO 100 PALABRAS TOTALES. Cuenta antes de devolver. Si pasas, recorta.
-- Tono: profesional pero cercano. Como un compañero que te pone al día con calma. Permitido usar primera persona del plural ("nuestra porra", "tenemos") con moderación.
-- PROHIBIDO: exclamaciones múltiples, "¡atención!", "ojo", "tensión se palpa", "pitido inicial", "presagio", "vuelta de la esquina", "apuesta segura", "cuenta atrás", "imparable", "sin duda", emojis decorativos. Cero hype.
-- Permitido máximo 1 emoji (solo si aporta dato: 🏆 ⚽).
+REGLAS COMUNES:
+- Tono profesional pero cercano. Cero hype. Datos > adjetivos.
+- PROHIBIDO en ambas: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "pitido inicial", "presagio", "vuelta de la esquina", "apuesta segura", "cuenta atrás", "imparable", emojis decorativos, signos "¡".
+- Permitido máximo 1 emoji por versión (solo si aporta).
+- Usa exactamente ${data.daysToDeadline} días para el cierre del plazo. No inventes el número.
+
+VERSIÓN SHORT (40-55 palabras, máximo 60):
+- Titular (5-8 palabras).
+- 2 frases: una noticia relevante de las que te paso + el plazo de cierre.
+
+VERSIÓN LONG (160-220 palabras, estilo The Economist en español):
+- Titular distinto al de short, más analítico (8-12 palabras).
+- 3-4 párrafos breves separados por línea en blanco.
+- Estructura analítica: contexto de la noticia → análisis de su impacto en las predicciones especiales (campeón, revelación, goleador) → implicación para el participante que aún no haya enviado predicciones.
+- Permite frases comparativas, análisis de patrones, lectura entre líneas.
+- Tono editorial, mesurado. Como un periodista de fondo, no un comentarista.
+- Cierra mencionando los ${data.daysToDeadline} días que faltan para el cierre del plazo.
 
 CONTEXTO:
 - Hoy: ${today}
@@ -229,12 +254,7 @@ CONTEXTO:
 - Plazo de predicciones: cierra el 9 de junio (faltan ${data.daysToDeadline} días)
 ${newsContext}
 
-ESTRUCTURA:
-- Titular corto (5-8 palabras, sin "¡").
-- 1 párrafo: noticia relevante y posible efecto sobre alguna predicción especial (campeón, revelación, goleador). Nombres concretos.
-- 1 línea final mencionando los ${data.daysToDeadline} días que faltan para el cierre — usa exactamente ese número, no inventes.
-
-Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
+Devuelve únicamente el JSON. Sin markdown, sin code fences.`
   }
 
   const response = await fetch(
@@ -244,7 +264,19 @@ Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.45, maxOutputTokens: 300 }
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 900,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              short: { type: 'STRING' },
+              long:  { type: 'STRING' }
+            },
+            required: ['short', 'long']
+          }
+        }
       })
     }
   )
@@ -255,5 +287,15 @@ Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
   }
 
   const result = await response.json()
-  return result.candidates?.[0]?.content?.parts?.[0]?.text || 'Sin insight disponible hoy.'
+  const raw = result.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+  try {
+    const parsed = JSON.parse(raw)
+    return {
+      short: parsed.short || 'Sin insight disponible hoy.',
+      long: parsed.long || parsed.short || ''
+    }
+  } catch (e) {
+    // Schema should guarantee JSON, but defensive fallback if Gemini returns plain text
+    return { short: raw.slice(0, 400), long: raw }
+  }
 }

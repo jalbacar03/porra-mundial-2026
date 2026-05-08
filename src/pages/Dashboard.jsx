@@ -18,7 +18,9 @@ export default function Dashboard({ session, demoMode }) {
   const [userPredictions, setUserPredictions] = useState({})
   const [totalUsers, setTotalUsers] = useState(0)
   const [dailyInsight, setDailyInsight] = useState(null)
+  const [dailyInsightLong, setDailyInsightLong] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
+  const [showInsightLong, setShowInsightLong] = useState(false)
   const [activeOrdago, setActiveOrdago] = useState(null)
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
@@ -107,6 +109,7 @@ export default function Dashboard({ session, demoMode }) {
         const data = await res.json()
         if (data.insight) {
           setDailyInsight(data.insight)
+          setDailyInsightLong(data.insightLong || null)
           setInsightLoading(false)
           return
         }
@@ -711,18 +714,30 @@ export default function Dashboard({ session, demoMode }) {
         </div>
 
         {displayInsightLoading ? (
-          <div style={{
-            padding: '12px', textAlign: 'center', color: 'var(--text-dim)',
-            fontSize: '12px'
-          }}>
-            Generando crónica...
-          </div>
+          <FootballSpinner size={24} text="Generando crónica…" />
         ) : displayInsight ? (
-          <div style={{
-            fontSize: '13px', color: 'var(--text-secondary)',
-            lineHeight: '1.7', whiteSpace: 'pre-line'
-          }}>
-            {displayInsight}
+          <div>
+            <div style={{
+              fontSize: '13px', color: 'var(--text-secondary)',
+              lineHeight: '1.7', whiteSpace: 'pre-line'
+            }}>
+              {displayInsight}
+            </div>
+            {dailyInsightLong && (
+              <button
+                onClick={() => setShowInsightLong(true)}
+                style={{
+                  marginTop: '12px', padding: '8px 14px',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,204,0,0.3)',
+                  borderRadius: '6px', color: 'var(--gold)',
+                  fontSize: '12px', fontWeight: '600',
+                  cursor: 'pointer', letterSpacing: '0.3px'
+                }}
+              >
+                Leer crónica completa →
+              </button>
+            )}
           </div>
         ) : (
           <div style={{
@@ -733,6 +748,50 @@ export default function Dashboard({ session, demoMode }) {
           </div>
         )}
       </div>
+
+      {/* Modal: long-form chronicle (Economist style) */}
+      {showInsightLong && dailyInsightLong && (
+        <div
+          onClick={() => setShowInsightLong(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 0
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-secondary)',
+              borderRadius: '16px 16px 0 0',
+              padding: '20px 18px',
+              width: '100%', maxWidth: '600px',
+              maxHeight: '90vh', overflowY: 'auto',
+              paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))'
+            }}
+          >
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px'
+            }}>
+              <span style={{
+                fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+                letterSpacing: '1.2px', fontWeight: '700'
+              }}>📰 Crónica del día · completa</span>
+              <button onClick={() => setShowInsightLong(false)} style={{
+                background: 'none', border: 'none', color: 'var(--text-muted)',
+                fontSize: '22px', cursor: 'pointer', padding: '0 4px'
+              }}>×</button>
+            </div>
+            <div style={{
+              fontSize: '14px', color: 'var(--text-primary)',
+              lineHeight: '1.65', whiteSpace: 'pre-line',
+              fontFamily: 'Georgia, "Times New Roman", serif'
+            }}>
+              {dailyInsightLong}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== ÓRDAGOS + NORMAS QUICK ACCESS ===== */}
       <div style={{
