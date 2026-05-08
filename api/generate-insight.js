@@ -266,13 +266,18 @@ Devuelve únicamente el JSON. Sin markdown, sin code fences.`
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.5,
-          maxOutputTokens: 900,
+          // 1500 tokens leaves plenty of headroom: short ~80 + long ~280 +
+          // JSON overhead. Earlier 900 was hit and 'long' came back empty.
+          maxOutputTokens: 1500,
           responseMimeType: 'application/json',
           responseSchema: {
             type: 'OBJECT',
+            // propertyOrdering tells Gemini to generate `long` first so it
+            // never gets truncated if the budget runs short.
+            propertyOrdering: ['long', 'short'],
             properties: {
-              short: { type: 'STRING' },
-              long:  { type: 'STRING' }
+              long:  { type: 'STRING' },
+              short: { type: 'STRING' }
             },
             required: ['short', 'long']
           }
