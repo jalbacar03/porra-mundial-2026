@@ -144,13 +144,18 @@ async function gatherData() {
     // News fetch failed — continue without
   }
 
+  // Days remaining until predictions deadline (9 jun 2026, 17:00 UTC)
+  const DEADLINE = new Date('2026-06-09T17:00:00Z')
+  const daysToDeadline = Math.max(0, Math.ceil((DEADLINE - new Date()) / 86400000))
+
   return {
     leaderboard: filteredLeaderboard.slice(0, 15),
     recentMatches: matches,
     todayMovements: movements,
     totalParticipants: profiles.filter(p => p.id !== BOT365_ID).length,
     newsHeadlines: newsHeadlines.slice(0, 8),
-    hasMatchesPlayed: matches.length > 0
+    hasMatchesPlayed: matches.length > 0,
+    daysToDeadline
   }
 }
 
@@ -177,13 +182,13 @@ async function generateWithGemini(data) {
         }).join('\n')
       : '- (sin partidos resueltos hoy)'
 
-    prompt = `Eres un teletipo de prensa deportiva. Redactas la crónica diaria de una porra amistosa del Mundial 2026.
+    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026 entre amigos.
 
-REGLAS NO NEGOCIABLES:
-- MÁXIMO 100 PALABRAS TOTALES. Cuenta dos veces antes de devolver. Si pasas, recorta.
-- Tono: factual, neutro, periodístico. Como una nota de agencia. No conversacional, no opinativo, no emotivo.
-- PROHIBIDO usar: "¡", "?!", "atención", "ojo", "tensión", "presagio", "imparable", "candidato", "sin duda", "no te pierdas", "se mueve", "se calienta", emojis decorativos.
-- Permitido: máximo 1 emoji (solo si aporta dato: 🏆 líder, ⚽ gol). Mejor sin emoji.
+REGLAS:
+- MÁXIMO 100 PALABRAS TOTALES. Cuenta antes de devolver. Si pasas, recorta.
+- Tono: profesional pero cercano. Como un compañero que te pone al día con calma. Permitido usar primera persona del plural ("nuestra porra", "tenemos") con moderación.
+- PROHIBIDO: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", "espectáculo", "no te pierdas", emojis decorativos. Cero hype.
+- Permitido máximo 1 emoji (solo si aporta dato: 🏆 ⚽).
 - Datos concretos > adjetivos. Nombres > genéricos.
 
 CONTEXTO (${today}):
@@ -198,11 +203,11 @@ ${movementsText}
 RESULTADOS RECIENTES:
 ${recentResults}
 
-ESTRUCTURA EXACTA:
-- Titular (5-8 palabras, sin signos de exclamación).
+ESTRUCTURA:
+- Titular corto (5-8 palabras, sin "¡").
 - 1 párrafo: cambios en la clasificación con nombres concretos y deltas (▲n / ▼n).
 - 1 línea: dato concreto del día (resultado, racha, hito).
-- 1 línea de cierre: lo que viene mañana o efecto sobre el liderato.
+- 1 línea de cierre: lo que viene o efecto sobre el liderato.
 
 Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
   } else {
@@ -210,24 +215,24 @@ Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
       ? `\nÚLTIMAS NOTICIAS DEL MUNDO DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
       : ''
 
-    prompt = `Eres un teletipo de prensa deportiva. Redactas la crónica diaria de una porra amistosa del Mundial 2026.
+    prompt = `Redactas la crónica diaria de una porra amistosa del Mundial 2026 entre amigos.
 
-REGLAS NO NEGOCIABLES:
-- MÁXIMO 100 PALABRAS TOTALES. Cuenta dos veces antes de devolver. Si pasas, recorta.
-- Tono: factual, neutro, periodístico. No conversacional, no opinativo, no emotivo.
-- PROHIBIDO usar: "¡", "¿", "?!", "atención", "ojo", "tensión se palpa", "pitido inicial", "presagio", "vuelta de la esquina", "apuesta segura", "cuenta atrás", "imparable", "candidatos", "sin duda", "no te pierdas", "espectáculo", emojis decorativos.
-- Permitido: máximo 1 emoji (solo si aporta dato: 🏆 líder, ⚽ gol). Mejor sin emoji.
+REGLAS:
+- MÁXIMO 100 PALABRAS TOTALES. Cuenta antes de devolver. Si pasas, recorta.
+- Tono: profesional pero cercano. Como un compañero que te pone al día con calma. Permitido usar primera persona del plural ("nuestra porra", "tenemos") con moderación.
+- PROHIBIDO: exclamaciones múltiples, "¡atención!", "ojo", "tensión se palpa", "pitido inicial", "presagio", "vuelta de la esquina", "apuesta segura", "cuenta atrás", "imparable", "sin duda", emojis decorativos. Cero hype.
+- Permitido máximo 1 emoji (solo si aporta dato: 🏆 ⚽).
 
-CONTEXTO (${today}):
-- ${data.totalParticipants} participantes inscritos.
-- Mundial empieza 11 de junio 2026.
-- Plazo predicciones grupos + especiales: cierra 9 junio (48h antes).
+CONTEXTO:
+- Hoy: ${today}
+- ${data.totalParticipants} participantes inscritos
+- Plazo de predicciones: cierra el 9 de junio (faltan ${data.daysToDeadline} días)
 ${newsContext}
 
-ESTRUCTURA EXACTA:
-- Titular (5-8 palabras, sin signos de exclamación).
-- 1 párrafo: noticia relevante y su efecto concreto sobre alguna predicción especial. Nombres concretos.
-- 1 línea final: días que faltan para el cierre de predicciones.
+ESTRUCTURA:
+- Titular corto (5-8 palabras, sin "¡").
+- 1 párrafo: noticia relevante y posible efecto sobre alguna predicción especial (campeón, revelación, goleador). Nombres concretos.
+- 1 línea final mencionando los ${data.daysToDeadline} días que faltan para el cierre — usa exactamente ese número, no inventes.
 
 Devuelve solo el texto. Sin markdown, sin comillas, sin meta-comentarios.`
   }

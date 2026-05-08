@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 import Avatar from '../components/Avatar'
+import { FootballSpinner } from '../components/Skeleton'
 
 const ADMIN_ID = 'e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'
 const REACTION_EMOJIS = ['👍', '⚽', '🔥', '😂']
@@ -16,6 +17,7 @@ export default function Forum({ session }) {
   const [replyTo, setReplyTo] = useState(null) // message object being replied to
   const [showReactionPicker, setShowReactionPicker] = useState(null) // message id
   const [activeMsgId, setActiveMsgId] = useState(null) // tap a bubble to reveal actions
+  const [initialLoading, setInitialLoading] = useState(true) // first fetch only
   const [keyboardOffset, setKeyboardOffset] = useState(0) // px the iOS keyboard is covering
 
   // Track on-screen keyboard via visualViewport so the input bar stays above it
@@ -218,6 +220,7 @@ export default function Forum({ session }) {
       .order('created_at', { ascending: true })
       .limit(200)
     if (data) setMessages(data)
+    setInitialLoading(false)
   }
 
   async function fetchAnnouncements() {
@@ -542,7 +545,9 @@ export default function Forum({ session }) {
           </div>
         )}
 
-        {activeMessages.length === 0 && (
+        {initialLoading && activeMessages.length === 0 ? (
+          <FootballSpinner size={28} text="Cargando mensajes…" />
+        ) : activeMessages.length === 0 ? (
           <div style={{
             textAlign: 'center',
             color: '#6b7080',
@@ -551,10 +556,10 @@ export default function Forum({ session }) {
           }}>
             {activeTab === 'announcements'
               ? 'No hay comunicados todavía'
-              : 'Se el primero en escribir!'
+              : 'Sé el primero en escribir'
             }
           </div>
-        )}
+        ) : null}
 
         {activeMessages.map((msg, i) => {
           const isMine = msg.user_id === myId

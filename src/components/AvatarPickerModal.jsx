@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 import Avatar from './Avatar'
 import { SYMBOL_AVATARS } from './avatarLibrary'
+import { FootballSpinner } from './Skeleton'
 
 /**
  * Avatar picker — choose from 48 World Cup team flags or 12 soccer symbols.
@@ -190,7 +191,7 @@ export default function AvatarPickerModal({ profile, userId, onClose, onUpdated,
         {/* Grid */}
         <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {loading && tab === 'teams' ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Cargando…</div>
+            <FootballSpinner size={28} text="Cargando selecciones…" />
           ) : (
             <div style={{
               display: 'grid',
