@@ -238,14 +238,14 @@ Devuelve solo el texto plano. Sin markdown, sin comillas externas, sin meta-come
 
 ${styleRules}
 
-LONGITUD: entre 170 y 220 palabras. Cuenta antes de devolver. Si bajas de 170 expande análisis. No pases de 220.
+LONGITUD: entre 280 y 360 palabras. Cuenta antes de devolver. Si bajas de 280 expande análisis. No pases de 360.
 
 ESTRUCTURA:
 - Titular analítico (8-12 palabras), distinto al de la versión corta.
-- 3-4 párrafos breves separados por línea en blanco.
-- Contexto de la noticia o jornada → análisis de su impacto sobre las predicciones (campeón, revelación, goleador, líder de la porra) → implicación para los participantes.
-- Permite frases comparativas, análisis de patrones, lectura entre líneas, ironía mesurada.
-- Tono editorial. Periodista de fondo, no comentarista.
+- 4-5 párrafos breves separados por línea en blanco.
+- Estructura: contexto de la noticia o jornada → análisis del impacto sobre las predicciones (campeón, revelación, goleador, líder de la porra) → comparativa o patrón histórico relevante → implicación para los participantes.
+- Frases comparativas explícitas ("a diferencia de…", "frente a…"), datos numéricos o porcentajes cuando proceda, ironía mesurada permitida.
+- Tono editorial: periodista de fondo, no comentarista de partido. Como The Economist o un buen columnista de El País.
 - Cierra mencionando los ${data.daysToDeadline} días que faltan para el cierre del plazo.
 
 ${context}
@@ -256,7 +256,7 @@ Devuelve solo el texto plano. Sin markdown, sin comillas externas, sin meta-come
   // than asking Gemini to produce both inside a JSON schema (it kept truncating).
   const [shortText, longText] = await Promise.all([
     callGemini(shortPrompt, 250),
-    callGemini(longPrompt, 800)
+    callGemini(longPrompt, 1200)
   ])
 
   return {
