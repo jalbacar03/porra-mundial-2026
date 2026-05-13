@@ -269,8 +269,59 @@ vercel.json               # Cron config (sync diario 9AM UTC)
 - ✅ Error handling robusto: apiFetch/supaFetch logean errores sin crashear
 - ✅ Auditoría completa pre-Mundial: scoring, triggers, sync, leaderboard verificados
 
-## Pendientes próximos
-1. **Emails** — newsletter diaria con Resend (crónica + leaderboard)
+## Estado actual — Sesión más reciente (mayo 2026, hash main: fadb29f)
+
+### Lo nuevo desplegado en esta tanda
+- ✅ **5 pantallas redesigned** (Dashboard, Leaderboard, Predictions, Bracket, Órdagos) + Stats sub-tabs polish + Admin polish
+- ✅ **Forum redesign**: WhatsApp-style bubbles, fixed bottom layout, visualViewport para teclado iOS, tap-to-show actions
+- ✅ **MatchDetail page nueva**: ruta `/match/:id` con score selector botones 0-5+, sección órdago integrada, summary de potencial
+- ✅ **Bracket "Cuadro ciego"**: 4 columnas (Octavos/Cuartos/Semi/Final), badges puntos por ronda, R32 colapsable
+- ✅ **Avatar = solo iniciales** (sin foto, sin picker — política producto). `<Avatar name=… />` deriva de full_name
+- ✅ **Widget "Tu progreso"** en Dashboard (Grupos / Especiales / Cuadro), solo pre-deadline
+- ✅ **PWA install banner** discreto con guía iOS (Compartir → Añadir a pantalla de inicio)
+- ✅ **Web Push background** completo: VAPID keys, tabla `push_subscriptions`, `useNotifications.subscribePush()`, fan-out desde sync-results.js post-finished
+- ✅ **Realtime push** (Supabase Realtime) en Leaderboard / Dashboard / MatchDayLive — refrescan <1s al cambiar `matches`
+- ✅ **Crónica de 2 niveles**: short (45-55 palabras, dashboard) + long (280-360 palabras estilo Economist, modal "Leer más"). 2 llamadas Gemini en paralelo
+- ✅ **Onboarding state en DB** (`onboarding_seen_at`), no localStorage
+- ✅ **PaymentWall mejorado**: copy "Solicitar acceso" + persiste `access_requested_at` (admin lo ve en su panel)
+- ✅ **Bug crítico arreglado**: 27 partidos knockout faltaban en DB → INSERT placeholders, sync los rellena con dates reales
+- ✅ **Bug crítico arreglado**: 3 podium bets (`my_champion`, `finalists`, `round_of_16`) ocultas pero activas → desactivadas (1 usuario tenía entries antiguas que iban a dar puntos injustos)
+- ✅ **RLS deadline enforcement** en predictions / pre_tournament_entries / ordago_entries / bracket_picks (defensa en profundidad — admin bypass incluido)
+- ✅ **Bracket assignment**: greedy → backtracking (algunos casos de 3rd-place dejaban slot 87 vacío)
+- ✅ **CRON_SECRET dual auth**: opt-in. Si lo pones en env, sync-results acepta cron secret O JWT admin
+- ✅ **Bundle split**: react / supabase / sentry en chunks separados → app code 126KB → 24KB gzipped
+- ✅ **FootballSpinner**: SVG balón animado reemplaza "Cargando..." en 11 sitios
+- ✅ **Smoke test end-to-end pasado**: signup → trigger handle_new_user → admision → predicción → trigger calculate_match_points → leaderboard refleja puntos
+- ✅ **Landing page**: `/info.html` con og: meta tags
+
+### DB schema actual (cambios recientes)
+- `profiles`: añadidos `avatar_url` (deprecado, ignorado por frontend pero no borrado), `avatar_changes_count` (deprecado), `onboarding_seen_at`, `access_requested_at`
+- `daily_insights`: añadido `content_long` (versión larga de la crónica)
+- `push_subscriptions`: tabla nueva (id, user_id, endpoint, p256dh, auth, user_agent, last_used_at)
+- `supabase_realtime` publication incluye: `matches`, `forum_messages`, `forum_reactions`
+- `matches`: 103 filas totales (72 group + 16 R32 + 8 R16 + 4 QF + 2 SF + 1 Final). Knockout matches con teams=NULL hasta que sync los rellene con datos de API-Football
+
+### Pendientes — depende del usuario
+1. **Activar Vercel Pro** cuando empiece el Mundial → cron `*/5` para resultados quasi-live (actualmente daily)
+2. **Captar e invitar a los ~95 participantes restantes** — solo 4 paid + Bot365 en DB
+3. **Validar en móvil** las últimas tandas de UI
+4. **Opcional**: añadir env `CRON_SECRET=<random-string>` en Vercel → activa la dual-auth ya montada
+5. **Bot365 rename** — usuario sigue pensándolo, mantenido por ahora
+
+### Pendientes — código (no urgentes)
+- **Newsletter Resend** — declinado por usuario
+- Email digest, Sentry DSN real, métricas de uso, pantalla "Mis predicciones agregada" (skip — ya existe)
+
+### Variables Vercel necesarias para que TODO funcione
+Frontend (con prefijo VITE_):
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- `VITE_VAPID_PUBLIC_KEY` (para push background)
+
+Solo serverless (sin VITE_):
+- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+- `GEMINI_API_KEY`, `API_FOOTBALL_KEY`
+- `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (para push background)
+- `CRON_SECRET` (opcional, opt-in hardening)
 
 ## Notas importantes
 - NUNCA cambiar nombres de columnas existentes (predicted_home, predicted_away, full_name, has_paid, is_admin)
