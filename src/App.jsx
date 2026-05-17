@@ -44,10 +44,19 @@ function Auth() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
     } else {
+      // Identification rule: nombre + apellido reales obligatorios para poder
+      // entregar premio si gana. El nickname es opcional y solo se usa para mostrar.
+      const trimmedName = fullName.trim().replace(/\s+/g, ' ')
+      const words = trimmedName.split(' ').filter(Boolean)
+      if (words.length < 2 || words.some(w => w.length < 2)) {
+        setMessage('Indica tu nombre y apellido reales (mínimo 2 palabras). Es necesario para identificarte si ganas el premio.')
+        setLoading(false)
+        return
+      }
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, nickname: nickname.trim() || fullName } }
+        options: { data: { full_name: trimmedName, nickname: nickname.trim() || trimmedName } }
       })
       if (error) setMessage(error.message)
       else setMessage('Revisa tu email para confirmar tu cuenta')
@@ -96,11 +105,18 @@ function Auth() {
             <>
               <input
                 type="text"
-                placeholder="Nombre completo"
+                placeholder="Nombre y apellido reales *"
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
                 style={inputStyle}
+                required
               />
+              <div style={{
+                fontSize: '10.5px', color: 'var(--text-dim)', lineHeight: '1.45',
+                marginTop: '-6px', marginBottom: '10px', padding: '0 2px'
+              }}>
+                Imprescindible para identificarte si ganas el premio. El nickname es opcional y solo se usa para mostrar.
+              </div>
               <input
                 type="text"
                 placeholder="Nickname (cómo quieres aparecer)"

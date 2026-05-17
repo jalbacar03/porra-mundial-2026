@@ -39,10 +39,9 @@ App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los partic
 - Trigger `on_match_result_updated` en tabla `matches`
 - **IMPORTANTE**: solo calcula puntos cuando `status = 'finished'` (no durante partidos live)
 - Scoring partidos: 3 pts resultado exacto, 1 pt signo 1X2 correcto
-- `resolve_ordago(p_ordago_id INT)` — RPC para resolver órdagos cuando su partido termina
 
 ### Vista
-- `leaderboard` — agrega puntos de 4 fuentes: partidos (predictions.points_earned) + pre-torneo (pre_tournament_entries) + órdagos (ordago_entries) + bracket (bracket_picks)
+- `leaderboard` — agrega puntos de 3 fuentes: partidos (predictions.points_earned) + pre-torneo (pre_tournament_entries) + bracket (bracket_picks)
 
 ## Sistema de puntuación
 
@@ -60,12 +59,25 @@ App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los partic
 - Campeón: 8 pts
 - **Acertar toda la cadena del campeón = 20 pts** (1+2+4+5+8)
 
-### Predicciones especiales
-- Revelación: 4 pts (aciertas si tu selección llega a cuartos)
-- Decepción: 4 pts (aciertas si tu selección cae en grupos)
-- Goleador, asistencias, portero, primer gol: puntos según config
-- Más goleadora en grupos, menos goleada en grupos: 3 pts cada una
-- Hat-trick, goleada 5+: sí/no
+### Predicciones especiales (rediseño 2026-05-17: 3 bloques, 14 apuestas, 29 pts máx)
+**Bloque Jugadores (4):**
+- MVP del torneo: 5 pts — manual (admin) post-final
+- Bota de Oro (máximo goleador): 3 pts — auto via `/players/topscorers`
+- Máximo Asistente: 3 pts — auto via `/players/topassists`
+- Guante de Oro (mejor portero): 3 pts — manual (admin) post-final
+
+**Bloque Selecciones (4):**
+- Revelación: 3 pts (llega a cuartos)
+- Decepción: 3 pts (cae en grupos)
+- Más goleadora en grupos: 2 pts
+- Menos goleada en grupos: 2 pts
+
+**Bloque ¿Sí o No? (5, 1 pt cada):**
+- ¿Hat-trick en el torneo? — auto via `/fixtures/events`
+- ¿Goleada por 5+ goles de **diferencia**? (antes era total ≥5)
+- ¿Final decidida en penaltis? — status='PEN' del partido final
+- ¿Campeón europeo? — UEFA_NATIONS lookup vs winner
+- ¿Ambas rojas en un mismo partido? — `/fixtures/events` red+second-yellow
 
 ## Automatización (API-Football + Vercel Cron)
 - **`/api/sync-results.js`** — Serverless function que sincroniza resultados desde API-Football
@@ -74,7 +86,8 @@ App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los partic
 - **Flujo**: API-Football → actualiza `matches` → trigger calcula puntos (solo status=finished) → leaderboard se actualiza
 - **Sync de partidos en vivo**: actualiza scores intermedios con status='live' (no dispara cálculo de puntos)
 - **Transición live→finished**: corregido — busca `status !== 'finished'` (no `home_score === null`)
-- **Resolución automática de TODAS las predicciones**: goleador, asistencias, revelación (llega a QF), decepción (cae en grupos), hat-trick, goleada 5+, más goleadora, menos goleada, primer gol
+- **Resolución automática**: bota oro, max asistente, revelación (QF), decepción (grupos), hat-trick, goleada diff 5+, más goleadora, menos goleada, final en penaltis, campeón europeo, ambas rojas
+- **Resolución manual** (Admin → Pre-torneo): MVP, Guante de Oro (FIFA los anuncia, API-Football no los expone)
 - **Hat-trick optimizado**: solo busca eventos en partidos donde un equipo metió 3+ goles (ahorra API calls)
 - **Error handling**: apiFetch y supaFetch logean errores y devuelven arrays vacíos (no crashean)
 - API-Football: plan Free (100 req/día, 0€). Key: configurada en Vercel env vars
@@ -120,7 +133,6 @@ App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los partic
 - Widget unificado: posición en clasificación + puntos + exactos
 - Widget "Informe de jornada" (post-match report automático de la última jornada)
 - Widget "Crónica del día" (Gemini)
-- Widget órdagos con preview del órdago activo
 - Card de acceso a Match Day Live (no en nav, solo desde Dashboard)
 - Botones: Mis predicciones + Clasificación
 - Top 5 leaderboard con barras visuales
@@ -136,7 +148,7 @@ App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los partic
 - **Tú** (Personal): posición, aciertos, distribución, rendimiento por grupo, tú vs la media, **simulador "¿Qué necesitas?"** (gap al rival, partidos clave con divergencias, mejor/peor caso)
 - **Partidos**: consensus 1X2 por grupo con OddsBar bet365-style
 - **Predicciones**: stats de predicciones especiales (blurred hasta cierre plazo)
-- **H2H**: comparador entre 2 participantes (partidos + predicciones + órdagos)
+- **H2H**: comparador entre 2 participantes (partidos + predicciones)
 - **Otros**: ver predicciones de cualquier participante
 
 ### Foro
@@ -268,13 +280,17 @@ vercel.json               # Cron config (sync diario 9AM UTC)
 - ✅ Hat-trick optimizado: solo fetch eventos en partidos con 3+ goles de un equipo
 - ✅ Error handling robusto: apiFetch/supaFetch logean errores sin crashear
 - ✅ Auditoría completa pre-Mundial: scoring, triggers, sync, leaderboard verificados
+- ✅ **Eliminados órdagos (2026-05-17)** — feature retirada. Tag `pre-ordagos-removal-2026-05-17` + rama `archive/ordagos-feature` para rollback. Tablas `ordagos`/`ordago_entries` se mantienen en DB pero sin uso. Vista leaderboard reescrita sin `ordago_points`.
+- ✅ **Rediseño especiales (2026-05-17)** — 14 apuestas en 3 bloques (Jugadores 5/3/3/3 · Selecciones 3/3/2/2 · Sí-No 1×5). Total 29 pts. MVP y Guante de Oro manuales (admin), resto auto vía API-Football.
+- ✅ **Registro con identificación obligatoria (2026-05-17)** — signup exige nombre+apellido reales (≥2 palabras). Nickname opcional. Cláusula en Rules.
+- ✅ **Reset usuarios (2026-05-17)** — borradas todas las predictions/bracket_picks/pre_tournament_entries de humanos. Bot365 conserva sus 72 predicciones de partidos y 31 bracket_picks como línea de referencia.
 
-## Estado actual — Sesión más reciente (mayo 2026, hash main: fadb29f)
+## Estado actual — Sesión más reciente (mayo 2026)
 
 ### Lo nuevo desplegado en esta tanda
 - ✅ **5 pantallas redesigned** (Dashboard, Leaderboard, Predictions, Bracket, Órdagos) + Stats sub-tabs polish + Admin polish
 - ✅ **Forum redesign**: WhatsApp-style bubbles, fixed bottom layout, visualViewport para teclado iOS, tap-to-show actions
-- ✅ **MatchDetail page nueva**: ruta `/match/:id` con score selector botones 0-5+, sección órdago integrada, summary de potencial
+- ✅ **MatchDetail page nueva**: ruta `/match/:id` con score selector botones 0-5+, summary de potencial
 - ✅ **Bracket "Cuadro ciego"**: 4 columnas (Octavos/Cuartos/Semi/Final), badges puntos por ronda, R32 colapsable
 - ✅ **Avatar = solo iniciales** (sin foto, sin picker — política producto). `<Avatar name=… />` deriva de full_name
 - ✅ **Widget "Tu progreso"** en Dashboard (Grupos / Especiales / Cuadro), solo pre-deadline
@@ -285,8 +301,7 @@ vercel.json               # Cron config (sync diario 9AM UTC)
 - ✅ **Onboarding state en DB** (`onboarding_seen_at`), no localStorage
 - ✅ **PaymentWall mejorado**: copy "Solicitar acceso" + persiste `access_requested_at` (admin lo ve en su panel)
 - ✅ **Bug crítico arreglado**: 27 partidos knockout faltaban en DB → INSERT placeholders, sync los rellena con dates reales
-- ✅ **Bug crítico arreglado**: 3 podium bets (`my_champion`, `finalists`, `round_of_16`) ocultas pero activas → desactivadas (1 usuario tenía entries antiguas que iban a dar puntos injustos)
-- ✅ **RLS deadline enforcement** en predictions / pre_tournament_entries / ordago_entries / bracket_picks (defensa en profundidad — admin bypass incluido)
+- ✅ **RLS deadline enforcement** en predictions / pre_tournament_entries / bracket_picks (defensa en profundidad — admin bypass incluido)
 - ✅ **Bracket assignment**: greedy → backtracking (algunos casos de 3rd-place dejaban slot 87 vacío)
 - ✅ **CRON_SECRET dual auth**: opt-in. Si lo pones en env, sync-results acepta cron secret O JWT admin
 - ✅ **Bundle split**: react / supabase / sentry en chunks separados → app code 126KB → 24KB gzipped
@@ -301,16 +316,18 @@ vercel.json               # Cron config (sync diario 9AM UTC)
 - `supabase_realtime` publication incluye: `matches`, `forum_messages`, `forum_reactions`
 - `matches`: 103 filas totales (72 group + 16 R32 + 8 R16 + 4 QF + 2 SF + 1 Final). Knockout matches con teams=NULL hasta que sync los rellene con datos de API-Football
 
-### Pendientes — depende del usuario
-1. **Activar Vercel Pro** cuando empiece el Mundial → cron `*/5` para resultados quasi-live (actualmente daily)
-2. **Captar e invitar a los ~95 participantes restantes** — solo 4 paid + Bot365 en DB
-3. **Validar en móvil** las últimas tandas de UI
-4. **Opcional**: añadir env `CRON_SECRET=<random-string>` en Vercel → activa la dual-auth ya montada
-5. **Bot365 rename** — usuario sigue pensándolo, mantenido por ahora
+### Pendientes próximos (orden de prioridad)
+1. **Seed jugadores día 2 jun** — ejecutar `scripts/seed-players.js` con plantillas oficiales cuando se publiquen
+2. **Re-seed Bot365 pre-tournament** — Bot365 quedó sin pre_tournament_entries (set viejo). Hay que actualizar `scripts/seed-bot365.js` y re-ejecutar con los 14 nuevos slugs
+3. **Activar Vercel Pro** cuando empiece el Mundial → cron `*/5` para resultados quasi-live (actualmente daily)
+4. **API-Football Pro plan** si queremos sync más frecuente que diario (Free: 100 req/día = no llega para live)
+5. **PDF normas** — regenerar con look&feel de la porra cuando el contenido esté finalizado (sustituye al .docx)
+6. **Captar e invitar a los ~95 participantes restantes** — solo 4 paid + Bot365 en DB
+7. **Opcional**: `CRON_SECRET=<random>` en Vercel → activa dual-auth montada
 
 ### Pendientes — código (no urgentes)
 - **Newsletter Resend** — declinado por usuario
-- Email digest, Sentry DSN real, métricas de uso, pantalla "Mis predicciones agregada" (skip — ya existe)
+- Email digest, Sentry DSN real, métricas de uso
 
 ### Variables Vercel necesarias para que TODO funcione
 Frontend (con prefijo VITE_):
