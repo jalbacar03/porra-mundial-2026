@@ -17,7 +17,7 @@ export default function Rules() {
             </p>
           </div>
           <a
-            href="/docs/normas-porra-mundial-2026.docx"
+            href="/docs/normas-porra-mundial-2026.pdf"
             download
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
@@ -32,7 +32,7 @@ export default function Rules() {
               flexShrink: 0
             }}
           >
-            📄 Word
+            📄 PDF
           </a>
         </div>
       </div>
