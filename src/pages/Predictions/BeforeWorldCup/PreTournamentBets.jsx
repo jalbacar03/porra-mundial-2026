@@ -288,8 +288,28 @@ export default function PreTournamentBets({ session, deadline, demoMode }) {
           Predicciones Especiales
         </h3>
         <p style={{ fontSize: '12px', color: 'var(--text-dim)', margin: 0 }}>
-          10 predicciones especiales — +2 puntos cada una
+          {visibleBets.length} predicciones especiales · hasta {totalMaxPoints} pts
         </p>
+      </div>
+
+      {/* Warning: official lists load on day 2 */}
+      <div style={{
+        background: 'rgba(255,204,0,0.06)',
+        border: '0.5px solid rgba(255,204,0,0.22)',
+        borderRadius: '8px',
+        padding: '10px 12px',
+        marginBottom: '12px',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '8px'
+      }}>
+        <span style={{ fontSize: '14px', lineHeight: '1' }}>⚠️</span>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.45' }}>
+          <strong style={{ color: 'var(--gold)' }}>Listas oficiales el 2 de junio.</strong>{' '}
+          Las plantillas y jugadores definitivos se cargarán el 2 de junio. Si tu jugador
+          no aparece todavía, podrás actualizarlo: tienes hasta el <strong>9 de junio</strong> para
+          cambiar tus predicciones.
+        </div>
       </div>
 
       {/* Progress */}
