@@ -9,7 +9,7 @@ App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los partic
 - **Hosting:** Vercel (auto-deploy desde GitHub en cada push)
 - **APIs externas:** API-Football (resultados, stats), Google Gemini (crónica diaria), RSS (noticias)
 - **Repo:** ver `git remote -v`
-- **URL pública:** ver Vercel dashboard
+- **URL pública:** `https://porra-mundial-2026-omega.vercel.app` (NO `porra-mundial-2026.vercel.app` — ese subdominio sin `-omega` pertenece a otro proyecto, Vercel asignó `-omega` por colisión de nombres)
 - **Local:** ver `pwd`
 
 ## Base de datos (Supabase)
