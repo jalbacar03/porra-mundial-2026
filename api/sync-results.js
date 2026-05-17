@@ -27,6 +27,25 @@ const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 const WORLD_CUP_ID = 1
 const WORLD_CUP_SEASON = 2026
 
+// UEFA member nations (used to resolve "champion_european" bet without an API call).
+// Includes all 55 UEFA federations — only those that could plausibly reach the WC
+// matter, but we keep the full list for forward-compat.
+const UEFA_NATIONS = new Set([
+  'Albania','Andorra','Armenia','Austria','Azerbaijan','Belarus','Belgium','Bélgica',
+  'Bosnia and Herzegovina','Bosnia','Bulgaria','Croatia','Croacia','Cyprus','Chipre',
+  'Czech Republic','Czechia','Chequia','Denmark','Dinamarca','England','Inglaterra',
+  'Estonia','Faroe Islands','Finland','Finlandia','France','Francia','Georgia',
+  'Germany','Alemania','Gibraltar','Greece','Grecia','Hungary','Hungría','Iceland',
+  'Islandia','Ireland','Irlanda','Israel','Italy','Italia','Kazakhstan','Kosovo',
+  'Latvia','Liechtenstein','Lithuania','Luxembourg','Luxemburgo','Malta','Moldova',
+  'Montenegro','Netherlands','Holanda','Países Bajos','North Macedonia','Macedonia',
+  'Northern Ireland','Norway','Noruega','Poland','Polonia','Portugal','Romania',
+  'Rumanía','Russia','Rusia','San Marino','Scotland','Escocia','Serbia','Slovakia',
+  'Eslovaquia','Slovenia','Eslovenia','Spain','España','Sweden','Suecia',
+  'Switzerland','Suiza','Turkey','Türkiye','Turquía','Ukraine','Ucrania','Wales',
+  'Gales'
+])
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   if (req.method === 'OPTIONS') return res.status(200).end()
@@ -380,35 +399,11 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
         break
       }
 
-      // === JUGADOR 3+ GOLES ===
-      case 'player_3_goals': {
-        if (topScorers.length > 0) {
-          const players3Plus = topScorers.filter(p => p.statistics[0]?.goals?.total >= 3)
-          // Can resolve once tournament is over, or player already has 3+
-          correctAnswer = players3Plus.map(p => p.player.name)
-          canResolve = groupStageComplete // At least check after groups
-        }
-        break
-      }
-
-      // === PORTERO MENOS GOLEADO ===
+      // === GUANTE DE ORO (mejor portero) — manual ===
       case 'best_goalkeeper': {
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
-        if (finalMatch?.home_score !== null) {
-          // Fetch top goalkeepers stats from API-Football
-          // The team with fewest goals conceded in the whole tournament
-          const goalsConceded = {}
-          ourMatches.filter(m => m.home_score !== null).forEach(m => {
-            goalsConceded[m.home_team_id] = (goalsConceded[m.home_team_id] || 0) + (m.away_score || 0)
-            goalsConceded[m.away_team_id] = (goalsConceded[m.away_team_id] || 0) + (m.home_score || 0)
-          })
-          // Find team with fewest goals conceded that went furthest
-          const bestTeamId = Object.entries(goalsConceded).sort((a, b) => a[1] - b[1])[0]
-          if (bestTeamId) {
-            correctAnswer = parseInt(bestTeamId[0])
-            canResolve = true
-          }
-        }
+        // FIFA/Adidas award. API-Football doesn't expose "Golden Glove" directly,
+        // and clean-sheets-only is a poor proxy at player level. Admin resolves
+        // manually post-final via the Admin → Pre-torneo tab.
         break
       }
 
@@ -502,22 +497,95 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
         break
       }
 
-      // === GOLEADA 5+ ===
+      // === GOLEADA POR 5+ GOLES DE DIFERENCIA ===
       case 'any_5_goal_thrashing': {
+        // Resolve 'yes' as soon as any finished match has |home-away| >= 5
         const thrashing = apiMatches.find(m => {
-          const h = m.goals?.home || 0
-          const a = m.goals?.away || 0
-          return (h + a) >= 5 && (m.fixture.status.short === 'FT')
+          const h = m.goals?.home ?? 0
+          const a = m.goals?.away ?? 0
+          const finishedStatus = ['FT', 'AET', 'PEN'].includes(m.fixture.status.short)
+          return finishedStatus && Math.abs(h - a) >= 5
         })
         if (thrashing) {
           correctAnswer = 'yes'
           canResolve = true
+        }
+        // Resolve 'no' only when tournament is fully over
+        const finalMatch = ourMatches.find(m => m.stage === 'final')
+        if (finalMatch?.home_score !== null && !correctAnswer) {
+          correctAnswer = 'no'
+          canResolve = true
+        }
+        break
+      }
+
+      // === FINAL DECIDIDA EN PENALTIS ===
+      case 'final_penalties': {
+        // The final match in our DB
+        const finalMatch = ourMatches.find(m => m.stage === 'final')
+        if (!finalMatch || finalMatch.home_score === null) break
+        // Find the corresponding API fixture for the final
+        const finalApiFixture = apiMatches.find(m => {
+          const homeApi = m.teams?.home?.id
+          const awayApi = m.teams?.away?.id
+          return teamByApiId[homeApi] === finalMatch.home_team_id &&
+                 teamByApiId[awayApi] === finalMatch.away_team_id &&
+                 (m.league?.round || '').toLowerCase().includes('final')
+        })
+        if (finalApiFixture) {
+          // 'PEN' = decided on penalty shootout
+          correctAnswer = finalApiFixture.fixture.status.short === 'PEN' ? 'yes' : 'no'
+          canResolve = true
+        }
+        break
+      }
+
+      // === CAMPEÓN ES EUROPEO ===
+      case 'champion_european': {
+        const finalMatch = ourMatches.find(m => m.stage === 'final')
+        if (!finalMatch || !finalMatch.winner_team_id) break
+        const championTeamId = finalMatch.winner_team_id
+        const championTeam = ourTeams.find(t => t.id === championTeamId)
+        if (championTeam) {
+          // Check by team name against UEFA member list (data-driven, no API call needed)
+          correctAnswer = UEFA_NATIONS.has((championTeam.name || '').trim()) ? 'yes' : 'no'
+          canResolve = true
+        }
+        break
+      }
+
+      // === AMBAS ROJAS EN UN MISMO PARTIDO ===
+      case 'both_red_cards_match': {
+        // Cheap pre-filter: skip matches with too few cards already shown. We need to
+        // fetch events to detect reds per team. Only check finished matches.
+        const candidates = apiMatches.filter(m =>
+          ['FT', 'AET', 'PEN'].includes(m.fixture.status.short)
+        )
+        for (const apiMatch of candidates) {
+          const eventsRes = await apiFetch(`/fixtures/events?fixture=${apiMatch.fixture.id}`)
+          const reds = (eventsRes.response || []).filter(e =>
+            e.type === 'Card' && (e.detail === 'Red Card' || e.detail === 'Second Yellow card')
+          )
+          const redTeams = new Set(reds.map(r => r.team?.id).filter(Boolean))
+          if (redTeams.size >= 2) {
+            correctAnswer = 'yes'
+            canResolve = true
+            break
+          }
         }
         const finalMatch = ourMatches.find(m => m.stage === 'final')
         if (finalMatch?.home_score !== null && !correctAnswer) {
           correctAnswer = 'no'
           canResolve = true
         }
+        break
+      }
+
+      // === MVP — manual (admin resolves post-final) ===
+      case 'mvp': {
+        // FIFA announces MVP at the final ceremony; API-Football doesn't expose this
+        // directly. Resolution is done manually by admin via Admin → Pre-torneo tab.
+        // Sync skips it on purpose.
         break
       }
     }
