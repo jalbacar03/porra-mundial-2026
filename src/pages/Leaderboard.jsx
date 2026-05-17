@@ -87,10 +87,9 @@ export default function Leaderboard({ demoMode }) {
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
     const cutoff = twoDaysAgo.toISOString()
 
-    const [matchesRes, preTournamentRes, ordagosRes] = await Promise.all([
+    const [matchesRes, preTournamentRes] = await Promise.all([
       supabase.from('matches').select('id').eq('status', 'finished').gte('match_date', cutoff),
-      supabase.from('pre_tournament_entries').select('user_id, points_awarded').eq('is_resolved', true).gte('updated_at', cutoff),
-      supabase.from('ordago_entries').select('user_id, points_awarded').not('points_awarded', 'is', null).gte('updated_at', cutoff)
+      supabase.from('pre_tournament_entries').select('user_id, points_awarded').eq('is_resolved', true).gte('updated_at', cutoff)
     ])
 
     const recentMatchIds = (matchesRes?.data || []).map(m => m.id)
@@ -109,9 +108,6 @@ export default function Leaderboard({ demoMode }) {
       recentPoints[p.user_id] = (recentPoints[p.user_id] || 0) + (p.points_earned || 0)
     })
     ;(preTournamentRes?.data || []).forEach(e => {
-      recentPoints[e.user_id] = (recentPoints[e.user_id] || 0) + (e.points_awarded || 0)
-    })
-    ;(ordagosRes?.data || []).forEach(e => {
       recentPoints[e.user_id] = (recentPoints[e.user_id] || 0) + (e.points_awarded || 0)
     })
 

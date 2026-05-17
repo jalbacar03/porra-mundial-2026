@@ -4,7 +4,7 @@
  * GET /api/sync-results → Fetches live/finished matches and updates Supabase
  * Also resolves: bracket picks, pre-tournament bets (goleador, etc.)
  *
- * Called by Vercel Cron every 2 hours during the World Cup, or manually from Admin.
+ * Called by Vercel Cron daily (Hobby plan limit), or manually from Admin.
  * API-Football free tier: 100 requests/day
  */
 
@@ -214,17 +214,12 @@ export default async function handler(req, res) {
     const knockoutSynced = await syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, log)
     log.push(`   Updated ${knockoutSynced} knockout match teams`)
 
-    // 8. Auto-resolve órdagos for finished matches
-    log.push('🎲 Checking órdagos...')
-    const ordagosResolved = await resolveFinishedOrdagos(log)
-    log.push(`   Resolved ${ordagosResolved} órdagos`)
-
-    // 9. Score bracket picks for finished knockout matches
+    // 8. Score bracket picks for finished knockout matches
     log.push('🏆 Scoring bracket picks...')
     const bracketScored = await scoreBracketPicks(log)
     log.push(`   Scored ${bracketScored} bracket picks`)
 
-    // 10. Summary
+    // 9. Summary
     const summary = {
       timestamp: new Date().toISOString(),
       matchesUpdated: updatedCount,
@@ -232,7 +227,6 @@ export default async function handler(req, res) {
       totalFinished: finished.length,
       betsResolved: resolvedBets,
       knockoutTeamsSynced: knockoutSynced,
-      ordagosResolved,
       bracketScored,
       log
     }
@@ -693,65 +687,6 @@ async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, 
   }
 
   return updated
-}
-
-/**
- * Auto-resolve órdagos whose linked match is finished.
- * Calls the resolve_ordago PostgreSQL function via RPC.
- */
-async function resolveFinishedOrdagos(log) {
-  let resolved = 0
-
-  // Auto-open órdago #1 when World Cup has started (11 Jun 2026)
-  const WORLD_CUP_START = new Date('2026-06-11T00:00:00Z')
-  if (new Date() >= WORLD_CUP_START) {
-    const locked = await supaFetch(
-      '/rest/v1/ordagos?number=eq.1&status=eq.locked&select=id'
-    )
-    if (locked?.length > 0) {
-      await supaFetch(`/rest/v1/ordagos?id=eq.${locked[0].id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'open' })
-      })
-      log.push('   🎲 Órdago #1 auto-opened (World Cup started)')
-    }
-  }
-
-  // Get all unresolved órdagos with their match info
-  const ordagos = await supaFetch(
-    '/rest/v1/ordagos?status=neq.resolved&match_id=not.is.null&select=id,number,match_id,status'
-  )
-
-  if (!ordagos || ordagos.length === 0) return 0
-
-  for (const ordago of ordagos) {
-    // Check if the linked match is finished
-    const matches = await supaFetch(`/rest/v1/matches?id=eq.${ordago.match_id}&select=id,status,home_score,away_score`)
-    const match = matches?.[0]
-
-    if (match && match.status === 'finished' && match.home_score !== null && match.away_score !== null) {
-      // Call the resolve_ordago function
-      const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_ordago`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ p_ordago_id: ordago.id })
-      })
-
-      if (rpcRes.ok) {
-        resolved++
-        log.push(`   🎲 Órdago #${ordago.number} resolved!`)
-      } else {
-        const err = await rpcRes.text()
-        log.push(`   ⚠️ Órdago #${ordago.number} error: ${err}`)
-      }
-    }
-  }
-
-  return resolved
 }
 
 /**

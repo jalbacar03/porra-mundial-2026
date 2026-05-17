@@ -30,20 +30,16 @@ export default function Stats({ demoMode }) {
   const [h2hGroup, setH2hGroup] = useState('A')
   const [h2hBetEntriesA, setH2hBetEntriesA] = useState([])
   const [h2hBetEntriesB, setH2hBetEntriesB] = useState([])
-  const [h2hOrdagoEntriesA, setH2hOrdagoEntriesA] = useState([])
-  const [h2hOrdagoEntriesB, setH2hOrdagoEntriesB] = useState([])
 
   // View others state
   const [viewUser, setViewUser] = useState('')
   const [viewPredictions, setViewPredictions] = useState([])
   const [viewBetEntries, setViewBetEntries] = useState([])
-  const [viewOrdagoEntries, setViewOrdagoEntries] = useState([])
   const [viewLoading, setViewLoading] = useState(false)
   const [viewGroup, setViewGroup] = useState('A')
 
   // Shared data
   const [teams, setTeams] = useState([])
-  const [ordagos, setOrdagos] = useState([])
   const [allPreTournamentEntries, setAllPreTournamentEntries] = useState([])
   const [allMatches, setAllMatches] = useState([])
 
@@ -73,14 +69,6 @@ export default function Stats({ demoMode }) {
       supabase.from('pre_tournament_entries').select('bet_id, user_id, value, points_awarded, is_resolved'),
       supabase.from('leaderboard').select('*'),
       supabase.from('teams').select('id, name, flag_url'),
-      supabase.from('ordagos').select(`
-        *,
-        match:matches(
-          id, match_date, status, home_score, away_score,
-          home_team:teams!matches_home_team_id_fkey(id, name, flag_url),
-          away_team:teams!matches_away_team_id_fkey(id, name, flag_url)
-        )
-      `).order('number'),
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
         .order('match_date', { ascending: true })
@@ -108,9 +96,8 @@ export default function Stats({ demoMode }) {
     setAllPreTournamentEntries(allEntries)
     setLeaderboard(results[5].data || [])
     setTeams(results[6].data || [])
-    setOrdagos(results[7].data || [])
-    setAllMatches(results[8].data || [])
-    if (results[9]) setMyPredictions(results[9].data || [])
+    setAllMatches(results[7].data || [])
+    if (results[8]) setMyPredictions(results[8].data || [])
     setLoading(false)
   }
 
@@ -118,7 +105,7 @@ export default function Stats({ demoMode }) {
   async function fetchH2hPredictions(userAId, userBId) {
     if (!userAId || !userBId) return
     setH2hLoading(true)
-    const [predsRes, betEntriesARes, betEntriesBRes, ordagoARes, ordagoBRes] = await Promise.all([
+    const [predsRes, betEntriesARes, betEntriesBRes] = await Promise.all([
       supabase.from('predictions')
         .select('user_id, match_id, predicted_home, predicted_away, points_earned')
         .in('user_id', [userAId, userBId]),
@@ -127,12 +114,6 @@ export default function Stats({ demoMode }) {
         .eq('user_id', userAId),
       supabase.from('pre_tournament_entries')
         .select('bet_id, value, points_awarded, is_resolved')
-        .eq('user_id', userBId),
-      supabase.from('ordago_entries')
-        .select('ordago_id, predicted_home, predicted_away, points_awarded')
-        .eq('user_id', userAId),
-      supabase.from('ordago_entries')
-        .select('ordago_id, predicted_home, predicted_away, points_awarded')
         .eq('user_id', userBId)
     ])
     const map = {}
@@ -143,8 +124,6 @@ export default function Stats({ demoMode }) {
     setH2hPredictions(map)
     setH2hBetEntriesA(betEntriesARes.data || [])
     setH2hBetEntriesB(betEntriesBRes.data || [])
-    setH2hOrdagoEntriesA(ordagoARes.data || [])
-    setH2hOrdagoEntriesB(ordagoBRes.data || [])
     setH2hLoading(false)
   }
 
@@ -152,20 +131,16 @@ export default function Stats({ demoMode }) {
   async function fetchViewUser(uid) {
     if (!uid) return
     setViewLoading(true)
-    const [predsRes, entriesRes, ordagoRes] = await Promise.all([
+    const [predsRes, entriesRes] = await Promise.all([
       supabase.from('predictions')
         .select('match_id, predicted_home, predicted_away, points_earned')
         .eq('user_id', uid),
       supabase.from('pre_tournament_entries')
         .select('bet_id, value, points_awarded, is_resolved')
-        .eq('user_id', uid),
-      supabase.from('ordago_entries')
-        .select('ordago_id, predicted_home, predicted_away, points_awarded')
         .eq('user_id', uid)
     ])
     setViewPredictions(predsRes.data || [])
     setViewBetEntries(entriesRes.data || [])
-    setViewOrdagoEntries(ordagoRes.data || [])
     setViewLoading(false)
   }
 
@@ -1872,68 +1847,6 @@ export default function Stats({ demoMode }) {
                   </div>
                 )}
 
-                {/* Ordago comparison */}
-                {ordagos.length > 0 && (h2hOrdagoEntriesA.length > 0 || h2hOrdagoEntriesB.length > 0) && (
-                  <div style={{
-                    background: 'var(--bg-secondary)', borderRadius: '12px',
-                    padding: '14px 16px', marginBottom: '12px'
-                  }}>
-                    <div style={{
-                      fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase',
-                      letterSpacing: '1.2px', fontWeight: '700', marginBottom: '10px'
-                    }}>
-                      Ordagos
-                    </div>
-                    {ordagos.map(ord => {
-                      const oA = h2hOrdagoEntriesA.find(e => e.ordago_id === ord.id)
-                      const oB = h2hOrdagoEntriesB.find(e => e.ordago_id === ord.id)
-                      if (!oA && !oB) return null
-                      const isResolved = ord.status === 'resolved'
-                      const ptsA = oA?.points_awarded || 0
-                      const ptsB = oB?.points_awarded || 0
-                      return (
-                        <div key={ord.id} style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border-light)' }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', textAlign: 'center', fontWeight: '600' }}>
-                            {ord.title || `Ordago #${ord.number}`}
-                            {ord.match && (
-                              <span style={{ color: 'var(--text-dim)' }}>
-                                {' '}({ord.match.home_team?.name} vs {ord.match.away_team?.name})
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <div style={{
-                              flex: 1, textAlign: 'center', padding: '8px', borderRadius: '8px',
-                              background: isResolved && ptsA > ptsB ? 'rgba(0,122,69,0.15)' : 'var(--bg-input)'
-                            }}>
-                              <div style={{ fontSize: '9px', color: 'var(--gold)', marginBottom: '3px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px' }}>A</div>
-                              <div style={{
-                                fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)',
-                                fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '1px'
-                              }}>
-                                {oA ? `${oA.predicted_home}-${oA.predicted_away}` : '—'}
-                              </div>
-                              {isResolved && <div style={{ fontSize: '10px', color: ptsA > 0 ? '#4ade80' : 'var(--text-dim)', marginTop: '3px', fontWeight: '700' }}>+{ptsA}</div>}
-                            </div>
-                            <div style={{
-                              flex: 1, textAlign: 'center', padding: '8px', borderRadius: '8px',
-                              background: isResolved && ptsB > ptsA ? 'rgba(0,122,69,0.15)' : 'var(--bg-input)'
-                            }}>
-                              <div style={{ fontSize: '9px', color: 'var(--green)', marginBottom: '3px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px' }}>B</div>
-                              <div style={{
-                                fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)',
-                                fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '1px'
-                              }}>
-                                {oB ? `${oB.predicted_home}-${oB.predicted_away}` : '—'}
-                              </div>
-                              {isResolved && <div style={{ fontSize: '10px', color: ptsB > 0 ? '#4ade80' : 'var(--text-dim)', marginTop: '3px', fontWeight: '700' }}>+{ptsB}</div>}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
               </>
             )}
 
@@ -2252,57 +2165,6 @@ export default function Stats({ demoMode }) {
                       </div>
                     )}
 
-                    {/* Ordagos */}
-                    {viewOrdagoEntries.length > 0 && ordagos.length > 0 && (
-                      <div style={{
-                        background: 'var(--bg-secondary)', borderRadius: '12px',
-                        padding: '14px 16px', marginBottom: '12px'
-                      }}>
-                        <div style={{
-                          fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase',
-                          letterSpacing: '1.2px', fontWeight: '700', marginBottom: '10px'
-                        }}>
-                          Ordagos
-                        </div>
-                        {ordagos.map(ord => {
-                          const entry = viewOrdagoEntries.find(e => e.ordago_id === ord.id)
-                          if (!entry) return null
-                          const isResolved = ord.status === 'resolved'
-                          return (
-                            <div key={ord.id} style={{
-                              padding: '10px 0', borderBottom: '0.5px solid var(--border-light)'
-                            }}>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '600' }}>
-                                {ord.title || `Ordago #${ord.number}`}
-                                {ord.match && (
-                                  <span style={{ color: 'var(--text-dim)', fontSize: '10px' }}>
-                                    {' '}({ord.match.home_team?.name} vs {ord.match.away_team?.name})
-                                  </span>
-                                )}
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                                <span style={{
-                                  fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)',
-                                  fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '1px'
-                                }}>
-                                  {entry.predicted_home}-{entry.predicted_away}
-                                </span>
-                                {isResolved && (
-                                  <span style={{
-                                    fontSize: '10px', fontWeight: '700', padding: '3px 9px', borderRadius: '20px',
-                                    textTransform: 'uppercase', letterSpacing: '0.6px',
-                                    background: (entry.points_awarded || 0) > 0 ? 'rgba(0,122,69,0.18)' : 'var(--bg-input)',
-                                    color: (entry.points_awarded || 0) > 0 ? '#4ade80' : 'var(--text-dim)'
-                                  }}>
-                                    {entry.points_awarded > 0 ? '+' : ''}{entry.points_awarded || 0} pts
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
                   </>
                 )}
 

@@ -4,15 +4,6 @@ import { supabase } from '../supabase'
 import { FootballSpinner } from '../components/Skeleton'
 import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 
-const ORDAGO_CONFIG = {
-  1: { cost: 0, exact: 2, sign: 1 },
-  2: { cost: 1, exact: 3, sign: 2 },
-  3: { cost: 1, exact: 3, sign: 2 },
-  4: { cost: 2, exact: 6, sign: 4 },
-  5: { cost: 2, exact: 6, sign: 4 },
-  6: { cost: 3, exact: 9, sign: 6 }
-}
-
 const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5]
 
 export default function MatchDetail({ session }) {
@@ -24,9 +15,6 @@ export default function MatchDetail({ session }) {
   const [match, setMatch] = useState(null)
   const [pred, setPred] = useState({ home: null, away: null })
   const [savedPred, setSavedPred] = useState(null)
-  const [ordago, setOrdago] = useState(null)
-  const [ordagoEntry, setOrdagoEntry] = useState(null)
-  const [ordagoActive, setOrdagoActive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -35,7 +23,7 @@ export default function MatchDetail({ session }) {
 
   async function fetchData() {
     setLoading(true)
-    const [mRes, pRes, oRes] = await Promise.all([
+    const [mRes, pRes] = await Promise.all([
       supabase
         .from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(id,name,flag_url), away_team:teams!matches_away_team_id_fkey(id,name,flag_url)')
@@ -46,11 +34,6 @@ export default function MatchDetail({ session }) {
         .select('*')
         .eq('user_id', userId)
         .eq('match_id', matchId)
-        .maybeSingle(),
-      supabase
-        .from('ordagos')
-        .select('*')
-        .eq('match_id', matchId)
         .maybeSingle()
     ])
 
@@ -59,19 +42,6 @@ export default function MatchDetail({ session }) {
       setSavedPred(pRes.data)
       setPred({ home: pRes.data.predicted_home, away: pRes.data.predicted_away })
     }
-    if (oRes.data) {
-      setOrdago(oRes.data)
-      const { data: oe } = await supabase
-        .from('ordago_entries')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('ordago_id', oRes.data.id)
-        .maybeSingle()
-      if (oe) {
-        setOrdagoEntry(oe)
-        setOrdagoActive(true)
-      }
-    }
     setLoading(false)
   }
 
@@ -79,16 +49,8 @@ export default function MatchDetail({ session }) {
     setPred(p => ({ ...p, [team]: value }))
   }
 
-  // Order can be activated when: match has ordago, status open or locked but match not started, predictions are set
-  const canActivateOrdago = ordago
-    && pred.home != null && pred.away != null
-    && (ordago.status === 'open' || ordago.status === 'locked')
-    && match?.status !== 'finished'
-
   // Compute potential points for summary
-  const config = ordago ? ORDAGO_CONFIG[ordago.number] : null
   const basePoints = pred.home != null && pred.away != null ? 3 : 0
-  const ordagoBonus = ordagoActive && config ? config.exact - config.cost : 0
 
   async function handleSave() {
     if (pred.home == null || pred.away == null) {
@@ -98,7 +60,6 @@ export default function MatchDetail({ session }) {
     setSaving(true)
     setError(null)
 
-    // 1. Save prediction (upsert)
     const { error: pErr } = await supabase
       .from('predictions')
       .upsert({
@@ -112,29 +73,6 @@ export default function MatchDetail({ session }) {
       setError(pErr.message)
       setSaving(false)
       return
-    }
-
-    // 2. Activate/deactivate órdago entry
-    if (ordago) {
-      if (ordagoActive) {
-        // Upsert ordago entry with same scores as prediction
-        const { error: oErr } = await supabase
-          .from('ordago_entries')
-          .upsert({
-            user_id: userId,
-            ordago_id: ordago.id,
-            predicted_home: pred.home,
-            predicted_away: pred.away
-          }, { onConflict: 'ordago_id,user_id' })
-        if (oErr) console.error('Order save error', oErr)
-      } else if (ordagoEntry) {
-        // Remove if previously activated and now off
-        await supabase
-          .from('ordago_entries')
-          .delete()
-          .eq('ordago_id', ordago.id)
-          .eq('user_id', userId)
-      }
     }
 
     setSaving(false)
@@ -290,54 +228,6 @@ export default function MatchDetail({ session }) {
         />
       </div>
 
-      {/* Order section (if applicable) */}
-      {ordago && (() => {
-        const c = ORDAGO_CONFIG[ordago.number] || {}
-        const isFree = c.cost === 0
-        return (
-          <div style={{
-            background: 'rgba(255,204,0,0.06)',
-            border: '1px solid rgba(255,204,0,0.25)',
-            borderRadius: '12px', padding: '14px 16px', marginBottom: '14px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-              <span style={{
-                fontSize: '11px', fontWeight: '700', color: 'var(--gold)',
-                textTransform: 'uppercase', letterSpacing: '1.2px'
-              }}>
-                Órdago #{ordago.number}{isFree ? ' · GRATIS' : ` · −${c.cost}`}
-              </span>
-              <button
-                onClick={() => canActivateOrdago && setOrdagoActive(v => !v)}
-                disabled={!canActivateOrdago}
-                style={{
-                  padding: '4px 10px', borderRadius: '20px', border: 'none',
-                  background: ordagoActive ? 'var(--green)' : 'rgba(255,255,255,0.06)',
-                  color: ordagoActive ? '#fff' : 'var(--text-muted)',
-                  fontSize: '11px', fontWeight: '700',
-                  cursor: canActivateOrdago ? 'pointer' : 'not-allowed',
-                  opacity: canActivateOrdago ? 1 : 0.5
-                }}
-              >
-                {ordagoActive ? 'Activado ✓' : 'Activar'}
-              </button>
-            </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4', margin: '0 0 10px' }}>
-              {isFree
-                ? `Si aciertas el resultado exacto: +${c.exact} pts extra. Si fallas: 0 (sin coste).`
-                : `Cuesta ${c.cost} pts. Si aciertas exacto: +${c.exact}. Si aciertas signo: +${c.sign}.`}
-            </p>
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px'
-            }}>
-              <OrdagoBox label="Exacto" value={`+${c.exact}`} highlight />
-              <OrdagoBox label="Signo" value={`+${c.sign}`} />
-              <OrdagoBox label="Fallo" value={isFree ? '0' : `−${c.cost}`} negative={!isFree} />
-            </div>
-          </div>
-        )
-      })()}
-
       {/* Summary */}
       {pred.home != null && pred.away != null && (
         <div style={{
@@ -349,14 +239,11 @@ export default function MatchDetail({ session }) {
             textTransform: 'uppercase', letterSpacing: '1.2px', marginBottom: '10px'
           }}>Resumen</div>
           <SummaryRow label="Predicción base" value="+3 si exacto · +1 si signo" />
-          {ordagoActive && config && (
-            <SummaryRow label="Bonus órdago" value={`+${config.exact - config.cost} si exacto`} />
-          )}
           <div style={{ height: '1px', background: 'var(--border-light)', margin: '8px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>Total potencial</span>
             <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--gold)' }}>
-              +{basePoints + ordagoBonus} pts
+              +{basePoints} pts
             </span>
           </div>
         </div>
@@ -447,27 +334,6 @@ function ScoreRow({ label, flag, value, onChange, disabled }) {
             </button>
           )
         })}
-      </div>
-    </div>
-  )
-}
-
-function OrdagoBox({ label, value, highlight, negative }) {
-  return (
-    <div style={{
-      padding: '10px 6px', borderRadius: '8px',
-      background: highlight ? 'rgba(255,204,0,0.1)' : 'rgba(255,255,255,0.03)',
-      border: highlight ? '1px solid rgba(255,204,0,0.3)' : '1px solid var(--border-light)',
-      textAlign: 'center'
-    }}>
-      <div style={{ fontSize: '9px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px' }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: '15px', fontWeight: '800',
-        color: highlight ? 'var(--gold)' : negative ? '#e74c3c' : 'var(--text-primary)'
-      }}>
-        {value}
       </div>
     </div>
   )

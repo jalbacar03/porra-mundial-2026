@@ -33,10 +33,8 @@ export default function Admin({ session }) {
   const [preTournamentEntries, setPreTournamentEntries] = useState([])
   const [betsFilterGroup, setBetsFilterGroup] = useState('A')
   const [betsFilterUser, setBetsFilterUser] = useState('')
-  const [betsSubTab, setBetsSubTab] = useState('matches') // 'matches' | 'pre' | 'ordagos' | 'completion'
+  const [betsSubTab, setBetsSubTab] = useState('matches') // 'matches' | 'pre' | 'completion'
   const [teams, setTeams] = useState([])
-  const [ordagos, setOrdagos] = useState([])
-  const [ordagoEntries, setOrdagoEntries] = useState([])
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
@@ -91,31 +89,19 @@ export default function Admin({ session }) {
   }
 
   async function fetchBetsData() {
-    const [predsRes, betsRes, entriesRes, teamsRes, ordagosRes, ordagoEntriesRes] = await Promise.all([
+    const [predsRes, betsRes, entriesRes, teamsRes] = await Promise.all([
       supabase.from('predictions')
         .select('user_id, match_id, predicted_home, predicted_away, points_earned'),
       supabase.from('pre_tournament_bets')
         .select('*').order('id', { ascending: true }),
       supabase.from('pre_tournament_entries')
         .select('user_id, bet_id, value, points_awarded, is_resolved'),
-      supabase.from('teams').select('id, name, flag_url'),
-      supabase.from('ordagos').select(`
-        *,
-        match:matches(
-          id, match_date, status, home_score, away_score,
-          home_team:teams!matches_home_team_id_fkey(id, name, flag_url),
-          away_team:teams!matches_away_team_id_fkey(id, name, flag_url)
-        )
-      `).order('number'),
-      supabase.from('ordago_entries')
-        .select('user_id, ordago_id, predicted_home, predicted_away, points_awarded')
+      supabase.from('teams').select('id, name, flag_url')
     ])
     setAllPredictions(predsRes.data || [])
     setPreTournamentBets(betsRes.data || [])
     setPreTournamentEntries(entriesRes.data || [])
     setTeams(teamsRes.data || [])
-    setOrdagos(ordagosRes.data || [])
-    setOrdagoEntries(ordagoEntriesRes.data || [])
   }
 
   function getTeamName(teamId) {
@@ -1031,7 +1017,6 @@ export default function Admin({ session }) {
               {[
                 { key: 'matches', label: 'Partidos' },
                 { key: 'pre', label: 'Pre-torneo' },
-                { key: 'ordagos', label: 'Ordagos' },
                 { key: 'completion', label: 'Progreso' }
               ].map(tab => (
                 <button
@@ -1241,83 +1226,6 @@ export default function Admin({ session }) {
                     </div>
                   )
                 })}
-              </>
-            )}
-
-            {/* ---- ORDAGOS SUB-TAB ---- */}
-            {betsSubTab === 'ordagos' && (
-              <>
-                {ordagos.length === 0 ? (
-                  <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '12px' }}>
-                    No hay ordagos configurados todavia.
-                  </div>
-                ) : (
-                  ordagos.map(ord => {
-                    const entries = ordagoEntries.filter(e => e.ordago_id === ord.id)
-                    const resultCounts = {}
-                    entries.forEach(e => {
-                      const key = `${e.predicted_home}-${e.predicted_away}`
-                      resultCounts[key] = (resultCounts[key] || 0) + 1
-                    })
-                    const topResults = Object.entries(resultCounts)
-                      .sort(([, ca], [, cb]) => cb - ca)
-                      .slice(0, 5)
-
-                    return (
-                      <div key={ord.id} style={{
-                        background: 'var(--bg-secondary)', borderRadius: '10px', padding: '14px',
-                        marginBottom: '8px', border: '0.5px solid var(--border)'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
-                              {ord.title || `Ordago #${ord.number}`}
-                            </div>
-                            {ord.match && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                                {ord.match.home_team?.name} vs {ord.match.away_team?.name}
-                                {ord.match.status === 'finished' && (
-                                  <span style={{ color: 'var(--green)', fontWeight: 700, marginLeft: '6px' }}>
-                                    {ord.match.home_score}-{ord.match.away_score}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <span style={{
-                            padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700,
-                            background: ord.status === 'resolved' ? 'var(--green-light)' : 'rgba(255,204,0,0.08)',
-                            color: ord.status === 'resolved' ? 'var(--green)' : 'var(--gold)'
-                          }}>
-                            {entries.length} predicciones
-                          </span>
-                        </div>
-
-                        <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginBottom: '6px' }}>
-                          Coste: {ord.cost} pts · Exacto: +{ord.reward_exact} · Signo: +{ord.reward_sign}
-                        </div>
-
-                        {topResults.length > 0 ? (
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            {topResults.map(([result, count], i) => (
-                              <span key={result} style={{
-                                padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700,
-                                background: i === 0 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)',
-                                color: i === 0 ? 'var(--gold)' : 'var(--text-muted)'
-                              }}>
-                                {result} ({count})
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center' }}>
-                            Sin predicciones
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })
-                )}
               </>
             )}
 

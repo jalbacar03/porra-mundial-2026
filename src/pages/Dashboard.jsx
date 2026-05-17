@@ -25,7 +25,6 @@ export default function Dashboard({ session, demoMode }) {
   const [dailyInsightLong, setDailyInsightLong] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
   const [showInsightLong, setShowInsightLong] = useState(false)
-  const [activeOrdago, setActiveOrdago] = useState(null)
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
@@ -45,7 +44,6 @@ export default function Dashboard({ session, demoMode }) {
   useEffect(() => {
     fetchAll()
     fetchInsight()
-    fetchActiveOrdago()
   }, [])
 
   // If permission was already granted previously (e.g. user reinstalled the
@@ -85,24 +83,6 @@ export default function Dashboard({ session, demoMode }) {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [userPredictions, sendLocal])
-
-  async function fetchActiveOrdago() {
-    try {
-      const { data } = await supabase.from('ordagos')
-        .select(`
-          *,
-          match:matches(
-            id, match_date, status,
-            home_team:teams!matches_home_team_id_fkey(name, flag_url),
-            away_team:teams!matches_away_team_id_fkey(name, flag_url)
-          )
-        `)
-        .in('status', ['open', 'locked'])
-        .order('number')
-        .limit(1)
-      if (data?.[0]) setActiveOrdago(data[0])
-    } catch { /* ordagos table may not exist yet */ }
-  }
 
   async function fetchInsight() {
     setInsightLoading(true)
@@ -880,87 +860,36 @@ export default function Dashboard({ session, demoMode }) {
         </div>
       )}
 
-      {/* ===== ÓRDAGOS + NORMAS QUICK ACCESS ===== */}
+      {/* ===== ACCESO RÁPIDO: PREDICCIONES + NORMAS ===== */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(255,204,0,0.06), rgba(255,204,0,0.02))',
+        background: 'linear-gradient(135deg, rgba(0,122,69,0.06), rgba(0,122,69,0.02))',
         borderRadius: '10px',
-        padding: '16px 18px',
+        padding: '14px 16px',
         marginBottom: '12px',
-        border: '0.5px solid rgba(255,204,0,0.12)'
+        border: '0.5px solid rgba(0,122,69,0.15)',
+        display: 'flex',
+        gap: '8px'
       }}>
-        <div style={{
-          fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
-          letterSpacing: '1px', fontWeight: '600', marginBottom: '10px',
-          display: 'flex', alignItems: 'center', gap: '6px'
-        }}>
-          <span>🎲</span> Órdagos del Mundial
-        </div>
-
-        {/* Active ordago preview */}
-        {activeOrdago ? (
-          <div style={{
-            background: 'var(--bg-input)', borderRadius: '8px', padding: '12px',
-            marginBottom: '12px', border: '0.5px solid var(--border-light)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                Órdago #{activeOrdago.number}: {activeOrdago.title}
-              </span>
-              <span style={{
-                fontSize: '9px', padding: '2px 6px', borderRadius: '3px',
-                background: activeOrdago.status === 'open' ? 'rgba(255,204,0,0.1)' : 'var(--bg-secondary)',
-                color: activeOrdago.status === 'open' ? 'var(--gold)' : 'var(--text-dim)',
-                fontWeight: '600'
-              }}>
-                {activeOrdago.status === 'open' ? '⏱ ABIERTO' : '🔒 PRÓXIMO'}
-              </span>
-            </div>
-            {activeOrdago.match && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  {activeOrdago.match.home_team?.flag_url && (
-                    <img src={activeOrdago.match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
-                  )}
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.home_team?.name || 'Por determinar'}</span>
-                </div>
-                <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>vs</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{activeOrdago.match.away_team?.name || 'Por determinar'}</span>
-                  {activeOrdago.match.away_team?.flag_url && (
-                    <img src={activeOrdago.match.away_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', margin: '0 0 12px' }}>
-            6 predicciones especiales a partidos concretos. Se desbloquean durante el torneo. ¿Te atreves?
-          </p>
-        )}
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => navigate('/predictions')}
-            style={{
-              flex: 1, padding: '10px', borderRadius: '6px', border: 'none',
-              background: 'var(--gold)', color: '#1a1d26',
-              fontSize: '12px', fontWeight: '600', cursor: 'pointer'
-            }}
-          >
-            🎲 Ir a Órdagos
-          </button>
-          <button
-            onClick={() => navigate('/rules')}
-            style={{
-              flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,204,0,0.2)',
-              background: 'transparent', color: 'var(--gold)',
-              fontSize: '12px', fontWeight: '600', cursor: 'pointer'
-            }}
-          >
-            📋 Ver normas
-          </button>
-        </div>
+        <button
+          onClick={() => navigate('/predictions')}
+          style={{
+            flex: 1, padding: '10px', borderRadius: '6px', border: 'none',
+            background: 'var(--green)', color: '#fff',
+            fontSize: '12px', fontWeight: '600', cursor: 'pointer'
+          }}
+        >
+          ⚽ Mis predicciones
+        </button>
+        <button
+          onClick={() => navigate('/rules')}
+          style={{
+            flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid var(--border)',
+            background: 'transparent', color: 'var(--text-primary)',
+            fontSize: '12px', fontWeight: '600', cursor: 'pointer'
+          }}
+        >
+          📋 Ver normas
+        </button>
       </div>
 
       {/* ===== PRÓXIMOS (compact rows with badges) ===== */}
@@ -987,7 +916,6 @@ export default function Dashboard({ session, demoMode }) {
             </div>
             {nextMatches.map((match, i) => {
               const hasPred = userPredictions[match.id]
-              const hasOrdago = activeOrdago?.match?.id === match.id
               const d = new Date(match.match_date)
               return (
                 <div key={match.id} onClick={() => navigate(`/match/${match.id}`)} style={{
@@ -1009,11 +937,11 @@ export default function Dashboard({ session, demoMode }) {
                   <div style={{
                     flexShrink: 0, fontSize: '11px', fontWeight: '700',
                     padding: '4px 9px', borderRadius: '6px',
-                    background: hasOrdago ? 'rgba(255,204,0,0.12)' : hasPred ? 'rgba(0,122,69,0.12)' : 'rgba(255,255,255,0.04)',
-                    color: hasOrdago ? 'var(--gold)' : hasPred ? 'var(--green)' : 'var(--text-dim)',
-                    border: hasOrdago ? '1px solid rgba(255,204,0,0.25)' : '1px solid transparent'
+                    background: hasPred ? 'rgba(0,122,69,0.12)' : 'rgba(255,255,255,0.04)',
+                    color: hasPred ? 'var(--green)' : 'var(--text-dim)',
+                    border: '1px solid transparent'
                   }}>
-                    {hasOrdago ? 'Órdago' : hasPred ? '✓' : '—'}
+                    {hasPred ? '✓' : '—'}
                   </div>
                 </div>
               )

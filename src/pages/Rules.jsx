@@ -62,8 +62,7 @@ export default function Rules() {
             { label: '1. Fase de grupos', detail: '72 partidos', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'antes' },
             { label: '2. Cuadro ciego', detail: 'Quién avanza cada ronda', pts: 'Hasta +20 pts (cadena campeón)', phase: 'antes' },
             { label: '3. Especiales', detail: 'Goleador, revelación...', pts: '+2 pts por predicción', phase: 'antes' },
-            { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'durante' },
-            { label: '5. Órdagos', detail: '6 predicciones opcionales', pts: 'Hasta +9 pero con coste', phase: 'durante' }
+            { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'durante' }
           ].map((row, i) => (
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: '8px',
@@ -129,17 +128,36 @@ export default function Rules() {
       {/* ===== 3. PREDICCIONES ESPECIALES ===== */}
       <Section icon="🎲" title="3. Predicciones especiales" badge="Pre-torneo">
         <P last>Predicciones extra sobre el torneo. Se rellenan antes del inicio del Mundial.</P>
+
+        <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '12px 0 6px' }}>
+          Jugadores
+        </div>
         <ItemTable items={[
-          { label: 'Selección revelación (llega a cuartos)', value: '+2 pts', color: '#4ade80' },
-          { label: 'Selección decepción (cae en grupos)', value: '+2 pts', color: '#4ade80' },
-          { label: 'Máximo goleador del torneo', value: '+2 pts', color: '#4ade80' },
-          { label: 'Máximo asistente del torneo', value: '+2 pts', color: '#4ade80' },
-          { label: 'Mejor portero (menos goles encajados)', value: '+2 pts', color: '#4ade80' },
-          { label: 'Jugador con 3+ goles en el torneo', value: '+2 pts', color: '#4ade80' },
+          { label: 'MVP del torneo', value: '+5 pts', color: '#4ade80' },
+          { label: 'Bota de Oro (máximo goleador)', value: '+3 pts', color: '#4ade80' },
+          { label: 'Máximo asistente', value: '+3 pts', color: '#4ade80' },
+          { label: 'Guante de Oro (mejor portero)', value: '+3 pts', color: '#4ade80' }
+        ]} />
+
+        <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '14px 0 6px' }}>
+          Selecciones
+        </div>
+        <ItemTable items={[
+          { label: 'Selección revelación (llega a cuartos)', value: '+3 pts', color: '#4ade80' },
+          { label: 'Selección decepción (cae en grupos)', value: '+3 pts', color: '#4ade80' },
           { label: 'Selección más goleadora en grupos', value: '+2 pts', color: '#4ade80' },
-          { label: 'Selección menos goleada en grupos', value: '+2 pts', color: '#4ade80' },
-          { label: '¿Habrá hat-trick en el torneo?', value: '+2 pts', color: '#4ade80' },
-          { label: '¿Habrá goleada de 5+ goles?', value: '+2 pts', color: '#4ade80' }
+          { label: 'Selección menos goleada en grupos', value: '+2 pts', color: '#4ade80' }
+        ]} />
+
+        <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '14px 0 6px' }}>
+          ¿Sí o No?
+        </div>
+        <ItemTable items={[
+          { label: '¿Habrá hat-trick en el torneo?', value: '+1 pt', color: '#4ade80' },
+          { label: '¿Goleada por 5+ goles de diferencia?', value: '+1 pt', color: '#4ade80' },
+          { label: '¿La final se decidirá en penaltis?', value: '+1 pt', color: '#4ade80' },
+          { label: '¿El país campeón será europeo?', value: '+1 pt', color: '#4ade80' },
+          { label: '¿Ambos equipos verán roja en un mismo partido?', value: '+1 pt', color: '#4ade80' }
         ]} />
       </Section>
 
@@ -168,89 +186,6 @@ export default function Rules() {
         }}>
           <strong style={{ color: 'var(--text-primary)' }}>¿Se solapan cuadro ciego y cuadro real?</strong><br />
           No. Son predicciones distintas y sumas ambas. En el cuadro ciego predices quién avanza; en el cuadro real predices el marcador. Puedes acertar uno y fallar el otro.
-        </div>
-      </Section>
-
-      {/* ===== 5. ÓRDAGOS ===== */}
-      <Section icon="🔥" title="5. Órdagos" badge="OPCIONALES">
-        <div style={{
-          margin: '0 0 12px', padding: '10px 12px',
-          background: 'rgba(255,204,0,0.08)', border: '1px solid rgba(255,204,0,0.2)',
-          borderRadius: '6px', fontSize: '12px', fontWeight: '600',
-          color: 'var(--gold)', textAlign: 'center'
-        }}>
-          ⚠️ Los órdagos son 100% opcionales. Si no participas, ni ganas ni pierdes puntos.
-        </div>
-
-        <P>Predicciones especiales a partidos concretos con mayor recompensa, pero con un coste de entrada en puntos.</P>
-
-        <div style={{
-          margin: '12px 0', padding: '12px',
-          background: 'rgba(255,204,0,0.06)', border: '0.5px solid rgba(255,204,0,0.15)',
-          borderRadius: '8px', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-secondary)'
-        }}>
-          <strong style={{ color: 'var(--gold)' }}>¿Cómo funcionan?</strong><br />
-          • Se ven todos desde el principio, pero solo puedes predecir en el activo.{'\n'}
-          • Cuando se resuelve uno, se desbloquea el siguiente.{'\n'}
-          • Puedes participar hasta 3 horas antes del partido.{'\n'}
-          • Pagas un coste de entrada en puntos. Si aciertas, ganas más de lo que pagas. Si fallas, pierdes el coste.
-        </div>
-
-        <Highlight>
-          Ejemplo — Órdago #4 (2º partido de octavos, coste 2 pts):{'\n'}
-          Predices 2-1 para el equipo local.{'\n'}
-          → Si es exacto: ganas +6, pagas -2 = neto <span style={{color:'#4ade80',fontWeight:600}}>+4</span>{'\n'}
-          → Si el local gana por otro marcador: ganas +4, pagas -2 = neto <span style={{color:'#4ade80',fontWeight:600}}>+2</span>{'\n'}
-          → Si fallas: ganas 0, pagas -2 = neto <span style={{color:'#e74c3c',fontWeight:600}}>-2</span>
-        </Highlight>
-
-        {/* Órdagos table */}
-        <div style={{ marginTop: '12px', borderRadius: '8px', overflow: 'hidden', border: '0.5px solid var(--border)' }}>
-          {/* Header */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '28px 1fr 55px 55px 55px',
-            padding: '8px 10px', background: 'var(--bg-input)',
-            fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600'
-          }}>
-            <span>#</span>
-            <span>Partido</span>
-            <span style={{ textAlign: 'center' }}>Coste</span>
-            <span style={{ textAlign: 'center' }}>Exacto</span>
-            <span style={{ textAlign: 'center' }}>1X2</span>
-          </div>
-          {[
-            { n: 1, match: 'Inglaterra vs Croacia', detail: '17 jun 22:00h — Grupo L', cost: 'GRATIS', exact: '+2', sign: '+1', free: true },
-            { n: 2, match: 'Uruguay vs España', detail: '27 jun — Grupo H', cost: '-1', exact: '+3', sign: '+2' },
-            { n: 3, match: '1er partido de dieciseisavos', detail: '28 jun 21:00h', cost: '-1', exact: '+3', sign: '+2' },
-            { n: 4, match: '2º partido de octavos', detail: '4 jul 23:00h', cost: '-2', exact: '+6', sign: '+4' },
-            { n: 5, match: '1er partido de cuartos', detail: '9 jul 22:00h', cost: '-2', exact: '+6', sign: '+4' },
-            { n: 6, match: '2ª semifinal', detail: '15 jul 21:00h', cost: '-3', exact: '+9', sign: '+6' }
-          ].map((o, i) => (
-            <div key={i} style={{
-              display: 'grid', gridTemplateColumns: '28px 1fr 55px 55px 55px',
-              padding: '9px 10px', fontSize: '12px',
-              borderTop: '0.5px solid var(--border-light)',
-              background: o.free ? 'rgba(0,122,69,0.04)' : 'transparent'
-            }}>
-              <span style={{ fontWeight: '700', color: 'var(--text-dim)' }}>{o.n}</span>
-              <div>
-                <div style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{o.match}</div>
-                {o.detail && <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '1px' }}>{o.detail}</div>}
-              </div>
-              <span style={{ textAlign: 'center', fontWeight: '600', color: o.free ? '#4ade80' : '#e74c3c' }}>{o.cost}</span>
-              <span style={{ textAlign: 'center', fontWeight: '600', color: '#4ade80' }}>{o.exact}</span>
-              <span style={{ textAlign: 'center', fontWeight: '600', color: '#4ade80' }}>{o.sign}</span>
-            </div>
-          ))}
-        </div>
-
-        <div style={{
-          marginTop: '8px', display: 'flex', justifyContent: 'space-between',
-          padding: '8px 12px', background: 'var(--bg-input)', borderRadius: '6px',
-          fontSize: '11px', color: 'var(--text-muted)'
-        }}>
-          <span>Si aciertas los 6 exactos: <strong style={{ color: '#4ade80' }}>+20 pts netos</strong></span>
-          <span>Si fallas los 6: <strong style={{ color: '#e74c3c' }}>-9 pts</strong></span>
         </div>
       </Section>
 
@@ -284,7 +219,7 @@ export default function Rules() {
           'No se pueden modificar predicciones una vez cerrado el plazo.',
           'Las predicciones de otros participantes no son visibles hasta que cierre el plazo.',
           'La inscripción debe estar confirmada antes del inicio del Mundial para que tus predicciones cuenten.',
-          'Los órdagos son 100% opcionales — no participar no penaliza.',
+          'En el registro debes indicar tu nombre y apellido reales. Si no se puede identificar al usuario de forma inequívoca, no recibirá premio en caso de ganar (el nickname es opcional, sólo para mostrar).',
           'El organizador se reserva el derecho de resolver disputas.'
         ]} />
       </Section>

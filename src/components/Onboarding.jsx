@@ -12,17 +12,12 @@ const STEPS = [
   {
     icon: '📋',
     title: 'Tus predicciones',
-    text: 'Predice los 144 partidos de fase de grupos, monta tu cuadro de eliminatorias, y responde las 10 predicciones especiales.',
+    text: 'Predice los partidos de fase de grupos, monta tu cuadro de eliminatorias, y responde las predicciones especiales.',
   },
   {
     icon: '🏆',
     title: 'Puntuación',
     text: 'Resultado exacto = 3 pts. Signo correcto (1X2) = 1 pt. Cuadro y predicciones especiales suman puntos extra.',
-  },
-  {
-    icon: '🔥',
-    title: 'Órdagos',
-    text: 'Durante el Mundial se abrirán predicciones extra sobre partidos concretos. ¡Arriesga para escalar posiciones!',
   },
 ]
 
