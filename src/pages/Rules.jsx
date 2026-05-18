@@ -61,7 +61,7 @@ export default function Rules() {
           {[
             { label: '1. Fase de grupos', detail: '72 partidos', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'antes' },
             { label: '2. Cuadro ciego', detail: 'Quién avanza cada ronda', pts: 'Hasta +20 pts (cadena campeón)', phase: 'antes' },
-            { label: '3. Especiales', detail: 'Goleador, revelación...', pts: '+2 pts por predicción', phase: 'antes' },
+            { label: '3. Predicciones especiales', detail: '14 apuestas en 3 bloques', pts: 'Hasta +29 pts', phase: 'antes' },
             { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'durante' }
           ].map((row, i) => (
             <div key={i} style={{
