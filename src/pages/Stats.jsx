@@ -46,11 +46,9 @@ export default function Stats({ demoMode }) {
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
   const betCategories = [
     { key: 'all', label: 'Todas' },
-    { key: 'podium', label: '🏆 Podio' },
-    { key: 'players', label: '⚽ Jugadores' },
-    { key: 'teams', label: '🌍 Equipos' },
-    { key: 'stats', label: '📊 Estadísticas' },
-    { key: 'yesno', label: '✅ Sí/No' }
+    { key: 'players', label: 'Jugadores' },
+    { key: 'teams', label: 'Selecciones' },
+    { key: 'yesno', label: '¿Sí o No?' }
   ]
 
   useEffect(() => { fetchData() }, [])

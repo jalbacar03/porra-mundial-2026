@@ -168,15 +168,17 @@ export default function Dashboard({ session, demoMode }) {
     })
     setGroupProgress(gProgress)
 
-    // Pre-Mundial progress: count user's specials + bracket picks + active bets total
+    // Pre-Mundial progress: count user's specials + bracket picks + active bets total.
+    // Exclude round_of_32 from the bets count — it auto-fills from group predictions
+    // and the user never picks it directly (so it would inflate the denominator).
     const [specialsRes, bracketRes, activeBetsRes] = await Promise.all([
       supabase.from('pre_tournament_entries').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
       supabase.from('bracket_picks').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).not('predicted_winner_id', 'is', null),
-      supabase.from('pre_tournament_bets').select('id', { count: 'exact', head: true }).eq('is_active', true)
+      supabase.from('pre_tournament_bets').select('id', { count: 'exact', head: true }).eq('is_active', true).neq('slug', 'round_of_32')
     ])
     setSpecialsCount(specialsRes.count || 0)
     setBracketCount(bracketRes.count || 0)
-    setActiveBetsCount(activeBetsRes.count || 18)
+    setActiveBetsCount(activeBetsRes.count || 13)
 
     // Live matches (status='live') and next upcoming
     const now = new Date()

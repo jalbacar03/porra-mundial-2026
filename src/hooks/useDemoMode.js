@@ -113,23 +113,27 @@ export function generateDemoMatchStatuses(matches) {
   })
 }
 
-// Mock pre-tournament bet entries (all completed)
+// Mock pre-tournament bet entries (all completed) — matches the 14 active
+// bets in pre_tournament_bets after the 2026-05-17 redesign.
 const MOCK_BET_VALUES = {
   players: {
-    top_scorer: { player_name: 'Kylian Mbappé', team: 'Francia' },
+    mvp: { player_name: 'Kylian Mbappé', team: 'Francia' },
+    top_scorer: { player_name: 'Erling Haaland', team: 'Noruega' },
     top_assists: { player_name: 'Kevin De Bruyne', team: 'Bélgica' },
-    best_goalkeeper: { player_name: 'Thibaut Courtois', team: 'Bélgica' },
-    three_plus_goals: { player_name: 'Harry Kane', team: 'Inglaterra' }
+    best_goalkeeper: { player_name: 'Thibaut Courtois', team: 'Bélgica' }
   },
   teams: {
     revelation: { team_name: 'Marruecos' },
     disappointment: { team_name: 'Alemania' },
-    most_goals_group: { team_name: 'España' },
-    fewest_goals_group: { team_name: 'Arabia Saudí' }
+    most_goals_team: { team_name: 'España' },
+    least_conceded_groups_team: { team_name: 'Brasil' }
   },
   yesno: {
-    hat_trick: { answer: true },
-    five_goal_game: { answer: false }
+    any_hat_trick: { answer: 'yes' },
+    any_5_goal_thrashing: { answer: 'yes' },
+    final_penalties: { answer: 'no' },
+    champion_european: { answer: 'yes' },
+    both_red_cards_match: { answer: 'no' }
   }
 }
 
