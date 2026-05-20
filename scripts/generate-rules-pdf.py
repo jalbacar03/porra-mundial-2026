@@ -498,8 +498,9 @@ def build():
         "No se pueden modificar predicciones una vez cerrado el plazo (9 de junio a las 23:59h).",
         "Las predicciones de otros participantes no son visibles hasta que empieza el Mundial (11 de junio).",
         "La inscripción debe estar confirmada antes del inicio del Mundial para que tus predicciones cuenten.",
-        "En el registro debes indicar tu <b>nombre y apellido reales</b>. Si no se puede identificar al "
-        "ganador de forma inequívoca, no recibirá premio. El nickname es opcional y sólo se usa para mostrar.",
+        "En el registro debes indicar tu <b>nombre y apellido reales</b>: es como aparecerás en la "
+        "clasificación y como te identificaremos para el premio. Si no se puede identificar al ganador "
+        "de forma inequívoca, no recibirá premio.",
         "El organizador se reserva el derecho de resolver disputas y resolver manualmente "
         "las apuestas que no estén disponibles vía datos oficiales (MVP, Guante de Oro).",
     ]

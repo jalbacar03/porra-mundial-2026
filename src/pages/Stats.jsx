@@ -62,7 +62,7 @@ export default function Stats({ demoMode }) {
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
         .eq('stage', 'group').order('match_date', { ascending: true }),
       supabase.from('predictions').select('match_id, predicted_home, predicted_away, user_id'),
-      supabase.from('profiles').select('id, full_name, nickname, has_paid, avatar_url'),
+      supabase.from('profiles').select('id, full_name, has_paid, avatar_url'),
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),
       supabase.from('pre_tournament_entries').select('bet_id, user_id, value, points_awarded, is_resolved'),
       supabase.from('leaderboard').select('*'),
@@ -144,7 +144,7 @@ export default function Stats({ demoMode }) {
 
   function getProfileName(id) {
     const p = profiles.find(pr => pr.id === id)
-    return p ? (p.nickname || p.full_name || 'Participante') : 'Participante'
+    return p ? (p.full_name || 'Participante') : 'Participante'
   }
 
   function getProfileAvatar(id) {
@@ -1022,7 +1022,7 @@ export default function Stats({ demoMode }) {
               // Get nickname helper
               const getName = (uid) => {
                 const p = profiles.find(pr => pr.id === uid)
-                return p?.nickname || p?.full_name || '?'
+                return p?.full_name || '?'
               }
 
               // For each upcoming match, check divergence with rival above
@@ -1456,7 +1456,7 @@ export default function Stats({ demoMode }) {
       {/* ==================== H2H TAB ==================== */}
       {activeTab === 'h2h' && (() => {
         const sortedProfiles = [...profiles].filter(p => p.id !== BOT365_ID).sort((a, b) =>
-          (a.nickname || a.full_name || '').localeCompare(b.nickname || b.full_name || '')
+          (a.full_name || '').localeCompare(b.full_name || '')
         )
 
         const selectStyle = {
@@ -1503,7 +1503,7 @@ export default function Stats({ demoMode }) {
                   >
                     <option value="">Seleccionar...</option>
                     {sortedProfiles.map(p => (
-                      <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+                      <option key={p.id} value={p.id}>{p.full_name}</option>
                     ))}
                   </select>
                 </div>
@@ -1522,7 +1522,7 @@ export default function Stats({ demoMode }) {
                   >
                     <option value="">Seleccionar...</option>
                     {sortedProfiles.map(p => (
-                      <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+                      <option key={p.id} value={p.id}>{p.full_name}</option>
                     ))}
                   </select>
                 </div>
@@ -1888,7 +1888,7 @@ export default function Stats({ demoMode }) {
         const betsClosed = new Date() >= betsClosedDate
 
         const sortedProfiles = [...profiles].filter(p => p.id !== BOT365_ID).sort((a, b) =>
-          (a.nickname || a.full_name || '').localeCompare(b.nickname || b.full_name || '')
+          (a.full_name || '').localeCompare(b.full_name || '')
         )
 
         const viewGroupMatches = displayMatches.filter(m => m.group_name === viewGroup)
@@ -1937,7 +1937,7 @@ export default function Stats({ demoMode }) {
                   >
                     <option value="">Seleccionar participante...</option>
                     {sortedProfiles.map(p => (
-                      <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+                      <option key={p.id} value={p.id}>{p.full_name}</option>
                     ))}
                   </select>
                   {viewUser && (

@@ -94,7 +94,7 @@ export default function MatchDayLive({ session }) {
       supabase.from('predictions')
         .select('match_id, predicted_home, predicted_away, user_id'),
       supabase.from('leaderboard').select('*'),
-      supabase.from('profiles').select('id, full_name, nickname, has_paid')
+      supabase.from('profiles').select('id, full_name, has_paid')
     ])
 
     const newMatches = matchesRes.data || []
@@ -226,7 +226,7 @@ export default function MatchDayLive({ session }) {
     return Object.entries(userPoints)
       .map(([userId, pts]) => {
         const prof = profiles.find(p => p.id === userId)
-        return { userId, points: pts, name: prof?.nickname || prof?.full_name || '?' }
+        return { userId, points: pts, name: prof?.full_name || '?' }
       })
       .sort((a, b) => b.points - a.points)
       .slice(0, 10)

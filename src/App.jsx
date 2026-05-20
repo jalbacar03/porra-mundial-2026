@@ -32,7 +32,6 @@ function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [nickname, setNickname] = useState('')
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -45,7 +44,8 @@ function Auth() {
       if (error) setMessage(error.message)
     } else {
       // Identification rule: nombre + apellido reales obligatorios para poder
-      // entregar premio si gana. El nickname es opcional y solo se usa para mostrar.
+      // entregar premio si gana. Sin nickname — se accede e identifica solo
+      // por nombre real.
       const trimmedName = fullName.trim().replace(/\s+/g, ' ')
       const words = trimmedName.split(' ').filter(Boolean)
       if (words.length < 2 || words.some(w => w.length < 2)) {
@@ -56,7 +56,7 @@ function Auth() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: trimmedName, nickname: nickname.trim() || trimmedName } }
+        options: { data: { full_name: trimmedName } }
       })
       if (error) setMessage(error.message)
       else setMessage('Revisa tu email para confirmar tu cuenta')
@@ -115,15 +115,8 @@ function Auth() {
                 fontSize: '10.5px', color: 'var(--text-dim)', lineHeight: '1.45',
                 marginTop: '-6px', marginBottom: '10px', padding: '0 2px'
               }}>
-                Imprescindible para identificarte si ganas el premio. El nickname es opcional y solo se usa para mostrar.
+                Imprescindible para identificarte si ganas el premio. Aparecerás en la clasificación con tu nombre y apellido.
               </div>
-              <input
-                type="text"
-                placeholder="Nickname (cómo quieres aparecer)"
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-                style={inputStyle}
-              />
             </>
           )}
           <input
@@ -414,7 +407,6 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
         <StyledNavLink to="/stats">Stats</StyledNavLink>
         <StyledNavLink to="/news">Noticias</StyledNavLink>
-        <StyledNavLink to="/forum">Foro</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
         {isAdmin && (
@@ -464,13 +456,11 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
     { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
-    { to: '/forum', label: 'Foro', icon: IconForum },
+    // Foro hidden (route + code kept; re-add this item to bring it back).
+    // Normas also lives outside the bar now — it's reachable from the
+    // discreet footer link (MobileLogoutFooter). Logout is in the footer too.
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
-    ...(isAdmin ? [{ to: null, label: demoMode ? '🔴' : '👁', icon: () => null, action: onToggleDemo, isDemo: true }] : []),
-    // "Salir" used to live here, but logout is a rare + destructive action
-    // that doesn't belong in the primary nav (easy to mistap). It now sits
-    // discreetly in the footer (MobileLogoutFooter). Normas takes its slot.
-    { to: '/rules', label: 'Normas', icon: IconRules }
+    ...(isAdmin ? [{ to: null, label: demoMode ? '🔴' : '👁', icon: () => null, action: onToggleDemo, isDemo: true }] : [])
   ]
 
   return (
@@ -554,33 +544,35 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
   )
 }
 
-function MobileLogoutFooter() {
-  // Discreet logout at the bottom of every page (mobile only — the
-  // .mobile-rules-footer class is display:none on desktop, where a "Salir"
-  // button already sits next to the logo). Normas moved to the bottom nav,
-  // freeing this slot. Kept low-contrast and small so it's not a mistap
-  // magnet for a destructive action.
+function MobileFooterLinks() {
+  // Discreet bottom-of-page footer (mobile only — .mobile-rules-footer is
+  // display:none on desktop, where Normas is in the top-nav and "Salir" sits
+  // by the logo). Holds the two low-traffic actions that aren't in the bottom
+  // bar: Normas (hidden from the bar but still reachable here; "atrás"
+  // returns to the previous screen) and logout (rare + destructive, kept
+  // low-contrast so it's not a mistap magnet).
+  const linkStyle = {
+    fontSize: '11px',
+    color: 'var(--text-dim)',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    letterSpacing: '0.3px',
+    padding: '8px 16px',
+    borderRadius: '20px',
+    border: '0.5px solid var(--border)',
+    background: 'var(--bg-secondary)',
+    transition: 'all 0.2s ease'
+  }
   return (
-    <div className="mobile-rules-footer" style={{
-      textAlign: 'center',
-      padding: '24px 16px 100px',
-    }}>
-      <button
-        onClick={() => supabase.auth.signOut()}
-        style={{
-          fontSize: '11px',
-          color: 'var(--text-dim)',
-          cursor: 'pointer',
-          letterSpacing: '0.3px',
-          padding: '8px 16px',
-          borderRadius: '20px',
-          border: '0.5px solid var(--border)',
-          background: 'var(--bg-secondary)',
-          transition: 'all 0.2s ease'
-        }}
-      >
-        Cerrar sesión
-      </button>
+    <div className="mobile-rules-footer" style={{ padding: '24px 16px 100px' }}>
+      {/* inner flex row — the outer div keeps the CSS display:block/none
+          toggle (which has !important), so the row lives one level in */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+        <NavLink to="/rules" style={linkStyle}>Normas del torneo</NavLink>
+        <button onClick={() => supabase.auth.signOut()} style={linkStyle}>
+          Cerrar sesión
+        </button>
+      </div>
     </div>
   )
 }
@@ -617,7 +609,7 @@ function AppLayout({ session }) {
     async function checkProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('is_admin, has_paid, rules_accepted, onboarding_seen_at, access_requested_at, full_name, nickname')
+        .select('is_admin, has_paid, rules_accepted, onboarding_seen_at, access_requested_at, full_name')
         .eq('id', session.user.id)
         .single()
       if (data) {
@@ -694,7 +686,7 @@ function AppLayout({ session }) {
             </PageTransition>
           </Suspense>
         </ErrorBoundary>
-        <MobileLogoutFooter />
+        <MobileFooterLinks />
       </div>
       <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
     </div>

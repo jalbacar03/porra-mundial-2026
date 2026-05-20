@@ -211,7 +211,7 @@ export default function Rules() {
           'No se pueden modificar predicciones una vez cerrado el plazo.',
           'Las predicciones de otros participantes no son visibles hasta que empieza el Mundial (11 de junio).',
           'La inscripción debe estar confirmada antes del inicio del Mundial para que tus predicciones cuenten.',
-          'En el registro debes indicar tu nombre y apellido reales. Si no se puede identificar al usuario de forma inequívoca, no recibirá premio en caso de ganar (el nickname es opcional, sólo para mostrar).',
+          'En el registro debes indicar tu nombre y apellido reales: es como aparecerás en la clasificación y como te identificaremos para entregar el premio. Si no se puede identificar al ganador de forma inequívoca, no recibirá premio.',
           'El organizador se reserva el derecho de resolver disputas.'
         ]} />
       </Section>

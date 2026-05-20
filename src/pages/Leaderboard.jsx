@@ -35,14 +35,14 @@ export default function Leaderboard({ demoMode }) {
 
   useEffect(() => {
     fetchData()
-    supabase.from('profiles').select('id, full_name, nickname, has_paid').then(({ data }) => {
+    supabase.from('profiles').select('id, full_name, has_paid').then(({ data }) => {
       if (data) {
         const map = {}
         const fullNames = {}
         const paid = new Set()
         data.forEach(p => {
-          map[p.id] = p.nickname || p.full_name || 'Participante'
-          fullNames[p.id] = p.full_name || p.nickname || 'Participante'
+          map[p.id] = p.full_name || 'Participante'
+          fullNames[p.id] = p.full_name || 'Participante'
           if (p.has_paid) paid.add(p.id)
         })
         setProfileNames(map)

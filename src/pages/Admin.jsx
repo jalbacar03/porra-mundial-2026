@@ -82,7 +82,7 @@ export default function Admin({ session }) {
   async function fetchProfiles() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, has_paid, created_at, access_requested_at, avatar_url')
+      .select('id, full_name, has_paid, created_at, access_requested_at, avatar_url')
       .order('created_at', { ascending: true })
 
     if (!error && data) setProfiles(data)
@@ -315,7 +315,7 @@ export default function Admin({ session }) {
       arr = [...arr].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     } else if (admissionsSort === 'name') {
       arr = [...arr].sort((a, b) =>
-        (a.nickname || a.full_name || '').localeCompare(b.nickname || b.full_name || '')
+        (a.full_name || '').localeCompare(b.full_name || '')
       )
     }
     return arr
@@ -723,7 +723,7 @@ export default function Admin({ session }) {
           )}
 
           {filteredProfiles.map(profile => {
-            const name = profile.nickname || profile.full_name || 'Sin nombre'
+            const name = profile.full_name || 'Sin nombre'
             return (
               <div key={profile.id} style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
@@ -987,7 +987,7 @@ export default function Admin({ session }) {
         const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
         const realProfiles = profiles.filter(p => p.id !== BOT365_ID)
         const sortedBetsProfiles = [...realProfiles].sort((a, b) =>
-          (a.nickname || a.full_name || '').localeCompare(b.nickname || b.full_name || '')
+          (a.full_name || '').localeCompare(b.full_name || '')
         )
 
         // Completion stats
@@ -1054,7 +1054,7 @@ export default function Admin({ session }) {
                 >
                   <option value="">Todos los participantes</option>
                   {sortedBetsProfiles.map(p => (
-                    <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+                    <option key={p.id} value={p.id}>{p.full_name}</option>
                   ))}
                 </select>
 
@@ -1131,7 +1131,7 @@ export default function Admin({ session }) {
                             const prof = profiles.find(pr => pr.id === p.user_id)
                             return (
                               <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '2px 0' }}>
-                                <span style={{ color: 'var(--text-muted)' }}>{prof?.nickname || prof?.full_name || 'Participante'}</span>
+                                <span style={{ color: 'var(--text-muted)' }}>{prof?.full_name || 'Participante'}</span>
                                 <span style={{
                                   fontWeight: 600,
                                   color: p.points_earned === 3 ? 'var(--green)' : p.points_earned === 1 ? 'var(--gold)' : 'var(--text-primary)'
@@ -1262,7 +1262,7 @@ export default function Admin({ session }) {
                       color: user.matchPct === 100 && user.betPct === 100 ? 'var(--green)' : 'var(--text-primary)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {user.nickname || user.full_name || 'Sin nombre'}
+                      {user.full_name || 'Sin nombre'}
                     </span>
                     <div style={{ width: '60px', textAlign: 'center' }}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: user.matchPct === 100 ? 'var(--green)' : user.matchPct > 50 ? 'var(--gold)' : 'var(--text-dim)' }}>

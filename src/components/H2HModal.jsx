@@ -21,11 +21,11 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
     const [myPreds, rivalPreds, profileRes] = await Promise.all([
       supabase.from('predictions').select('match_id, predicted_home, predicted_away, points_earned').eq('user_id', userId),
       supabase.from('predictions').select('match_id, predicted_home, predicted_away, points_earned').eq('user_id', rivalId),
-      supabase.from('profiles').select('nickname, full_name').eq('id', userId).single(),
+      supabase.from('profiles').select('full_name').eq('id', userId).single(),
     ])
 
     if (profileRes.data) {
-      setMyName(profileRes.data.nickname || profileRes.data.full_name || 'Tú')
+      setMyName(profileRes.profileRes.data.full_name || 'Tú')
     }
 
     const myMap = {}

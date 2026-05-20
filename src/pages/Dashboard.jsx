@@ -207,12 +207,12 @@ export default function Dashboard({ session, demoMode }) {
       .select('*')
     const { data: allProfiles } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, has_paid')
+      .select('id, full_name, has_paid')
 
     const nicknameMap = {}
     const paidSet = new Set()
     allProfiles?.forEach(p => {
-      nicknameMap[p.id] = p.nickname || p.full_name
+      nicknameMap[p.id] = p.full_name
       if (p.has_paid) paidSet.add(p.id)
     })
 
@@ -322,8 +322,8 @@ export default function Dashboard({ session, demoMode }) {
   const maxPoints = displayTopRanking.length > 0 ? Math.max(displayTopRanking[0]?.total_points || 1, 1) : 1
 
   // Greeting + delta vs yesterday (from postMatchReport.points)
-  const userName = (profile?.nickname || profile?.full_name || 'Participante').split(' ')[0]
-  const userInitial = ((profile?.nickname || profile?.full_name || '?')[0] || '?').toUpperCase()
+  const userName = (profile?.full_name || 'Participante').split(' ')[0]
+  const userInitial = ((profile?.full_name || '?')[0] || '?').toUpperCase()
   const deltaVsYesterday = postMatchReport?.points || 0
   const hasLive = liveMatches.length > 0
 
@@ -363,7 +363,7 @@ export default function Dashboard({ session, demoMode }) {
             Hola, {userName}
           </h1>
           <Avatar
-            name={profile?.full_name || profile?.nickname}
+            name={profile?.full_name}
             size={40}
             color="rgba(0,144,81,0.18)"
             border="1px solid rgba(0,144,81,0.3)"
