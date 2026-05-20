@@ -190,8 +190,12 @@ export default function Leaderboard({ demoMode }) {
         provisional: provisionalPoints[r.user_id] || 0,
         effective_points: r.total_points + (provisionalPoints[r.user_id] || 0)
       }))
+      // Always sort points desc, then exact hits desc (the tiebreaker), so the
+      // visible order matches both the rules and the 🎯 exactos shown per row —
+      // independent of whatever order the leaderboard view returns.
+      .sort((a, b) => b.total_points - a.total_points || (b.exact_hits || 0) - (a.exact_hits || 0))
 
-  // Re-sort by effective points when live
+  // Re-sort by effective points when live (provisional points in play)
   if (hasLive && !demoMode) {
     allRankings.sort((a, b) =>
       b.effective_points - a.effective_points || (b.exact_hits || 0) - (a.exact_hits || 0)
@@ -334,27 +338,36 @@ export default function Leaderboard({ demoMode }) {
                   style={{ marginLeft: '6px', marginRight: '12px' }}
                 />
 
-                {/* Name + delta */}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{
-                    fontSize: '15px',
-                    fontWeight: isMe ? '700' : '500',
-                    color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                  }}>
-                    {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
-                  </span>
-                  {delta !== 0 && (
+                {/* Name + delta + exactos subtitle */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{
-                      fontSize: '11px', fontWeight: '700',
-                      color: delta > 0 ? '#4ade80' : '#e74c3c',
-                      flexShrink: 0
+                      fontSize: '15px',
+                      fontWeight: isMe ? '700' : '500',
+                      color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                      {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
                     </span>
-                  )}
-                  {!isBot && delta === 0 && !isTied && (
-                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', flexShrink: 0 }}>·</span>
+                    {delta !== 0 && (
+                      <span style={{
+                        fontSize: '11px', fontWeight: '700',
+                        color: delta > 0 ? '#4ade80' : '#e74c3c',
+                        flexShrink: 0
+                      }}>
+                        {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                      </span>
+                    )}
+                  </div>
+                  {/* Exact-hits — the tiebreaker. Shown so it's visually clear
+                      why two people on equal points rank differently. */}
+                  {!isBot && (
+                    <span style={{
+                      fontSize: '11px', color: isTied ? 'var(--gold)' : 'var(--text-dim)',
+                      fontWeight: isTied ? '600' : '400'
+                    }}>
+                      🎯 {user.exact_hits || 0} {(user.exact_hits || 0) === 1 ? 'exacto' : 'exactos'}
+                    </span>
                   )}
                 </div>
 
