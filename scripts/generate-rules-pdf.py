@@ -289,8 +289,7 @@ def build():
     story.append(info_box(
         "<b>¿Qué es la Porra Mundial 26?</b><br/>"
         "Una porra amistosa de predicciones entre amigos para el Mundial 2026. "
-        "<b>No es una casa de apuestas</b> — es un juego entre amigos sin ánimo "
-        "de lucro. El que más puntos acumule al final del torneo, gana.",
+        "El que más puntos acumule al final del torneo, gana.",
         accent=GREEN, bg=BG_GREEN_SOFT
     ))
     story.append(Spacer(1, 10))

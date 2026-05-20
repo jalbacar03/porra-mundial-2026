@@ -84,37 +84,40 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
 
   async function savePredictions() {
     setSaving(true)
-    setMessage('')
+    // try/finally guarantees `saving` always clears, even if a render-time
+    // ReferenceError or thrown promise sneaks back in (regression-proof
+    // against the kind of bug that left the button stuck on "Guardando").
+    try {
+      const groupMatches = matches.filter(m => m.group_name === activeGroup)
+      const toSave = []
 
-    const groupMatches = matches.filter(m => m.group_name === activeGroup)
-    const toSave = []
-
-    for (const match of groupMatches) {
-      const pred = predictions[match.id]
-      if (pred && pred.home_score !== '' && pred.home_score !== undefined &&
-          pred.away_score !== '' && pred.away_score !== undefined) {
-        toSave.push({
-          user_id: session.user.id,
-          match_id: match.id,
-          predicted_home: pred.home_score,
-          predicted_away: pred.away_score
-        })
+      for (const match of groupMatches) {
+        const pred = predictions[match.id]
+        if (pred && pred.home_score !== '' && pred.home_score !== undefined &&
+            pred.away_score !== '' && pred.away_score !== undefined) {
+          toSave.push({
+            user_id: session.user.id,
+            match_id: match.id,
+            predicted_home: pred.home_score,
+            predicted_away: pred.away_score
+          })
+        }
       }
-    }
 
-    if (toSave.length === 0) {
-      toast.info('No hay predicciones completas para guardar en este grupo')
-      setSaving(false)
-      return
-    }
+      if (toSave.length === 0) {
+        toast.info('No hay predicciones completas para guardar en este grupo')
+        return
+      }
 
-    const { error } = await supabase
-      .from('predictions')
-      .upsert(toSave, { onConflict: 'user_id,match_id' })
+      const { error } = await supabase
+        .from('predictions')
+        .upsert(toSave, { onConflict: 'user_id,match_id' })
 
-    if (error) {
-      toast.error('Error al guardar: ' + error.message)
-    } else {
+      if (error) {
+        toast.error('Error al guardar: ' + error.message)
+        return
+      }
+
       const newSaved = { ...savedPredictions }
       toSave.forEach(p => {
         newSaved[p.match_id] = {
@@ -132,8 +135,12 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
         return next
       })
       toast.success(`${toSave.length} predicciones guardadas — Grupo ${activeGroup}`)
+    } catch (err) {
+      console.error('savePredictions failed:', err)
+      toast.error('Error inesperado al guardar')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   function formatDate(dateStr) {
