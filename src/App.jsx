@@ -405,7 +405,7 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
         <StyledNavLink to="/" end>Inicio</StyledNavLink>
         <StyledNavLink to="/predictions">Mis predicciones</StyledNavLink>
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
-        <StyledNavLink to="/stats">Stats</StyledNavLink>
+        <StyledNavLink to="/stats">Estadísticas</StyledNavLink>
         <StyledNavLink to="/news">Noticias</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
@@ -452,9 +452,9 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
 
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
-    { to: '/predictions', label: 'Pred.', icon: IconPredictions },
-    { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
-    { to: '/stats', label: 'Stats', icon: IconStats },
+    { to: '/predictions', label: 'Mis predicciones', icon: IconPredictions },
+    { to: '/leaderboard', label: 'Clasificación', icon: IconRanking },
+    { to: '/stats', label: 'Estadísticas', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
     // Foro hidden (route + code kept; re-add this item to bring it back).
     // Normas also lives outside the bar now — it's reachable from the
@@ -496,8 +496,10 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '2px',
-                padding: '6px 12px',
+                gap: '3px',
+                padding: '6px 4px',
+                flex: 1,
+                minWidth: 0,
                 cursor: 'pointer',
                 color: item.isDemo && demoMode ? 'var(--gold)' : 'var(--text-dim)'
               }}
@@ -523,17 +525,24 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '2px',
-              padding: '6px 12px',
+              gap: '3px',
+              padding: '6px 4px',
+              flex: 1,
+              minWidth: 0,
               textDecoration: 'none',
               color: isActive ? 'var(--green)' : 'var(--text-dim)'
             }}
           >
             <Icon size={20} />
             <span style={{
-              fontSize: '10px',
+              fontSize: '9px',
               fontWeight: isActive ? '600' : '400',
-              letterSpacing: '0.3px'
+              letterSpacing: '0.1px',
+              textAlign: 'center',
+              lineHeight: '1.15',
+              // Full names wrap to 2 lines instead of overflowing. Two lines
+              // is the max any current label needs ("Mis predicciones").
+              maxWidth: '100%'
             }}>
               {item.label}
             </span>
