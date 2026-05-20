@@ -23,7 +23,6 @@ const MatchDetail = lazy(() => import('./pages/MatchDetail'))
 import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
-import { useDemoMode } from './hooks/useDemoMode'
 
 /* ============================
    PANTALLA DE LOGIN / REGISTRO
@@ -311,7 +310,7 @@ function PageLoader() {
 /* ============================
    NAVBAR + LAYOUT PRINCIPAL
    ============================ */
-function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
+function TopNavbar({ isAdmin, demoMode }) {
   const countdown = useCountdown(WORLD_CUP_START)
 
   return (
@@ -409,25 +408,6 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
         <StyledNavLink to="/news">Noticias</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
-        {isAdmin && (
-          <button
-            onClick={onToggleDemo}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '4px',
-              border: demoMode ? '1px solid var(--gold)' : '1px solid var(--border)',
-              background: demoMode ? 'rgba(255,204,0,0.15)' : 'transparent',
-              color: demoMode ? 'var(--gold)' : 'var(--text-dim)',
-              fontSize: '10px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              letterSpacing: '0.5px',
-              marginLeft: '4px'
-            }}
-          >
-            {demoMode ? '🔴 DEMO' : '👁 Demo'}
-          </button>
-        )}
         <button
           onClick={() => supabase.auth.signOut()}
           style={{
@@ -447,20 +427,19 @@ function TopNavbar({ isAdmin, demoMode, onToggleDemo }) {
   )
 }
 
-function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
+function BottomNavbar({ isAdmin }) {
   const location = useLocation()
 
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
-    { to: '/predictions', label: 'Mis predicciones', icon: IconPredictions },
+    { to: '/predictions', label: 'Predicciones', icon: IconPredictions },
     { to: '/leaderboard', label: 'Clasificación', icon: IconRanking },
     { to: '/stats', label: 'Estadísticas', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
     // Foro hidden (route + code kept; re-add this item to bring it back).
     // Normas also lives outside the bar now — it's reachable from the
-    // discreet footer link (MobileLogoutFooter). Logout is in the footer too.
-    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
-    ...(isAdmin ? [{ to: null, label: demoMode ? '🔴' : '👁', icon: () => null, action: onToggleDemo, isDemo: true }] : [])
+    // discreet footer link (MobileFooterLinks). Logout is in the footer too.
+    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : [])
   ]
 
   return (
@@ -483,38 +462,6 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
             : location.pathname.startsWith(item.to)
         )
         const Icon = item.icon
-
-        if (item.action) {
-          return (
-            <button
-              key={i}
-              onClick={item.action}
-              style={{
-                background: item.isDemo && demoMode ? 'rgba(255,204,0,0.15)' : 'none',
-                border: item.isDemo && demoMode ? '1px solid rgba(255,204,0,0.3)' : 'none',
-                borderRadius: item.isDemo ? '6px' : '0',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '3px',
-                padding: '6px 4px',
-                flex: 1,
-                minWidth: 0,
-                cursor: 'pointer',
-                color: item.isDemo && demoMode ? 'var(--gold)' : 'var(--text-dim)'
-              }}
-            >
-              {item.isDemo ? (
-                <span style={{ fontSize: '16px', lineHeight: '20px' }}>{item.label}</span>
-              ) : (
-                <>
-                  <Icon size={20} />
-                  <span style={{ fontSize: '10px', letterSpacing: '0.3px' }}>{item.label}</span>
-                </>
-              )}
-            </button>
-          )
-        }
 
         return (
           <NavLink
@@ -612,7 +559,9 @@ function AppLayout({ session }) {
   const [hasPaid, setHasPaid] = useState(null) // null = cargando
   const [rulesAccepted, setRulesAccepted] = useState(null) // null = cargando
   const [profile, setProfile] = useState(null)
-  const { demoMode, toggle: toggleDemo } = useDemoMode(isAdmin)
+  // Demo mode removed from the admin UI (no toggle). Hard-off so all the
+  // demoMode={demoMode} props downstream simply render real data.
+  const demoMode = false
 
   useEffect(() => {
     async function checkProfile() {
@@ -658,23 +607,7 @@ function AppLayout({ session }) {
         />
       )}
 
-      <TopNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
-
-      {/* Demo mode banner */}
-      {demoMode && (
-        <div style={{
-          background: 'linear-gradient(90deg, rgba(255,204,0,0.15), rgba(255,204,0,0.05))',
-          borderBottom: '1px solid rgba(255,204,0,0.2)',
-          padding: '6px 16px',
-          textAlign: 'center',
-          fontSize: '11px',
-          fontWeight: '600',
-          color: 'var(--gold)',
-          letterSpacing: '0.5px'
-        }}>
-          MODO DEMO — Datos simulados (solo visible para admins)
-        </div>
-      )}
+      <TopNavbar isAdmin={isAdmin} demoMode={demoMode} />
 
       <div className="app-content">
         <ErrorBoundary>
@@ -697,7 +630,7 @@ function AppLayout({ session }) {
         </ErrorBoundary>
         <MobileFooterLinks />
       </div>
-      <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
+      <BottomNavbar isAdmin={isAdmin} />
     </div>
   )
 }
