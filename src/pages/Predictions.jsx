@@ -224,7 +224,7 @@ export default function Predictions({ session }) {
             color: 'var(--text-muted)',
             lineHeight: '1.5'
           }}>
-            Todas las predicciones de fase de grupos deben realizarse <span style={{ color: 'var(--gold)', fontWeight: '600' }}>48 horas antes</span> del inicio del Mundial
+            Todas las predicciones deben realizarse antes del <span style={{ color: 'var(--gold)', fontWeight: '600' }}>9 de junio a las 23:59h</span>
           </div>
         </div>
       )}

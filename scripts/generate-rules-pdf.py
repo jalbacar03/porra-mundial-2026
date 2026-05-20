@@ -332,7 +332,7 @@ def build():
     # ── PHASE: ANTES ───────────────────────────────────────────────────
     story.append(phase_divider(
         "ANTES DEL MUNDIAL",
-        "Deadline: 9 de junio de 2026 — 48 h antes del inicio",
+        "Deadline: 9 de junio de 2026, 23:59h (hora española)",
         accent=HexColor("#c2362b")
     ))
     story.append(Spacer(1, 6))
@@ -485,7 +485,7 @@ def build():
     story.append(KeepTogether([
         section_header("◷", "Fechas clave"),
         scoring_table([
-            ("Deadline predicciones pre-torneo", "9 de junio de 2026"),
+            ("Deadline predicciones pre-torneo", "9 de junio, 23:59h"),
             ("Inicio del Mundial", "11 de junio de 2026"),
             ("Final del Mundial", "19 de julio de 2026"),
         ]),
@@ -495,8 +495,8 @@ def build():
     # ── REGLAS GENERALES ───────────────────────────────────────────────
     rules_paras = [section_header("§", "Reglas generales")]
     rules = [
-        "No se pueden modificar predicciones una vez cerrado el plazo (9 de junio de 2026).",
-        "Las predicciones de otros participantes no son visibles hasta que cierre el plazo.",
+        "No se pueden modificar predicciones una vez cerrado el plazo (9 de junio a las 23:59h).",
+        "Las predicciones de otros participantes no son visibles hasta que empieza el Mundial (11 de junio).",
         "La inscripción debe estar confirmada antes del inicio del Mundial para que tus predicciones cuenten.",
         "En el registro debes indicar tu <b>nombre y apellido reales</b>. Si no se puede identificar al "
         "ganador de forma inequívoca, no recibirá premio. El nickname es opcional y sólo se usa para mostrar.",

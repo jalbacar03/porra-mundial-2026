@@ -89,7 +89,7 @@ export default function Rules() {
       </div>
 
       {/* ===== PHASE DIVIDER: ANTES ===== */}
-      <PhaseDivider label="ANTES DEL MUNDIAL" subtitle="Deadline: 9 de junio de 2026 (48h antes del inicio)" color="#ff8a8a" />
+      <PhaseDivider label="ANTES DEL MUNDIAL" subtitle="Deadline: 9 de junio de 2026, 23:59h" color="#ff8a8a" />
 
       {/* ===== 1. FASE DE GRUPOS ===== */}
       <Section icon="⚽" title="1. Fase de grupos" badge="72 partidos">
@@ -199,7 +199,7 @@ export default function Rules() {
       {/* ===== FECHAS CLAVE ===== */}
       <Section icon="📅" title="Fechas clave">
         <ItemTable items={[
-          { label: 'Deadline predicciones pre-torneo', value: '9 de junio de 2026', color: '#ff8a8a' },
+          { label: 'Deadline predicciones pre-torneo', value: '9 de junio, 23:59h', color: '#ff8a8a' },
           { label: 'Inicio del Mundial', value: '11 de junio de 2026', color: 'var(--text-primary)' },
           { label: 'Final del Mundial', value: '19 de julio de 2026', color: '#4ade80' }
         ]} />
@@ -209,7 +209,7 @@ export default function Rules() {
       <Section icon="🔒" title="Reglas generales">
         <BulletList items={[
           'No se pueden modificar predicciones una vez cerrado el plazo.',
-          'Las predicciones de otros participantes no son visibles hasta que cierre el plazo.',
+          'Las predicciones de otros participantes no son visibles hasta que empieza el Mundial (11 de junio).',
           'La inscripción debe estar confirmada antes del inicio del Mundial para que tus predicciones cuenten.',
           'En el registro debes indicar tu nombre y apellido reales. Si no se puede identificar al usuario de forma inequívoca, no recibirá premio en caso de ganar (el nickname es opcional, sólo para mostrar).',
           'El organizador se reserva el derecho de resolver disputas.'

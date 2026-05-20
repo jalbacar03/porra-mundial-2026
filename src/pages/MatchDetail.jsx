@@ -117,7 +117,7 @@ export default function MatchDetail({ session }) {
   const matchdayLabel = match.matchday ? ` · J${match.matchday}` : ''
 
   // Lock criteria:
-  //   - For group-stage matches: global deadline (48h before tournament start)
+  //   - For group-stage matches: global deadline (9 jun 23:59h Spain)
   //   - For ANY match: locked once it has started or finished
   // The DB enforces these too via RLS — frontend lock here is purely UX.
   const now = new Date()
@@ -128,7 +128,7 @@ export default function MatchDetail({ session }) {
   const lockReason = matchStarted
     ? (match.status === 'finished' ? '🔒 Partido finalizado' : '🔴 Partido en curso')
     : groupDeadlineExpired
-      ? '🔒 Plazo cerrado (48h antes del Mundial)'
+      ? '🔒 Plazo cerrado (9 jun 23:59h)'
       : ''
 
   return (
