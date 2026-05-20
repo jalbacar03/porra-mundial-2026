@@ -7,6 +7,7 @@ import { useToast } from '../../../components/Toast'
 import { SkeletonCard } from '../../../components/Skeleton'
 import { useRateLimit } from '../../../hooks/useRateLimit'
 import { PulseDots } from '../../../components/Skeleton'
+import ScorePicker from '../../../components/predictions/ScorePicker'
 
 export default function GroupMatchPredictions({ session, deadline, demoMode }) {
   const navigate = useNavigate()
@@ -348,70 +349,53 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                   </div>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center' }}>
+                {/* Team names row (above the pickers) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                   <div style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0
+                    flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0
                   }}>
                     {match.home_team?.flag_url && (
                       <img src={match.home_team.flag_url} alt=""
-                        style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                        style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
                     )}
                     <span style={{
-                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
+                      fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
                       {match.home_team?.name || 'Por determinar'}
                     </span>
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 4px', flexShrink: 0 }}>
-                    <input
-                      type="number" min="0" max="99"
-                      value={pred.home_score ?? ''}
-                      onChange={e => !demoMode && updatePrediction(match.id, 'home_score', e.target.value)}
-                      disabled={deadline.expired || demoMode}
-                      style={{
-                        width: '36px', height: '32px', textAlign: 'center',
-                        fontSize: '15px', fontWeight: '600', borderRadius: '4px',
-                        border: demoMode ? '1px solid var(--border)' : unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
-                        background: 'var(--bg-input)',
-                        color: pred.home_score !== '' && pred.home_score !== undefined ? 'var(--gold)' : 'var(--text-dim)',
-                        outline: 'none',
-                        opacity: demoMode ? 0.8 : deadline.expired ? 0.5 : 1
-                      }}
-                    />
-                    <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>:</span>
-                    <input
-                      type="number" min="0" max="99"
-                      value={pred.away_score ?? ''}
-                      onChange={e => !demoMode && updatePrediction(match.id, 'away_score', e.target.value)}
-                      disabled={deadline.expired || demoMode}
-                      style={{
-                        width: '36px', height: '32px', textAlign: 'center',
-                        fontSize: '15px', fontWeight: '600', borderRadius: '4px',
-                        border: demoMode ? '1px solid var(--border)' : unsaved ? '1px solid var(--gold)' : saved ? '1px solid var(--border)' : '1px solid var(--green)',
-                        background: 'var(--bg-input)',
-                        color: pred.away_score !== '' && pred.away_score !== undefined ? 'var(--gold)' : 'var(--text-dim)',
-                        outline: 'none',
-                        opacity: demoMode ? 0.8 : deadline.expired ? 0.5 : 1
-                      }}
-                    />
-                  </div>
-
+                  <span style={{ color: 'var(--text-dim)', fontSize: '10px', fontWeight: '600' }}>vs</span>
                   <div style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', minWidth: 0
+                    flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0
                   }}>
                     <span style={{
-                      fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500',
+                      fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
                       {match.away_team?.name || 'Por determinar'}
                     </span>
                     {match.away_team?.flag_url && (
                       <img src={match.away_team.flag_url} alt=""
-                        style={{ width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                        style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
                     )}
                   </div>
+                </div>
+
+                {/* Score pickers — two side-by-side grids, one per team */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <ScorePicker
+                    value={typeof pred.home_score === 'number' ? pred.home_score : (pred.home_score !== '' && pred.home_score !== undefined ? Number(pred.home_score) : null)}
+                    onChange={n => !demoMode && updatePrediction(match.id, 'home_score', n)}
+                    disabled={deadline.expired || demoMode}
+                    accent={unsaved ? 'gold' : 'green'}
+                  />
+                  <ScorePicker
+                    value={typeof pred.away_score === 'number' ? pred.away_score : (pred.away_score !== '' && pred.away_score !== undefined ? Number(pred.away_score) : null)}
+                    onChange={n => !demoMode && updatePrediction(match.id, 'away_score', n)}
+                    disabled={deadline.expired || demoMode}
+                    accent={unsaved ? 'gold' : 'green'}
+                  />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', gap: '6px' }}>
