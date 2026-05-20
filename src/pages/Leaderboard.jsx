@@ -210,10 +210,10 @@ export default function Leaderboard({ demoMode }) {
   const isEmpty = currentRankings.length === 0
 
   function getTiedRank(index) {
-    if (index === 0) return { rank: 1, tied: false }
     const getPts = (r) => hasLive ? r.effective_points : r.total_points
     const pts = getPts(currentRankings[index])
     const exactHits = currentRankings[index].exact_hits || 0
+    // Walk back to the first row sharing this pts+exactHits → that's the rank.
     let firstWithSame = index
     while (firstWithSame > 0 &&
       getPts(currentRankings[firstWithSame - 1]) === pts &&
@@ -221,10 +221,15 @@ export default function Leaderboard({ demoMode }) {
       firstWithSame--
     }
     const rank = firstWithSame + 1
-    const tied = firstWithSame < index ||
-      (index + 1 < currentRankings.length &&
-        getPts(currentRankings[index + 1]) === pts &&
-        (currentRankings[index + 1].exact_hits || 0) === exactHits)
+    // Tied if ANY neighbour (before OR after) shares the same pts+exactHits.
+    // Applies uniformly to every position — including 1st — so all members
+    // of a tie get the "T" prefix (T1, T1, T1), not just the ones after the
+    // first.
+    const tiedWithPrev = firstWithSame < index
+    const tiedWithNext = index + 1 < currentRankings.length &&
+      getPts(currentRankings[index + 1]) === pts &&
+      (currentRankings[index + 1].exact_hits || 0) === exactHits
+    const tied = tiedWithPrev || tiedWithNext
     return { rank, tied }
   }
 
