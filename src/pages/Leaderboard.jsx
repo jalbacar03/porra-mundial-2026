@@ -338,56 +338,57 @@ export default function Leaderboard({ demoMode }) {
                   style={{ marginLeft: '6px', marginRight: '12px' }}
                 />
 
-                {/* Name + delta + exactos subtitle */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Name + delta */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '15px',
+                    fontWeight: isMe ? '700' : '500',
+                    color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                  }}>
+                    {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
+                  </span>
+                  {delta !== 0 && (
                     <span style={{
-                      fontSize: '15px',
-                      fontWeight: isMe ? '700' : '500',
-                      color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                      fontSize: '11px', fontWeight: '700',
+                      color: delta > 0 ? '#4ade80' : '#e74c3c',
+                      flexShrink: 0
                     }}>
-                      {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
-                    </span>
-                    {delta !== 0 && (
-                      <span style={{
-                        fontSize: '11px', fontWeight: '700',
-                        color: delta > 0 ? '#4ade80' : '#e74c3c',
-                        flexShrink: 0
-                      }}>
-                        {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
-                      </span>
-                    )}
-                  </div>
-                  {/* Exact-hits — the tiebreaker. Shown so it's visually clear
-                      why two people on equal points rank differently. */}
-                  {!isBot && (
-                    <span style={{
-                      fontSize: '11px', color: isTied ? 'var(--gold)' : 'var(--text-dim)',
-                      fontWeight: isTied ? '600' : '400'
-                    }}>
-                      🎯 {user.exact_hits || 0} {(user.exact_hits || 0) === 1 ? 'exacto' : 'exactos'}
+                      {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
                     </span>
                   )}
                 </div>
 
-                {/* Points */}
+                {/* Points + exact-hits (the tiebreaker), stacked on the right.
+                    Grouping the two ranking numbers together makes it clear
+                    why equal-points rows are ordered the way they are. */}
                 <div style={{
                   textAlign: 'right', flexShrink: 0,
-                  display: 'flex', alignItems: 'baseline', gap: '4px'
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px'
                 }}>
-                  <span style={{
-                    fontSize: '17px', fontWeight: '700',
-                    color: isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)'
-                  }}>
-                    {user.total_points}
-                  </span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>pts</span>
-                  {user.provisional > 0 && (
-                    <span className="live-pulse" style={{
-                      fontSize: '11px', fontWeight: '700', color: 'var(--red)', marginLeft: '2px'
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                    <span style={{
+                      fontSize: '17px', fontWeight: '700',
+                      color: isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)'
                     }}>
-                      +{user.provisional}
+                      {user.total_points}
+                    </span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>pts</span>
+                    {user.provisional > 0 && (
+                      <span className="live-pulse" style={{
+                        fontSize: '11px', fontWeight: '700', color: 'var(--red)', marginLeft: '2px'
+                      }}>
+                        +{user.provisional}
+                      </span>
+                    )}
+                  </div>
+                  {!isBot && (
+                    <span style={{
+                      fontSize: '11px', whiteSpace: 'nowrap',
+                      color: isTied ? 'var(--gold)' : 'var(--text-dim)',
+                      fontWeight: isTied ? '600' : '400'
+                    }}>
+                      🎯 {user.exact_hits || 0} {(user.exact_hits || 0) === 1 ? 'exacto' : 'exactos'}
                     </span>
                   )}
                 </div>
