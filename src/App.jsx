@@ -467,7 +467,10 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
     { to: '/forum', label: 'Foro', icon: IconForum },
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : []),
     ...(isAdmin ? [{ to: null, label: demoMode ? '🔴' : '👁', icon: () => null, action: onToggleDemo, isDemo: true }] : []),
-    { to: null, label: 'Salir', icon: IconLogout, action: () => supabase.auth.signOut() }
+    // "Salir" used to live here, but logout is a rare + destructive action
+    // that doesn't belong in the primary nav (easy to mistap). It now sits
+    // discreetly in the footer (MobileLogoutFooter). Normas takes its slot.
+    { to: '/rules', label: 'Normas', icon: IconRules }
   ]
 
   return (
@@ -551,21 +554,23 @@ function BottomNavbar({ isAdmin, demoMode, onToggleDemo }) {
   )
 }
 
-function MobileRulesFooter() {
-  const location = useLocation()
-  // Don't show on the rules page itself
-  if (location.pathname === '/rules') return null
+function MobileLogoutFooter() {
+  // Discreet logout at the bottom of every page (mobile only — the
+  // .mobile-rules-footer class is display:none on desktop, where a "Salir"
+  // button already sits next to the logo). Normas moved to the bottom nav,
+  // freeing this slot. Kept low-contrast and small so it's not a mistap
+  // magnet for a destructive action.
   return (
     <div className="mobile-rules-footer" style={{
       textAlign: 'center',
       padding: '24px 16px 100px',
     }}>
-      <NavLink
-        to="/rules"
+      <button
+        onClick={() => supabase.auth.signOut()}
         style={{
           fontSize: '11px',
           color: 'var(--text-dim)',
-          textDecoration: 'none',
+          cursor: 'pointer',
           letterSpacing: '0.3px',
           padding: '8px 16px',
           borderRadius: '20px',
@@ -574,8 +579,8 @@ function MobileRulesFooter() {
           transition: 'all 0.2s ease'
         }}
       >
-        Normas del torneo
-      </NavLink>
+        Cerrar sesión
+      </button>
     </div>
   )
 }
@@ -689,7 +694,7 @@ function AppLayout({ session }) {
             </PageTransition>
           </Suspense>
         </ErrorBoundary>
-        <MobileRulesFooter />
+        <MobileLogoutFooter />
       </div>
       <BottomNavbar isAdmin={isAdmin} demoMode={demoMode} onToggleDemo={toggleDemo} />
     </div>
