@@ -13,15 +13,30 @@ const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500' // kept for data filter
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST')
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type')
   if (req.method === 'OPTIONS') return res.status(200).end()
-  // Note: NOT auth-gated. The frontend calls this from any user's browser
-  // to display the daily insight on Dashboard. Cached per day in DB so
-  // spamming it = same cached response, no extra Gemini cost.
 
   if (!GEMINI_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     return res.status(500).json({ error: 'Missing env vars', details: {
       gemini: !!GEMINI_API_KEY, supaUrl: !!SUPABASE_URL, supaKey: !!SUPABASE_SERVICE_KEY
     }})
+  }
+
+  // Auth gate: require a valid Supabase user JWT. The endpoint generates a
+  // Gemini completion when there's no cached insight for the day, so leaving
+  // it open let anonymous callers burn Gemini quota. Any logged-in user is
+  // fine (not admin-only) — the Dashboard shows the insight to everyone.
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+  if (!token) return res.status(401).json({ error: 'Unauthorized' })
+  try {
+    const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` }
+    })
+    if (!uRes.ok) return res.status(401).json({ error: 'Unauthorized' })
+    const user = await uRes.json()
+    if (!user?.id) return res.status(401).json({ error: 'Unauthorized' })
+  } catch {
+    return res.status(401).json({ error: 'Unauthorized' })
   }
 
   const today = new Date().toISOString().split('T')[0]

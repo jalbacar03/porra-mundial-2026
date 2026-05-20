@@ -87,7 +87,12 @@ export default function Dashboard({ session, demoMode }) {
   async function fetchInsight() {
     setInsightLoading(true)
     try {
-      const res = await fetch('/api/generate-insight')
+      // Send the user's Supabase JWT — the endpoint is auth-gated to stop
+      // anonymous callers from burning Gemini quota.
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const res = await fetch('/api/generate-insight', {
+        headers: s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.insight) {
