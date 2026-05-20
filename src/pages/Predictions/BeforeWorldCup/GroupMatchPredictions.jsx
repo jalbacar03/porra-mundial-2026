@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../supabase'
 import { calculateGroupStandings } from '../../../utils/groupStandings'
 import { generateMockPredictions, generateDemoMatchStatuses } from '../../../hooks/useDemoMode'
@@ -10,15 +9,24 @@ import { PulseDots } from '../../../components/Skeleton'
 import ScorePicker from '../../../components/predictions/ScorePicker'
 
 export default function GroupMatchPredictions({ session, deadline, demoMode }) {
-  const navigate = useNavigate()
   const [matches, setMatches] = useState([])
   const [predictions, setPredictions] = useState({})
   const [savedPredictions, setSavedPredictions] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeGroup, setActiveGroup] = useState('A')
+  // Set of match_ids currently in "editing" mode — when a match is saved and
+  // the user hasn't asked to re-edit it, we render the compact "Guardado"
+  // view instead of the pickers. After savePredictions runs we clear this so
+  // every just-saved row collapses automatically.
+  const [editingIds, setEditingIds] = useState(() => new Set())
   const toast = useToast()
   const guard = useRateLimit()
+
+  const isEditing = (matchId) => editingIds.has(matchId)
+  const startEditing = (matchId) => setEditingIds(prev => {
+    const next = new Set(prev); next.add(matchId); return next
+  })
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
@@ -115,6 +123,14 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
         }
       })
       setSavedPredictions(newSaved)
+      // Collapse every just-saved row back to the compact "Guardado" view.
+      // We only clear ids belonging to the active group to avoid surprising
+      // the user if they had something open in another group.
+      setEditingIds(prev => {
+        const next = new Set(prev)
+        toSave.forEach(p => next.delete(p.match_id))
+        return next
+      })
       toast.success(`${toSave.length} predicciones guardadas — Grupo ${activeGroup}`)
     }
     setSaving(false)
@@ -349,100 +365,167 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                   </div>
                 )}
 
-                {/* Team names row (above the pickers) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <div style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0
-                  }}>
-                    {match.home_team?.flag_url && (
-                      <img src={match.home_team.flag_url} alt=""
-                        style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
-                    )}
-                    <span style={{
-                      fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
-                      {match.home_team?.name || 'Por determinar'}
-                    </span>
-                  </div>
-                  <span style={{ color: 'var(--text-dim)', fontSize: '10px', fontWeight: '600' }}>vs</span>
-                  <div style={{
-                    flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0
-                  }}>
-                    <span style={{
-                      fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
-                      {match.away_team?.name || 'Por determinar'}
-                    </span>
-                    {match.away_team?.flag_url && (
-                      <img src={match.away_team.flag_url} alt=""
-                        style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
-                    )}
-                  </div>
-                </div>
+                {/* When the row is saved and the user is NOT actively editing,
+                    we collapse to a compact view: team A · score · score · team B
+                    + "Guardado" badge + tiny "Editar" button. Pulsing Editar
+                    flips this match back into picker mode (data is preserved
+                    because predictions[] already mirrors savedPredictions[]). */}
+                {(() => {
+                  const collapsed = !demoMode && saved && !unsaved && !isEditing(match.id)
+                                    && !deadline.expired
 
-                {/* Score pickers — two side-by-side grids, one per team */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <ScorePicker
-                    value={typeof pred.home_score === 'number' ? pred.home_score : (pred.home_score !== '' && pred.home_score !== undefined ? Number(pred.home_score) : null)}
-                    onChange={n => !demoMode && updatePrediction(match.id, 'home_score', n)}
-                    disabled={deadline.expired || demoMode}
-                    accent={unsaved ? 'gold' : 'green'}
-                  />
-                  <ScorePicker
-                    value={typeof pred.away_score === 'number' ? pred.away_score : (pred.away_score !== '' && pred.away_score !== undefined ? Number(pred.away_score) : null)}
-                    onChange={n => !demoMode && updatePrediction(match.id, 'away_score', n)}
-                    disabled={deadline.expired || demoMode}
-                    accent={unsaved ? 'gold' : 'green'}
-                  />
-                </div>
+                  if (collapsed) {
+                    const sp = savedPredictions[match.id] || {}
+                    return (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                            {match.home_team?.flag_url && (
+                              <img src={match.home_team.flag_url} alt=""
+                                style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                            )}
+                            <span style={{
+                              fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                            }}>
+                              {match.home_team?.name || 'Por determinar'}
+                            </span>
+                          </div>
+                          <div style={{
+                            display: 'flex', alignItems: 'baseline', gap: '8px', padding: '0 6px',
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            <span style={{ fontSize: '22px', fontWeight: '700', color: 'var(--gold)' }}>
+                              {sp.home_score}
+                            </span>
+                            <span style={{ fontSize: '14px', color: 'var(--text-dim)' }}>:</span>
+                            <span style={{ fontSize: '22px', fontWeight: '700', color: 'var(--gold)' }}>
+                              {sp.away_score}
+                            </span>
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0 }}>
+                            <span style={{
+                              fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                            }}>
+                              {match.away_team?.name || 'Por determinar'}
+                            </span>
+                            {match.away_team?.flag_url && (
+                              <img src={match.away_team.flag_url} alt=""
+                                style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', gap: '6px' }}>
+                          <span style={{
+                            padding: '2px 10px', borderRadius: '3px', fontSize: '10px',
+                            background: 'var(--green-light)', color: 'var(--green)'
+                          }}>
+                            Guardado
+                          </span>
+                          <button
+                            onClick={() => startEditing(match.id)}
+                            style={{
+                              marginLeft: '6px', padding: '2px 10px',
+                              background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)',
+                              borderRadius: '4px', color: 'var(--text-muted)',
+                              fontSize: '10px', fontWeight: '600', cursor: 'pointer',
+                              letterSpacing: '0.3px'
+                            }}
+                          >
+                            Editar
+                          </button>
+                        </div>
+                      </>
+                    )
+                  }
 
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', gap: '6px' }}>
-                  {demoMode && isFinished && demoPoints !== null ? (
-                    <span style={{
-                      padding: '2px 10px', borderRadius: '3px', fontSize: '10px', fontWeight: '600',
-                      background: demoPoints === 3 ? 'rgba(0,122,69,0.15)' : demoPoints === 1 ? 'rgba(255,204,0,0.1)' : 'rgba(226,75,74,0.1)',
-                      color: demoPoints === 3 ? 'var(--green)' : demoPoints === 1 ? 'var(--gold)' : '#e74c3c'
-                    }}>
-                      {demoPoints === 3 ? 'Exacto +3' : demoPoints === 1 ? 'Signo +1' : 'Fallo 0'}
-                    </span>
-                  ) : demoMode && isLive ? (
-                    <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'rgba(226,75,74,0.1)', color: '#ff6b6b' }}>
-                      En juego...
-                    </span>
-                  ) : demoMode ? (
-                    <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--green-light)', color: 'var(--green)' }}>
-                      Guardado
-                    </span>
-                  ) : unsaved ? (
-                    <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--gold-dim)', color: 'var(--gold)' }}>
-                      Sin guardar
-                    </span>
-                  ) : saved ? (
-                    <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--green-light)', color: 'var(--green)' }}>
-                      Guardado
-                    </span>
-                  ) : (
-                    <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--bg-secondary)', color: 'var(--text-dim)' }}>
-                      Pendiente
-                    </span>
-                  )}
-                  {!demoMode && (
-                    <button
-                      onClick={() => navigate(`/match/${match.id}`)}
-                      style={{
-                        marginLeft: '6px', padding: '2px 8px',
-                        background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-light)',
-                        borderRadius: '4px', color: 'var(--text-muted)',
-                        fontSize: '10px', fontWeight: '600', cursor: 'pointer',
-                        letterSpacing: '0.3px'
-                      }}
-                    >
-                      Detalle →
-                    </button>
-                  )}
-                </div>
+                  // EDITING / PENDIENTE / DEMO view (the score pickers)
+                  return (
+                    <>
+                      {/* Team names row (above the pickers) */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <div style={{
+                          flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0
+                        }}>
+                          {match.home_team?.flag_url && (
+                            <img src={match.home_team.flag_url} alt=""
+                              style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                          )}
+                          <span style={{
+                            fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                          }}>
+                            {match.home_team?.name || 'Por determinar'}
+                          </span>
+                        </div>
+                        <span style={{ color: 'var(--text-dim)', fontSize: '10px', fontWeight: '600' }}>vs</span>
+                        <div style={{
+                          flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0
+                        }}>
+                          <span style={{
+                            fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                          }}>
+                            {match.away_team?.name || 'Por determinar'}
+                          </span>
+                          {match.away_team?.flag_url && (
+                            <img src={match.away_team.flag_url} alt=""
+                              style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Score pickers — two side-by-side grids, one per team */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                        <ScorePicker
+                          value={typeof pred.home_score === 'number' ? pred.home_score : (pred.home_score !== '' && pred.home_score !== undefined ? Number(pred.home_score) : null)}
+                          onChange={n => !demoMode && updatePrediction(match.id, 'home_score', n)}
+                          disabled={deadline.expired || demoMode}
+                          accent={unsaved ? 'gold' : 'green'}
+                        />
+                        <ScorePicker
+                          value={typeof pred.away_score === 'number' ? pred.away_score : (pred.away_score !== '' && pred.away_score !== undefined ? Number(pred.away_score) : null)}
+                          onChange={n => !demoMode && updatePrediction(match.id, 'away_score', n)}
+                          disabled={deadline.expired || demoMode}
+                          accent={unsaved ? 'gold' : 'green'}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', gap: '6px' }}>
+                        {demoMode && isFinished && demoPoints !== null ? (
+                          <span style={{
+                            padding: '2px 10px', borderRadius: '3px', fontSize: '10px', fontWeight: '600',
+                            background: demoPoints === 3 ? 'rgba(0,122,69,0.15)' : demoPoints === 1 ? 'rgba(255,204,0,0.1)' : 'rgba(226,75,74,0.1)',
+                            color: demoPoints === 3 ? 'var(--green)' : demoPoints === 1 ? 'var(--gold)' : '#e74c3c'
+                          }}>
+                            {demoPoints === 3 ? 'Exacto +3' : demoPoints === 1 ? 'Signo +1' : 'Fallo 0'}
+                          </span>
+                        ) : demoMode && isLive ? (
+                          <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'rgba(226,75,74,0.1)', color: '#ff6b6b' }}>
+                            En juego...
+                          </span>
+                        ) : demoMode ? (
+                          <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--green-light)', color: 'var(--green)' }}>
+                            Guardado
+                          </span>
+                        ) : unsaved ? (
+                          <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--gold-dim)', color: 'var(--gold)' }}>
+                            Sin guardar
+                          </span>
+                        ) : saved ? (
+                          <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--green-light)', color: 'var(--green)' }}>
+                            Guardado
+                          </span>
+                        ) : (
+                          <span style={{ padding: '2px 10px', borderRadius: '3px', fontSize: '10px', background: 'var(--bg-secondary)', color: 'var(--text-dim)' }}>
+                            Pendiente
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             )
           })}

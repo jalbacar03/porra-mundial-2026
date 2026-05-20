@@ -198,7 +198,14 @@ export default function Leaderboard({ demoMode }) {
     )
   }
 
-  const bot365Entry = allRankings.find(u => u.user_id === BOT365_ID)
+  // Feature flag: temporarily hide Bot365 from the public UI. Data stays in
+  // the database, predictions keep loading, the leaderboard view keeps
+  // including it — only the visible row is suppressed. Flip to `true` to
+  // bring the "Referencia · Casas de apuestas" row back without redeploys
+  // beyond this file.
+  const SHOW_BOT365 = false
+
+  const bot365Entry = SHOW_BOT365 ? allRankings.find(u => u.user_id === BOT365_ID) : null
   const currentRankings = allRankings.filter(u => u.user_id !== BOT365_ID)
   const isEmpty = currentRankings.length === 0
 

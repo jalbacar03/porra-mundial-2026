@@ -476,14 +476,8 @@ def build():
         ),
         Paragraph(
             "En caso de empate a puntos en la clasificación general, desempatará el mayor número de "
-            "<b>resultados exactos</b> conseguidos en la fase de grupos.",
+            "<b>resultados exactos</b> conseguidos durante todo el torneo (grupos + eliminatorias).",
             S_P
-        ),
-        info_box(
-            "<b>Referencia: Casas de apuestas</b><br/>"
-            "En la clasificación verás una línea de referencia basada en las predicciones de las casas de apuestas. "
-            "Si estás por encima, vas mejor que las estadísticas.",
-            accent=GREEN, bg=BG_GREEN_SOFT
         ),
     ]))
     story.append(Spacer(1, 10))

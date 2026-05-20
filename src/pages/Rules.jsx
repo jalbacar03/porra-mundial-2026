@@ -192,16 +192,8 @@ export default function Rules() {
       {/* ===== CLASIFICACIÓN ===== */}
       <Section icon="🏅" title="Clasificación y desempate">
         <P>La clasificación se actualiza automáticamente conforme se juegan los partidos.</P>
-        <P>En caso de empate a puntos en la clasificación general, desempatará el mayor número de resultados exactos conseguidos en la fase de grupos.</P>
+        <P>En caso de empate a puntos en la clasificación general, desempatará el mayor número de resultados exactos conseguidos durante todo el torneo (grupos + eliminatorias).</P>
         <P last>La clasificación de los "últimos 3 días" es solo informativa — no cuenta para la puntuación final.</P>
-        <div style={{
-          marginTop: '10px', padding: '10px 12px',
-          background: 'rgba(255,255,255,0.03)', border: '0.5px solid var(--border)',
-          borderRadius: '6px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5'
-        }}>
-          <strong style={{ color: 'var(--text-primary)' }}>Referencia: Casas de apuestas</strong><br />
-          En la clasificación verás una línea de referencia basada en las predicciones de las casas de apuestas. Si estás por encima, vas mejor que las estadísticas.
-        </div>
       </Section>
 
       {/* ===== FECHAS CLAVE ===== */}
