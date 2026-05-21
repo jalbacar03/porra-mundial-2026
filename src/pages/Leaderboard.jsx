@@ -32,22 +32,26 @@ export default function Leaderboard({ demoMode }) {
 
   const [paidUsers, setPaidUsers] = useState(new Set())
   const [profileFullNames, setProfileFullNames] = useState({})
+  const [paymentConfirmed, setPaymentConfirmed] = useState(new Set())
 
   useEffect(() => {
     fetchData()
-    supabase.from('profiles').select('id, full_name, has_paid').then(({ data }) => {
+    supabase.from('profiles').select('id, full_name, has_paid, payment_confirmed').then(({ data }) => {
       if (data) {
         const map = {}
         const fullNames = {}
         const paid = new Set()
+        const payConfirmed = new Set()
         data.forEach(p => {
           map[p.id] = p.full_name || 'Participante'
           fullNames[p.id] = p.full_name || 'Participante'
           if (p.has_paid) paid.add(p.id)
+          if (p.payment_confirmed) payConfirmed.add(p.id)
         })
         setProfileNames(map)
         setProfileFullNames(fullNames)
         setPaidUsers(paid)
+        setPaymentConfirmed(payConfirmed)
       }
     })
   }, [])
@@ -338,23 +342,35 @@ export default function Leaderboard({ demoMode }) {
                   style={{ marginLeft: '6px', marginRight: '12px' }}
                 />
 
-                {/* Name + delta */}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{
-                    fontSize: '15px',
-                    fontWeight: isMe ? '700' : '500',
-                    color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                  }}>
-                    {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
-                  </span>
-                  {delta !== 0 && (
+                {/* Name + delta + payment indicator */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{
-                      fontSize: '11px', fontWeight: '700',
-                      color: delta > 0 ? '#4ade80' : '#e74c3c',
-                      flexShrink: 0
+                      fontSize: '15px',
+                      fontWeight: isMe ? '700' : '500',
+                      color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                      {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
+                    </span>
+                    {delta !== 0 && (
+                      <span style={{
+                        fontSize: '11px', fontWeight: '700',
+                        color: delta > 0 ? '#4ade80' : '#e74c3c',
+                        flexShrink: 0
+                      }}>
+                        {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
+                      </span>
+                    )}
+                  </div>
+                  {/* Payment status — small + discreet, managed by admins */}
+                  {!isBot && (
+                    <span style={{
+                      fontSize: '10px',
+                      color: paymentConfirmed.has(user.user_id) ? 'var(--text-dim)' : '#c2362b',
+                      opacity: 0.85
+                    }}>
+                      {paymentConfirmed.has(user.user_id) ? 'Pagado ✅' : 'No pagado ❌'}
                     </span>
                   )}
                 </div>
