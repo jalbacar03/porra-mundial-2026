@@ -173,7 +173,7 @@ export default function MatchDetail({ session }) {
           fontSize: '11px', fontWeight: '700', color: 'var(--gold)',
           textTransform: 'uppercase', letterSpacing: '0.8px'
         }}>
-          {dayLabel} · {timeLabel}
+          {dayLabel} · {timeLabel}{match.city ? ` · ${match.city}` : ''}
         </span>
       </div>
 

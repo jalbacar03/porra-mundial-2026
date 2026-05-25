@@ -340,6 +340,11 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                 }}>
                   <span>{formatDate(match.match_date)}</span>
+                  {match.city && (
+                    <span style={{ color: 'var(--text-dim)', fontSize: '10.5px' }}>
+                      📍 {match.city}
+                    </span>
+                  )}
                   {demoMode && isFinished && (
                     <span style={{
                       fontSize: '9px', padding: '1px 6px', borderRadius: '3px',

@@ -933,6 +933,11 @@ export default function Dashboard({ session, demoMode }) {
                   <div style={{ flexShrink: 0, textAlign: 'left', minWidth: '46px' }}>
                     <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>{dayLabel(d)}</div>
                     <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '1px' }}>{timeLabel(d)}</div>
+                    {match.city && (
+                      <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                        📍 {match.city}
+                      </div>
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />}
