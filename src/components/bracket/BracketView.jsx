@@ -365,7 +365,10 @@ export default function BracketView({ session }) {
   const FINAL_SLOTS = slotsOf(FINAL_MATCH)
 
   const COLUMNS = [
-    { key: 'r32',   label: '16avos',  pts: 0, matches: R32_SLOTS,   flex: 1,  readonly: true },
+    // R32 emparejamientos vienen de los grupos predichos, pero el ganador de
+    // cada R32 partido sí lo elige el user (tap sobre el equipo). El auto-fill
+    // solo pone un default sensato (mayor seed → home) que es editable.
+    { key: 'r32',   label: '16avos',  pts: 0, matches: R32_SLOTS,   flex: 1 },
     { key: 'r16',   label: 'Octavos', pts: 1, matches: R16_SLOTS,   flex: 2 },
     { key: 'qf',    label: 'Cuartos', pts: 2, matches: QF_SLOTS,    flex: 4 },
     { key: 'sf',    label: 'Semi',    pts: 4, matches: SF_SLOTS,    flex: 8 },
