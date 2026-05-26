@@ -338,37 +338,38 @@ export default function BracketView({ session }) {
   // Potential points: sum of round.pointsPerWin × matches in round + champion bonus if final picked
   const potentialPts = (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 5) + (totalFinalPicked * 8)
 
-  // R32: render 32 slots (one per team), grouped in adjacent pairs that
-  // represent the same R32 match. The order follows the R16 feeder chain:
-  // for each R16 match (89..96) we list its two feeding R32 matches in
-  // sequence, and for each of those we emit the home and the away team —
-  // so the four R32 slots that "fan in" to one R16 card sit directly to
-  // its left, aligning visually like a classic bracket.
+  // Every round uses the same "two slots per match" model:
+  //   – Each match contributes [home slot, away slot] adjacent.
+  //   – The slots are ordered along the feeder chain so the slots of any
+  //     given match physically sit between the slots of the two feeding
+  //     matches in the previous column (classic bracket layout).
+  //
+  // R32 (32 slots) → R16 (16 slots) → QF (8) → SF (4) → Final (2).
+  // Every column totals 32 units of vertical space (flex weights below)
+  // so cards line up cleanly across rounds.
   const R32_SLOTS = R16_MATCHES.flatMap(r16 => {
-    const slots = []
-    for (const r32MatchNumber of [r16.homeMatch, r16.awayMatch]) {
-      const r32m = R32_MATCHES.find(m => m.matchNumber === r32MatchNumber)
-      if (!r32m) continue
-      slots.push({ matchNumber: r32MatchNumber, side: 'home' })
-      slots.push({ matchNumber: r32MatchNumber, side: 'away' })
+    const out = []
+    for (const r32mn of [r16.homeMatch, r16.awayMatch]) {
+      out.push({ matchNumber: r32mn, side: 'home' })
+      out.push({ matchNumber: r32mn, side: 'away' })
     }
-    return slots
+    return out
   })
+  const slotsOf = (matchesArr) => matchesArr.flatMap(m => [
+    { matchNumber: m.matchNumber, side: 'home' },
+    { matchNumber: m.matchNumber, side: 'away' },
+  ])
+  const R16_SLOTS = slotsOf(R16_MATCHES)
+  const QF_SLOTS = slotsOf(QF_MATCHES)
+  const SF_SLOTS = slotsOf(SF_MATCHES)
+  const FINAL_SLOTS = slotsOf(FINAL_MATCH)
 
-  // flex weights so all 5 columns occupy the same total vertical height:
-  //   32 R32 slots × 1   = 32 units
-  //    8 R16 cards × 4   = 32
-  //    4 QF cards  × 8   = 32
-  //    2 SF cards  × 16  = 32
-  //    1 Final     × 32  = 32
-  // → each R16 card is centered between the 4 R32 slots that feed it, and
-  // the chain cascades all the way to the Final.
   const COLUMNS = [
-    { key: 'r32', label: '16avos', pts: 0, matches: R32_SLOTS, flex: 1, readonly: true, slotMode: true },
-    { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES, flex: 4 },
-    { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES, flex: 8 },
-    { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES, flex: 16 },
-    { key: 'final', label: 'Final', pts: 5, matches: FINAL_MATCH, flex: 32 }
+    { key: 'r32',   label: '16avos',  pts: 0, matches: R32_SLOTS,   flex: 1,  readonly: true },
+    { key: 'r16',   label: 'Octavos', pts: 1, matches: R16_SLOTS,   flex: 2 },
+    { key: 'qf',    label: 'Cuartos', pts: 2, matches: QF_SLOTS,    flex: 4 },
+    { key: 'sf',    label: 'Semi',    pts: 4, matches: SF_SLOTS,    flex: 8 },
+    { key: 'final', label: 'Final',   pts: 5, matches: FINAL_SLOTS, flex: 16 }
   ]
 
   return (
@@ -433,183 +434,123 @@ export default function BracketView({ session }) {
           const matchups = allMatchups[col.key]
           return (
             <div key={col.key} style={{ display: 'flex', flexDirection: 'column' }}>
-              {col.matches.map((m, idx) => {
-                // Slot wrapper: flex weight ensures each card occupies vertical
-                // space proportional to its round, so cards align with the
-                // midpoint of the cards feeding it in the previous round.
-                const slotStyle = {
-                  flex: col.flex,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'stretch',
-                  justifyContent: 'center',
-                  padding: '2px 0',
-                  gap: '2px'
-                }
-
-                // ─── R32 slot mode: render the home/away team of each R32 match
-                //    as its own card. Two adjacent cards = one R32 match.
-                if (col.slotMode) {
-                  const matchup = matchups[m.matchNumber]
-                  const team = matchup?.[m.side]
-                  const pick = picks[m.matchNumber]
-                  const isAdvancing = team && pick?.predicted_winner_id === team.id
-                  // Subtle separator between the two cards of each match: lighter
-                  // gap on the boundary "between matches", tighter inside a match.
-                  const matchBoundary = m.side === 'away' && idx < col.matches.length - 1
-                  return (
-                    <div key={`r32-${idx}`} style={{
-                      ...slotStyle,
-                      paddingBottom: matchBoundary ? '6px' : '2px'
-                    }}>
-                      {team ? (
-                        <div style={{
-                          padding: '4px 6px', borderRadius: '6px',
-                          background: isAdvancing ? 'rgba(0,122,69,0.18)' : 'rgba(255,255,255,0.03)',
-                          border: isAdvancing
-                            ? '1px solid var(--green)'
-                            : '1px solid rgba(255,255,255,0.06)',
-                          display: 'flex', alignItems: 'center', gap: '5px',
-                          minHeight: '24px'
-                        }}>
-                          {team.flag_url && (
-                            <img src={team.flag_url} alt="" style={{
-                              width: '15px', height: '11px', borderRadius: '1.5px',
-                              objectFit: 'cover', flexShrink: 0,
-                              opacity: isAdvancing ? 1 : 0.6
-                            }} />
-                          )}
-                          <span style={{
-                            fontSize: '9.5px',
-                            fontWeight: isAdvancing ? '700' : '500',
-                            color: isAdvancing ? 'var(--text-primary)' : 'var(--text-muted)',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            flex: 1
-                          }}>{team.name}</span>
-                        </div>
-                      ) : (
-                        <div style={{
-                          padding: '4px 6px', borderRadius: '6px',
-                          border: '1px dashed rgba(255,255,255,0.06)',
-                          fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center',
-                          minHeight: '24px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>?</div>
-                      )}
-                    </div>
-                  )
-                }
-
-                // ─── R16+ winner-pick mode ───────────────────────────────
-                const matchup = matchups[m.matchNumber]
-                const pick = picks[m.matchNumber]
-                const winnerId = pick?.predicted_winner_id
-                const winnerTeam = winnerId === matchup?.home?.id ? matchup.home : winnerId === matchup?.away?.id ? matchup.away : null
+              {col.matches.map((slot, idx) => {
+                // Unified slot rendering for every round: each slot represents
+                // one team of one match. Two adjacent slots = one match.
+                const matchup = matchups[slot.matchNumber]
+                const team = matchup?.[slot.side]
+                const pick = picks[slot.matchNumber]
+                const isAdvancing = team && pick?.predicted_winner_id === team.id
                 const isFinal = col.key === 'final'
-                // Points: round points; if final picked → add champion bonus 8
-                const pts = isFinal && winnerTeam ? col.pts + 8 : col.pts
 
-                // Per-match deadline: lock when the match has already started
-                const matchInfo = knockoutDates[m.matchNumber]
+                const matchInfo = knockoutDates[slot.matchNumber]
                 const matchLocked = matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled')
 
-                const togglePick = () => {
-                  if (matchLocked) return
-                  if (col.readonly) return
-                  if (!matchup?.home || !matchup?.away) return
-                  const next = winnerId === matchup.home.id ? matchup.away.id
-                             : winnerId === matchup.away.id ? matchup.home.id
-                             : matchup.home.id
-                  handlePickWinner(m.matchNumber, next)
+                // Visual grouping: tight gap inside a match (between the home
+                // and away slots), wider gap between matches.
+                const isAwayHalfBoundary = slot.side === 'away' && idx < col.matches.length - 1
+
+                const clickable = team && !col.readonly && !matchLocked && matchup?.home && matchup?.away
+                const handleClick = () => {
+                  if (!clickable) return
+                  // Set this slot's team as the match winner (no toggle off — to
+                  // change the winner the user clicks the OTHER slot of the pair).
+                  if (pick?.predicted_winner_id === team.id) return
+                  handlePickWinner(slot.matchNumber, team.id)
                 }
 
-                // Match metadata caption (date + city). R32 cards are half the
-                // height of R16 cards and have 16 of them — packing fecha + city
-                // there would visually saturate the column. Show full caption
-                // only from R16 onwards. (R32 cards keep just the team name.)
-                const matchCaption = matchInfo && col.key !== 'r32' && (
+                // Slot wrapper with flex weight (round-proportional vertical
+                // space → cards line up across columns like a real bracket).
+                const slotWrapStyle = {
+                  flex: col.flex,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'stretch', justifyContent: 'center',
+                  padding: '1px 0',
+                  paddingBottom: isAwayHalfBoundary ? '6px' : '1px'
+                }
+
+                // Caption appears once per match, under the away slot, with
+                // the date / city. R32 is read-only / very dense → skip caption.
+                const showCaption = slot.side === 'away' && col.key !== 'r32' && matchInfo
+                const matchCaption = showCaption && (
                   <div style={{
                     fontSize: '8.5px', color: 'var(--text-dim)',
-                    textAlign: 'center', lineHeight: '1.2',
-                    width: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap', padding: '0 2px'
+                    textAlign: 'center', lineHeight: '1.25',
+                    marginTop: '3px', padding: '0 2px'
                   }}>
                     {matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                     {' · '}
                     {matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                    {matchInfo.city && (
-                      <>
-                        <br/>📍 {matchInfo.city}
-                      </>
-                    )}
+                    {matchInfo.city && <><br/>📍 {matchInfo.city}</>}
                   </div>
                 )
 
-                if (!matchup?.home || !matchup?.away) {
+                // Final winner = champion → gold treatment
+                const isChampion = isFinal && isAdvancing
+
+                // Placeholder when team isn't resolved yet
+                if (!team) {
                   return (
-                    <div key={m.matchNumber} style={slotStyle}>
+                    <div key={`${col.key}-${idx}`} style={slotWrapStyle}>
                       <div style={{
-                        width: '100%',
-                        padding: '8px 6px', borderRadius: '8px',
-                        background: 'rgba(255,255,255,0.02)',
+                        padding: '4px 6px', borderRadius: '6px',
                         border: '1px dashed rgba(255,255,255,0.06)',
-                        fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center'
-                      }}>—</div>
+                        fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center',
+                        minHeight: col.key === 'final' ? '40px' : '24px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>?</div>
                       {matchCaption}
                     </div>
                   )
                 }
 
                 return (
-                  <div key={m.matchNumber} style={slotStyle}>
+                  <div key={`${col.key}-${idx}`} style={slotWrapStyle}>
                     <button
-                      onClick={togglePick}
-                      disabled={matchLocked || col.readonly}
+                      onClick={handleClick}
+                      disabled={!clickable}
                       title={
                         matchLocked ? 'Partido ya iniciado'
                         : col.readonly ? 'Se deriva automáticamente de tus predicciones de grupo'
-                        : ''
+                        : isAdvancing ? 'Ya elegido como ganador'
+                        : 'Tap para elegir como ganador'
                       }
                       style={{
                         width: '100%',
-                        padding: isFinal ? '12px 6px' : col.key === 'r32' ? '4px 3px' : '8px 6px',
-                        borderRadius: col.key === 'r32' ? '6px' : '8px',
-                        cursor: matchLocked || col.readonly ? 'default' : 'pointer',
-                        background: isFinal && winnerTeam ? 'var(--gold)' : 'var(--bg-secondary)',
-                        border: winnerTeam
-                          ? (isFinal ? '1px solid var(--gold)' : col.readonly ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--green)')
-                          : '1px solid var(--border-light)',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center',
-                        gap: col.key === 'r32' ? '1px' : '3px',
-                        minHeight: isFinal ? '70px' : 'auto',
-                        opacity: matchLocked ? 0.6 : 1
+                        padding: isFinal ? '8px 6px' : '4px 6px',
+                        borderRadius: '6px',
+                        cursor: clickable ? 'pointer' : 'default',
+                        background: isChampion ? 'var(--gold)'
+                          : isAdvancing ? 'rgba(0,122,69,0.20)'
+                          : 'rgba(255,255,255,0.03)',
+                        border: isChampion ? '1px solid var(--gold)'
+                          : isAdvancing ? '1px solid var(--green)'
+                          : '1px solid rgba(255,255,255,0.06)',
+                        display: 'flex', alignItems: 'center', gap: '5px',
+                        minHeight: isFinal ? '36px' : '24px',
+                        opacity: matchLocked && !isAdvancing ? 0.5 : 1,
+                        transition: 'background 0.15s ease, border-color 0.15s ease'
                       }}
                     >
-                      {winnerTeam ? (
-                        <>
-                          {winnerTeam.flag_url && (
-                            <img src={winnerTeam.flag_url} alt="" style={{
-                              width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover'
-                            }} />
-                          )}
-                          <span style={{
-                            fontSize: col.key === 'r32' ? '9px' : '10px',
-                            fontWeight: '700',
-                            color: isFinal ? '#1a1d26' : 'var(--text-primary)',
-                            textAlign: 'center', lineHeight: '1.1',
-                            maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                          }}>{winnerTeam.name}</span>
-                          {pts > 0 && (
-                            <span style={{
-                              fontSize: '9px', fontWeight: '800',
-                              color: isFinal ? 'rgba(0,0,0,0.7)' : 'var(--gold)'
-                            }}>
-                              {isFinal ? '🏆 +' : '+'}{pts}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Elegir</span>
+                      {team.flag_url && (
+                        <img src={team.flag_url} alt="" style={{
+                          width: isFinal ? '20px' : '15px',
+                          height: isFinal ? '14px' : '11px',
+                          borderRadius: '1.5px', objectFit: 'cover', flexShrink: 0,
+                          opacity: isAdvancing ? 1 : 0.55
+                        }} />
+                      )}
+                      <span style={{
+                        fontSize: isFinal ? '11px' : '9.5px',
+                        fontWeight: isAdvancing ? '700' : '500',
+                        color: isChampion ? '#1a1d26'
+                          : isAdvancing ? 'var(--text-primary)'
+                          : 'var(--text-muted)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        flex: 1, textAlign: 'left'
+                      }}>{team.name}</span>
+                      {isChampion && (
+                        <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.7)', flexShrink: 0 }}>🏆</span>
                       )}
                     </button>
                     {matchCaption}
@@ -621,7 +562,7 @@ export default function BracketView({ session }) {
         })}
       </div>
 
-      {/* Footer: cadena campeón hint + tab switcher (for R32 visibility) */}
+      {/* Footer: cadena campeón hint */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 14px', borderRadius: '10px', background: 'var(--bg-secondary)',
