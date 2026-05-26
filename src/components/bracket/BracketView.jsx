@@ -524,23 +524,21 @@ export default function BracketView({ session }) {
 
                 return (
                   <div key={`${col.key}-${m.matchNumber}-${idx}`} style={{
-                    // Match wrapper: flex weight makes every column total the
-                    // same height (R32/R16/QF/SF/Final all sum to 32 units).
-                    // position:relative + absolute-centered slots keeps the
-                    // slot midpoint exactly on the wrapper midpoint REGARDLESS
-                    // of whether this wrapper has a date/city caption or not
-                    // — otherwise the caption pushed the slots upward in
-                    // captioned columns (R16+) but not in uncaptioned ones
-                    // (R32), accumulating drift toward the center of the
-                    // bracket.
+                    // Wrapper: flex weight makes every column total 32 units.
+                    // Slots stay in normal flow (they MUST contribute to the
+                    // wrapper's intrinsic size or the whole column collapses).
+                    // The slot stack is centered inside the wrapper via
+                    // justify-content:center. The caption is position:absolute
+                    // so it does NOT push the slots up — keeps the slot
+                    // midpoint exactly on the wrapper midpoint regardless of
+                    // whether this column carries captions or not.
                     flex: col.flex,
                     position: 'relative',
-                    minHeight: 0
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center'
                   }}>
                     <div style={{
-                      position: 'absolute',
-                      top: '50%', left: 0, right: 0,
-                      transform: 'translateY(-50%)',
                       display: 'flex', flexDirection: 'column',
                       gap: '2px'
                     }}>
@@ -550,9 +548,7 @@ export default function BracketView({ session }) {
                     {showCaption && (
                       <div style={{
                         position: 'absolute',
-                        bottom: '-2px', left: 0, right: 0,
-                        // Pulled out of the centering math but kept visually
-                        // attached to its match.
+                        bottom: '2px', left: 0, right: 0,
                         fontSize: '8.5px', color: 'var(--text-dim)',
                         textAlign: 'center', lineHeight: '1.25',
                         padding: '0 2px',
