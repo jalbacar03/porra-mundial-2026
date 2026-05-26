@@ -338,41 +338,30 @@ export default function BracketView({ session }) {
   // Potential points: sum of round.pointsPerWin × matches in round + champion bonus if final picked
   const potentialPts = (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 5) + (totalFinalPicked * 8)
 
-  // Every round uses the same "two slots per match" model:
-  //   – Each match contributes [home slot, away slot] adjacent.
-  //   – The slots are ordered along the feeder chain so the slots of any
-  //     given match physically sit between the slots of the two feeding
-  //     matches in the previous column (classic bracket layout).
-  //
-  // R32 (32 slots) → R16 (16 slots) → QF (8) → SF (4) → Final (2).
-  // Every column totals 32 units of vertical space (flex weights below)
-  // so cards line up cleanly across rounds.
-  const R32_SLOTS = R16_MATCHES.flatMap(r16 => {
-    const out = []
-    for (const r32mn of [r16.homeMatch, r16.awayMatch]) {
-      out.push({ matchNumber: r32mn, side: 'home' })
-      out.push({ matchNumber: r32mn, side: 'away' })
-    }
-    return out
-  })
-  const slotsOf = (matchesArr) => matchesArr.flatMap(m => [
-    { matchNumber: m.matchNumber, side: 'home' },
-    { matchNumber: m.matchNumber, side: 'away' },
-  ])
-  const R16_SLOTS = slotsOf(R16_MATCHES)
-  const QF_SLOTS = slotsOf(QF_MATCHES)
-  const SF_SLOTS = slotsOf(SF_MATCHES)
-  const FINAL_SLOTS = slotsOf(FINAL_MATCH)
+  // Bracket layout: every column is a flex column of MATCH wrappers. Each
+  // wrapper holds the two team slots (home + away) for that match and is
+  // sized by a flex weight that's exactly proportional to how many "R32
+  // units" the match spans:
+  //   R32: 16 matches × flex 2  = 32 units total
+  //   R16:  8 matches × flex 4  = 32
+  //   QF :  4 matches × flex 8  = 32
+  //   SF :  2 matches × flex 16 = 32
+  //   Final 1 × flex 32         = 32
+  // Every column totals the same vertical height, and the gap-between-
+  // matches is uniform per column → each match in round N+1 ends up
+  // physically centered against the two matches that feed it in round N.
+  // R32 ordered to follow the R16 feeder chain so the geometry holds.
+  const R32_MATCHES_ORDERED = R16_MATCHES.flatMap(r16 => [
+    R32_MATCHES.find(m => m.matchNumber === r16.homeMatch),
+    R32_MATCHES.find(m => m.matchNumber === r16.awayMatch),
+  ]).filter(Boolean)
 
   const COLUMNS = [
-    // R32 emparejamientos vienen de los grupos predichos, pero el ganador de
-    // cada R32 partido sí lo elige el user (tap sobre el equipo). El auto-fill
-    // solo pone un default sensato (mayor seed → home) que es editable.
-    { key: 'r32',   label: '16avos',  pts: 0, matches: R32_SLOTS,   flex: 1 },
-    { key: 'r16',   label: 'Octavos', pts: 1, matches: R16_SLOTS,   flex: 2 },
-    { key: 'qf',    label: 'Cuartos', pts: 2, matches: QF_SLOTS,    flex: 4 },
-    { key: 'sf',    label: 'Semi',    pts: 4, matches: SF_SLOTS,    flex: 8 },
-    { key: 'final', label: 'Final',   pts: 5, matches: FINAL_SLOTS, flex: 16 }
+    { key: 'r32',   label: '16avos',  pts: 0, matches: R32_MATCHES_ORDERED, flex: 2 },
+    { key: 'r16',   label: 'Octavos', pts: 1, matches: R16_MATCHES,         flex: 4 },
+    { key: 'qf',    label: 'Cuartos', pts: 2, matches: QF_MATCHES,          flex: 8 },
+    { key: 'sf',    label: 'Semi',    pts: 4, matches: SF_MATCHES,          flex: 16 },
+    { key: 'final', label: 'Final',   pts: 5, matches: FINAL_MATCH,         flex: 32 }
   ]
 
   return (
@@ -436,50 +425,26 @@ export default function BracketView({ session }) {
         {COLUMNS.map(col => {
           const matchups = allMatchups[col.key]
           return (
-            <div key={col.key} style={{ display: 'flex', flexDirection: 'column' }}>
-              {col.matches.map((slot, idx) => {
-                // Unified slot rendering for every round: each slot represents
-                // one team of one match. Two adjacent slots = one match.
-                const matchup = matchups[slot.matchNumber]
-                const team = matchup?.[slot.side]
-                const pick = picks[slot.matchNumber]
-                const isAdvancing = team && pick?.predicted_winner_id === team.id
+            <div key={col.key} style={{
+              display: 'flex', flexDirection: 'column',
+              // Uniform gap between match wrappers — this is what gives the
+              // visual grouping (slots inside a match are flush, gap shows
+              // up only between matches).
+              gap: '8px'
+            }}>
+              {col.matches.map((m, idx) => {
+                const matchup = matchups[m.matchNumber]
+                const pick = picks[m.matchNumber]
                 const isFinal = col.key === 'final'
 
-                const matchInfo = knockoutDates[slot.matchNumber]
+                const matchInfo = knockoutDates[m.matchNumber]
                 const matchLocked = matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled')
 
-                // Visual grouping: tight gap inside a match (between the home
-                // and away slots), wider gap between matches.
-                const isAwayHalfBoundary = slot.side === 'away' && idx < col.matches.length - 1
-
-                const clickable = team && !col.readonly && !matchLocked && matchup?.home && matchup?.away
-                const handleClick = () => {
-                  if (!clickable) return
-                  // Set this slot's team as the match winner (no toggle off — to
-                  // change the winner the user clicks the OTHER slot of the pair).
-                  if (pick?.predicted_winner_id === team.id) return
-                  handlePickWinner(slot.matchNumber, team.id)
-                }
-
-                // Slot wrapper with flex weight (round-proportional vertical
-                // space → cards line up across columns like a real bracket).
-                const slotWrapStyle = {
-                  flex: col.flex,
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'stretch', justifyContent: 'center',
-                  padding: '1px 0',
-                  paddingBottom: isAwayHalfBoundary ? '6px' : '1px'
-                }
-
-                // Caption appears once per match, under the away slot, with
-                // the date / city. R32 is read-only / very dense → skip caption.
-                const showCaption = slot.side === 'away' && col.key !== 'r32' && matchInfo
-                const matchCaption = showCaption && (
+                const matchCaption = matchInfo && col.key !== 'r32' && (
                   <div style={{
                     fontSize: '8.5px', color: 'var(--text-dim)',
                     textAlign: 'center', lineHeight: '1.25',
-                    marginTop: '3px', padding: '0 2px'
+                    marginTop: '4px', padding: '0 2px'
                   }}>
                     {matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                     {' · '}
@@ -488,38 +453,42 @@ export default function BracketView({ session }) {
                   </div>
                 )
 
-                // Final winner = champion → gold treatment
-                const isChampion = isFinal && isAdvancing
+                // Render one team slot inside this match wrapper
+                const renderSlot = (side) => {
+                  const team = matchup?.[side]
+                  const isAdvancing = team && pick?.predicted_winner_id === team.id
+                  const clickable = team && !matchLocked && matchup?.home && matchup?.away
+                  const isChampion = isFinal && isAdvancing
+                  const handleClick = () => {
+                    if (!clickable || !team) return
+                    if (pick?.predicted_winner_id === team.id) return
+                    handlePickWinner(m.matchNumber, team.id)
+                  }
 
-                // Placeholder when team isn't resolved yet
-                if (!team) {
-                  return (
-                    <div key={`${col.key}-${idx}`} style={slotWrapStyle}>
+                  if (!team) {
+                    return (
                       <div style={{
+                        flex: 1,
                         padding: '4px 6px', borderRadius: '6px',
                         border: '1px dashed rgba(255,255,255,0.06)',
                         fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center',
                         minHeight: col.key === 'final' ? '40px' : '24px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}>?</div>
-                      {matchCaption}
-                    </div>
-                  )
-                }
+                    )
+                  }
 
-                return (
-                  <div key={`${col.key}-${idx}`} style={slotWrapStyle}>
+                  return (
                     <button
                       onClick={handleClick}
                       disabled={!clickable}
                       title={
                         matchLocked ? 'Partido ya iniciado'
-                        : col.readonly ? 'Se deriva automáticamente de tus predicciones de grupo'
                         : isAdvancing ? 'Ya elegido como ganador'
                         : 'Tap para elegir como ganador'
                       }
                       style={{
-                        width: '100%',
+                        flex: 1,
                         padding: isFinal ? '8px 6px' : '4px 6px',
                         borderRadius: '6px',
                         cursor: clickable ? 'pointer' : 'default',
@@ -556,6 +525,24 @@ export default function BracketView({ session }) {
                         <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.7)', flexShrink: 0 }}>🏆</span>
                       )}
                     </button>
+                  )
+                }
+
+                return (
+                  <div key={`${col.key}-${m.matchNumber}-${idx}`} style={{
+                    // Match wrapper: flex weight makes every column total the
+                    // same height. The two team slots stack vertically inside.
+                    flex: col.flex,
+                    display: 'flex', flexDirection: 'column',
+                    justifyContent: 'center'
+                  }}>
+                    <div style={{
+                      display: 'flex', flexDirection: 'column',
+                      gap: '2px'  // tight gap between the home/away of THIS match
+                    }}>
+                      {renderSlot('home')}
+                      {renderSlot('away')}
+                    </div>
                     {matchCaption}
                   </div>
                 )
