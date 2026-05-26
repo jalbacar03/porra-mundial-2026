@@ -45,7 +45,7 @@ export default function BracketView({ session }) {
         .select('id, name, code, flag_url'),
       supabase
         .from('matches')
-        .select('id, match_date, status')
+        .select('id, match_date, status, city, match_number')
         .neq('stage', 'group')
     ])
 
@@ -53,7 +53,13 @@ export default function BracketView({ session }) {
 
     if (knockoutRes.data) {
       const dates = {}
-      knockoutRes.data.forEach(m => { dates[m.id] = { date: new Date(m.match_date), status: m.status } })
+      knockoutRes.data.forEach(m => {
+        // key by both id and match_number for safety (they're equal for bracket
+        // matches in this DB but the rest of the code reads by match_number).
+        const entry = { date: new Date(m.match_date), status: m.status, city: m.city }
+        dates[m.id] = entry
+        if (m.match_number) dates[m.match_number] = entry
+      })
       setKnockoutDates(dates)
     }
 
@@ -107,6 +113,96 @@ export default function BracketView({ session }) {
     sf: sfMatchups,
     final: finalMatchups
   }
+
+  // ─── Auto-fill R32 + cascade invalidation ──────────────────────────────
+  // R32 has 16 matches that pair the 32 group qualifiers with no user choice
+  // needed at that level (the bracket already says "1E vs 3ABCDF", etc.).
+  // To stop the user from having to manually click 16 R32 cards before the
+  // bracket cascade lights up, we auto-pick the higher-seeded team (home, which
+  // resolveR32Matchups already puts there). The user can still change it from
+  // the collapsible R32 panel at the bottom.
+  //
+  // Also: if a previously picked winner is no longer one of the two teams
+  // resolved for that match (because a group prediction changed upstream),
+  // the pick is stale — we invalidate it so the downstream rounds don't show
+  // a phantom country that doesn't actually play.
+  useEffect(() => {
+    if (loading) return
+    if (!Object.keys(r32Matchups).length) return
+
+    const toUpsert = []
+    const toClear = []
+
+    // R32 — auto-fill missing + invalidate stale
+    for (const m of R32_MATCHES) {
+      const mu = r32Matchups[m.matchNumber]
+      const pick = picks[m.matchNumber]
+      if (!mu?.home || !mu?.away) continue
+      const validIds = [mu.home.id, mu.away.id]
+      if (!pick?.predicted_winner_id) {
+        toUpsert.push({
+          match_number: m.matchNumber, round: 'r32',
+          predicted_winner_id: mu.home.id,
+          home_team_id: mu.home.id, away_team_id: mu.away.id,
+        })
+      } else if (!validIds.includes(pick.predicted_winner_id)) {
+        // Stale: the picked winner no longer plays this match → reset to home
+        toUpsert.push({
+          match_number: m.matchNumber, round: 'r32',
+          predicted_winner_id: mu.home.id,
+          home_team_id: mu.home.id, away_team_id: mu.away.id,
+        })
+      }
+    }
+
+    // R16/QF/SF/Final — invalidate stale picks where the predicted winner
+    // is no longer one of the two resolved candidates.
+    for (const [round, [matches, mus]] of Object.entries({
+      r16: [R16_MATCHES, r16Matchups],
+      qf: [QF_MATCHES, qfMatchups],
+      sf: [SF_MATCHES, sfMatchups],
+      final: [FINAL_MATCH, finalMatchups],
+    })) {
+      for (const m of matches) {
+        const mu = mus[m.matchNumber]
+        const pick = picks[m.matchNumber]
+        if (!pick?.predicted_winner_id) continue
+        if (!mu?.home || !mu?.away) {
+          // Upstream broke → clear this pick so the user re-picks knowingly
+          toClear.push(m.matchNumber)
+          continue
+        }
+        if (![mu.home.id, mu.away.id].includes(pick.predicted_winner_id)) {
+          toClear.push(m.matchNumber)
+        }
+      }
+    }
+
+    if (!toUpsert.length && !toClear.length) return
+
+    // Apply optimistic local changes
+    setPicks(prev => {
+      const next = { ...prev }
+      toUpsert.forEach(p => { next[p.match_number] = { ...next[p.match_number], ...p } })
+      toClear.forEach(mn => { if (next[mn]) next[mn] = { ...next[mn], predicted_winner_id: null } })
+      return next
+    })
+
+    // Persist
+    if (toUpsert.length) {
+      supabase.from('bracket_picks').upsert(
+        toUpsert.map(p => ({ ...p, user_id: session.user.id, updated_at: new Date().toISOString() })),
+        { onConflict: 'user_id,match_number' }
+      ).then(({ error }) => { if (error) console.error('Auto-fill bracket save error:', error) })
+    }
+    if (toClear.length) {
+      supabase.from('bracket_picks')
+        .update({ predicted_winner_id: null, updated_at: new Date().toISOString() })
+        .eq('user_id', session.user.id)
+        .in('match_number', toClear)
+        .then(({ error }) => { if (error) console.error('Cascade-clear bracket error:', error) })
+    }
+  }, [loading, r32Matchups, r16Matchups, qfMatchups, sfMatchups, finalMatchups]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Count predictions filled
   const filledPredictions = Object.keys(predictions).filter(k => {
@@ -334,10 +430,31 @@ export default function BracketView({ session }) {
                 const slotStyle = {
                   flex: col.flex,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '3px 0'
+                  padding: '3px 0',
+                  gap: '3px'
                 }
+
+                // Match metadata caption (date + city) — same look for every card
+                const matchCaption = matchInfo && (
+                  <div style={{
+                    fontSize: '8.5px', color: 'var(--text-dim)',
+                    textAlign: 'center', lineHeight: '1.2',
+                    width: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap', padding: '0 2px'
+                  }}>
+                    {matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                    {' · '}
+                    {matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    {matchInfo.city && (
+                      <>
+                        <br/>📍 {matchInfo.city}
+                      </>
+                    )}
+                  </div>
+                )
 
                 if (!matchup?.home || !matchup?.away) {
                   return (
@@ -349,6 +466,7 @@ export default function BracketView({ session }) {
                         border: '1px dashed rgba(255,255,255,0.06)',
                         fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center'
                       }}>—</div>
+                      {matchCaption}
                     </div>
                   )
                 }
@@ -397,6 +515,7 @@ export default function BracketView({ session }) {
                         <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Elegir</span>
                       )}
                     </button>
+                    {matchCaption}
                   </div>
                 )
               })}
