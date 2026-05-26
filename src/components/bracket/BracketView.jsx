@@ -338,25 +338,37 @@ export default function BracketView({ session }) {
   // Potential points: sum of round.pointsPerWin × matches in round + champion bonus if final picked
   const potentialPts = (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 5) + (totalFinalPicked * 8)
 
-  // R32 ordered to follow the R16 feeder chain: for each R16 match (89..96),
-  // place its two feeding R32 matches (homeMatch, awayMatch) adjacent. That
-  // way the visual position of each R32 card lines up with the R16 card it
-  // feeds — same trick we use for QF→SF→Final via the flex weights below.
-  const R32_ORDERED = R16_MATCHES.flatMap(r16 => [
-    R32_MATCHES.find(m => m.matchNumber === r16.homeMatch),
-    R32_MATCHES.find(m => m.matchNumber === r16.awayMatch),
-  ]).filter(Boolean)
+  // R32: render 32 slots (one per team), grouped in adjacent pairs that
+  // represent the same R32 match. The order follows the R16 feeder chain:
+  // for each R16 match (89..96) we list its two feeding R32 matches in
+  // sequence, and for each of those we emit the home and the away team —
+  // so the four R32 slots that "fan in" to one R16 card sit directly to
+  // its left, aligning visually like a classic bracket.
+  const R32_SLOTS = R16_MATCHES.flatMap(r16 => {
+    const slots = []
+    for (const r32MatchNumber of [r16.homeMatch, r16.awayMatch]) {
+      const r32m = R32_MATCHES.find(m => m.matchNumber === r32MatchNumber)
+      if (!r32m) continue
+      slots.push({ matchNumber: r32MatchNumber, side: 'home' })
+      slots.push({ matchNumber: r32MatchNumber, side: 'away' })
+    }
+    return slots
+  })
 
-  // flex weight per column: each card occupies vertical space proportional
-  // to how many R32 cards it sits "above". 16 R32 cards × 0.5 = 8 units,
-  // 8 R16 cards × 1 = 8, 4 QF × 2 = 8, 2 SF × 4 = 8, 1 Final × 8 = 8.
-  // Every column has the same total height → matching cards line up.
+  // flex weights so all 5 columns occupy the same total vertical height:
+  //   32 R32 slots × 1   = 32 units
+  //    8 R16 cards × 4   = 32
+  //    4 QF cards  × 8   = 32
+  //    2 SF cards  × 16  = 32
+  //    1 Final     × 32  = 32
+  // → each R16 card is centered between the 4 R32 slots that feed it, and
+  // the chain cascades all the way to the Final.
   const COLUMNS = [
-    { key: 'r32', label: '16avos', pts: 0, matches: R32_ORDERED, flex: 0.5, readonly: true },
-    { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES, flex: 1 },
-    { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES, flex: 2 },
-    { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES, flex: 4 },
-    { key: 'final', label: 'Final', pts: 5, matches: FINAL_MATCH, flex: 8 }
+    { key: 'r32', label: '16avos', pts: 0, matches: R32_SLOTS, flex: 1, readonly: true, slotMode: true },
+    { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES, flex: 4 },
+    { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES, flex: 8 },
+    { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES, flex: 16 },
+    { key: 'final', label: 'Final', pts: 5, matches: FINAL_MATCH, flex: 32 }
   ]
 
   return (
@@ -421,7 +433,74 @@ export default function BracketView({ session }) {
           const matchups = allMatchups[col.key]
           return (
             <div key={col.key} style={{ display: 'flex', flexDirection: 'column' }}>
-              {col.matches.map(m => {
+              {col.matches.map((m, idx) => {
+                // Slot wrapper: flex weight ensures each card occupies vertical
+                // space proportional to its round, so cards align with the
+                // midpoint of the cards feeding it in the previous round.
+                const slotStyle = {
+                  flex: col.flex,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'stretch',
+                  justifyContent: 'center',
+                  padding: '2px 0',
+                  gap: '2px'
+                }
+
+                // ─── R32 slot mode: render the home/away team of each R32 match
+                //    as its own card. Two adjacent cards = one R32 match.
+                if (col.slotMode) {
+                  const matchup = matchups[m.matchNumber]
+                  const team = matchup?.[m.side]
+                  const pick = picks[m.matchNumber]
+                  const isAdvancing = team && pick?.predicted_winner_id === team.id
+                  // Subtle separator between the two cards of each match: lighter
+                  // gap on the boundary "between matches", tighter inside a match.
+                  const matchBoundary = m.side === 'away' && idx < col.matches.length - 1
+                  return (
+                    <div key={`r32-${idx}`} style={{
+                      ...slotStyle,
+                      paddingBottom: matchBoundary ? '6px' : '2px'
+                    }}>
+                      {team ? (
+                        <div style={{
+                          padding: '4px 6px', borderRadius: '6px',
+                          background: isAdvancing ? 'rgba(0,122,69,0.18)' : 'rgba(255,255,255,0.03)',
+                          border: isAdvancing
+                            ? '1px solid var(--green)'
+                            : '1px solid rgba(255,255,255,0.06)',
+                          display: 'flex', alignItems: 'center', gap: '5px',
+                          minHeight: '24px'
+                        }}>
+                          {team.flag_url && (
+                            <img src={team.flag_url} alt="" style={{
+                              width: '15px', height: '11px', borderRadius: '1.5px',
+                              objectFit: 'cover', flexShrink: 0,
+                              opacity: isAdvancing ? 1 : 0.6
+                            }} />
+                          )}
+                          <span style={{
+                            fontSize: '9.5px',
+                            fontWeight: isAdvancing ? '700' : '500',
+                            color: isAdvancing ? 'var(--text-primary)' : 'var(--text-muted)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            flex: 1
+                          }}>{team.name}</span>
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '4px 6px', borderRadius: '6px',
+                          border: '1px dashed rgba(255,255,255,0.06)',
+                          fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center',
+                          minHeight: '24px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>?</div>
+                      )}
+                    </div>
+                  )
+                }
+
+                // ─── R16+ winner-pick mode ───────────────────────────────
                 const matchup = matchups[m.matchNumber]
                 const pick = picks[m.matchNumber]
                 const winnerId = pick?.predicted_winner_id
@@ -436,26 +515,12 @@ export default function BracketView({ session }) {
 
                 const togglePick = () => {
                   if (matchLocked) return
-                  if (col.readonly) return  // R32 is auto-derived from group predictions, no manual change
+                  if (col.readonly) return
                   if (!matchup?.home || !matchup?.away) return
-                  // If no pick → pick home; if home → switch to away; if away → switch to home
                   const next = winnerId === matchup.home.id ? matchup.away.id
                              : winnerId === matchup.away.id ? matchup.home.id
                              : matchup.home.id
                   handlePickWinner(m.matchNumber, next)
-                }
-
-                // Slot wrapper: flex weight ensures each card occupies vertical
-                // space proportional to its round, so cards align with the
-                // midpoint of the two cards feeding it in the previous round.
-                const slotStyle = {
-                  flex: col.flex,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '3px 0',
-                  gap: '3px'
                 }
 
                 // Match metadata caption (date + city). R32 cards are half the
