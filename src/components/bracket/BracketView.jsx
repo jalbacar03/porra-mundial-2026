@@ -339,7 +339,7 @@ export default function BracketView({ session }) {
   // 8 R16 cards × 1 = 8, 4 QF × 2 = 8, 2 SF × 4 = 8, 1 Final × 8 = 8.
   // Every column has the same total height → matching cards line up.
   const COLUMNS = [
-    { key: 'r32', label: '16avos', pts: 0, matches: R32_ORDERED, flex: 0.5 },
+    { key: 'r32', label: '32avos', pts: 0, matches: R32_ORDERED, flex: 0.5 },
     { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES, flex: 1 },
     { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES, flex: 2 },
     { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES, flex: 4 },
@@ -385,25 +385,25 @@ export default function BracketView({ session }) {
         </div>
       </div>
 
-      {/* 5-column grid: R32 / R16 / QF / SF / Final */}
+      {/* One unified 5-column grid for headers + bracket cards. Two rows:
+          row 1 = column labels, row 2 = each column's match stack. Sharing
+          the same grid guarantees the labels sit exactly above their
+          respective columns (no mismatch from two separate grids). */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px',
-        marginBottom: '14px'
-      }}>
-        {COLUMNS.map(col => (
-          <div key={col.key} style={{
-            fontSize: '9px', fontWeight: '700', color: 'var(--text-dim)',
-            textTransform: 'uppercase', letterSpacing: '0.8px', textAlign: 'center',
-            paddingBottom: '6px'
-          }}>{col.label}</div>
-        ))}
-      </div>
-
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px',
+        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+        gridTemplateRows: 'auto 1fr',
+        columnGap: '4px', rowGap: '8px',
         marginBottom: '20px',
         alignItems: 'stretch'
       }}>
+        {/* Row 1: headers */}
+        {COLUMNS.map(col => (
+          <div key={`h-${col.key}`} style={{
+            fontSize: '9px', fontWeight: '700', color: 'var(--text-dim)',
+            textTransform: 'uppercase', letterSpacing: '0.8px', textAlign: 'center'
+          }}>{col.label}</div>
+        ))}
+        {/* Row 2: bracket columns */}
         {COLUMNS.map(col => {
           const matchups = allMatchups[col.key]
           return (
