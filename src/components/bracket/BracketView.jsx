@@ -88,16 +88,23 @@ export default function BracketView({ session }) {
   }
 
   // Calculate group standings from predictions
-  const { groupStandings, thirdPlaceRanking } = useMemo(() => {
-    if (!matches.length) return { groupStandings: {}, thirdPlaceRanking: [] }
+  const { groupStandings, completedGroups, thirdPlaceRanking } = useMemo(() => {
+    if (!matches.length) return { groupStandings: {}, completedGroups: new Set(), thirdPlaceRanking: [] }
     return calculateGroupStandings(matches, predictions)
   }, [matches, predictions])
 
-  // Resolve R32 matchups from group standings
+  // Resolve R32 matchups — only from FULLY predicted groups. Filter the
+  // standings to the subset of complete groups so that partial groups (where
+  // the user hasn't predicted every match yet) don't hand the bracket a
+  // phantom seed. R32 slots from incomplete groups stay empty.
   const r32Matchups = useMemo(() => {
     if (!Object.keys(groupStandings).length) return {}
-    return resolveR32Matchups(groupStandings, thirdPlaceRanking)
-  }, [groupStandings, thirdPlaceRanking])
+    const completeStandings = {}
+    for (const g of completedGroups) {
+      if (groupStandings[g]) completeStandings[g] = groupStandings[g]
+    }
+    return resolveR32Matchups(completeStandings, thirdPlaceRanking)
+  }, [groupStandings, completedGroups, thirdPlaceRanking])
 
   // Resolve R16+ matchups from bracket picks
   const r16Matchups = useMemo(() => resolveRoundMatchups(picks, R16_MATCHES, teamsById), [picks, teamsById])
@@ -132,11 +139,17 @@ export default function BracketView({ session }) {
     const toUpsert = []
     const toClear = []
 
-    // R32 — auto-fill missing + invalidate stale
+    // R32 — auto-fill missing + invalidate stale.
+    // If the matchup didn't resolve (upstream group incomplete) AND there's
+    // a previously saved pick, clear it so the downstream rounds also lose
+    // their phantom feeder team.
     for (const m of R32_MATCHES) {
       const mu = r32Matchups[m.matchNumber]
       const pick = picks[m.matchNumber]
-      if (!mu?.home || !mu?.away) continue
+      if (!mu?.home || !mu?.away) {
+        if (pick?.predicted_winner_id) toClear.push(m.matchNumber)
+        continue
+      }
       const validIds = [mu.home.id, mu.away.id]
       if (!pick?.predicted_winner_id) {
         toUpsert.push({

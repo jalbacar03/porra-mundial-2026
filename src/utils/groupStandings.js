@@ -88,12 +88,32 @@ export function calculateGroupStandings(matches, predictions) {
     sortedGroups[g] = teams
   })
 
-  // Determine qualified teams
-  // Top 2 from each group (24 teams)
+  // Track which groups have ALL their matches predicted (used by callers
+  // like the bracket to decide whether a group's standings should feed
+  // R32 — partial standings shouldn't pretend to know top-2 / 3rd-place).
+  const requiredPerGroup = {}
+  const completedPerGroup = {}
+  matches.forEach(m => {
+    if (m.stage !== 'group') return
+    requiredPerGroup[m.group_name] = (requiredPerGroup[m.group_name] || 0) + 1
+    const pred = predictions[m.id]
+    if (pred && pred.home_score != null && pred.home_score !== '' &&
+        pred.away_score != null && pred.away_score !== '') {
+      completedPerGroup[m.group_name] = (completedPerGroup[m.group_name] || 0) + 1
+    }
+  })
+  const completedGroups = new Set(
+    Object.keys(requiredPerGroup).filter(g => completedPerGroup[g] === requiredPerGroup[g])
+  )
+
+  // Determine qualified teams (top-2 + best third). Only from fully-predicted
+  // groups — otherwise an empty group would sort alphabetically at 0 pts and
+  // hand the bracket a phantom ranking.
   const top2 = []
   const thirdPlace = []
 
   Object.keys(sortedGroups).sort().forEach(g => {
+    if (!completedGroups.has(g)) return
     const table = sortedGroups[g]
     if (table[0]) top2.push(table[0])
     if (table[1]) top2.push(table[1])
@@ -116,6 +136,7 @@ export function calculateGroupStandings(matches, predictions) {
 
   return {
     groupStandings: sortedGroups,
+    completedGroups,
     qualified32,
     thirdPlaceRanking: thirdPlace
   }
