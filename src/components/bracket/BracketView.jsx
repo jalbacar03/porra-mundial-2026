@@ -339,7 +339,7 @@ export default function BracketView({ session }) {
   // 8 R16 cards × 1 = 8, 4 QF × 2 = 8, 2 SF × 4 = 8, 1 Final × 8 = 8.
   // Every column has the same total height → matching cards line up.
   const COLUMNS = [
-    { key: 'r32', label: '32avos', pts: 0, matches: R32_ORDERED, flex: 0.5 },
+    { key: 'r32', label: '16avos', pts: 0, matches: R32_ORDERED, flex: 0.5, readonly: true },
     { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES, flex: 1 },
     { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES, flex: 2 },
     { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES, flex: 4 },
@@ -423,6 +423,7 @@ export default function BracketView({ session }) {
 
                 const togglePick = () => {
                   if (matchLocked) return
+                  if (col.readonly) return  // R32 is auto-derived from group predictions, no manual change
                   if (!matchup?.home || !matchup?.away) return
                   // If no pick → pick home; if home → switch to away; if away → switch to home
                   const next = winnerId === matchup.home.id ? matchup.away.id
@@ -485,16 +486,20 @@ export default function BracketView({ session }) {
                   <div key={m.matchNumber} style={slotStyle}>
                     <button
                       onClick={togglePick}
-                      disabled={matchLocked}
-                      title={matchLocked ? 'Partido ya iniciado' : ''}
+                      disabled={matchLocked || col.readonly}
+                      title={
+                        matchLocked ? 'Partido ya iniciado'
+                        : col.readonly ? 'Se deriva automáticamente de tus predicciones de grupo'
+                        : ''
+                      }
                       style={{
                         width: '100%',
                         padding: isFinal ? '12px 6px' : col.key === 'r32' ? '4px 3px' : '8px 6px',
                         borderRadius: col.key === 'r32' ? '6px' : '8px',
-                        cursor: matchLocked ? 'not-allowed' : 'pointer',
+                        cursor: matchLocked || col.readonly ? 'default' : 'pointer',
                         background: isFinal && winnerTeam ? 'var(--gold)' : 'var(--bg-secondary)',
                         border: winnerTeam
-                          ? (isFinal ? '1px solid var(--gold)' : '1px solid var(--green)')
+                          ? (isFinal ? '1px solid var(--gold)' : col.readonly ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--green)')
                           : '1px solid var(--border-light)',
                         display: 'flex', flexDirection: 'column', alignItems: 'center',
                         gap: col.key === 'r32' ? '1px' : '3px',
