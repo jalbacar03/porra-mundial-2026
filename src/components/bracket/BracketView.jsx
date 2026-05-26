@@ -440,17 +440,11 @@ export default function BracketView({ session }) {
                 const matchInfo = knockoutDates[m.matchNumber]
                 const matchLocked = matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled')
 
-                const matchCaption = matchInfo && col.key !== 'r32' && (
-                  <div style={{
-                    fontSize: '8.5px', color: 'var(--text-dim)',
-                    textAlign: 'center', lineHeight: '1.25',
-                    marginTop: '4px', padding: '0 2px'
-                  }}>
-                    {matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                    {' · '}
-                    {matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                    {matchInfo.city && <><br/>📍 {matchInfo.city}</>}
-                  </div>
+                const showCaption = !!matchInfo && col.key !== 'r32'
+                const captionText = matchInfo && (
+                  matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+                  + ' · ' +
+                  matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
                 )
 
                 // Render one team slot inside this match wrapper
@@ -531,19 +525,43 @@ export default function BracketView({ session }) {
                 return (
                   <div key={`${col.key}-${m.matchNumber}-${idx}`} style={{
                     // Match wrapper: flex weight makes every column total the
-                    // same height. The two team slots stack vertically inside.
+                    // same height (R32/R16/QF/SF/Final all sum to 32 units).
+                    // position:relative + absolute-centered slots keeps the
+                    // slot midpoint exactly on the wrapper midpoint REGARDLESS
+                    // of whether this wrapper has a date/city caption or not
+                    // — otherwise the caption pushed the slots upward in
+                    // captioned columns (R16+) but not in uncaptioned ones
+                    // (R32), accumulating drift toward the center of the
+                    // bracket.
                     flex: col.flex,
-                    display: 'flex', flexDirection: 'column',
-                    justifyContent: 'center'
+                    position: 'relative',
+                    minHeight: 0
                   }}>
                     <div style={{
+                      position: 'absolute',
+                      top: '50%', left: 0, right: 0,
+                      transform: 'translateY(-50%)',
                       display: 'flex', flexDirection: 'column',
-                      gap: '2px'  // tight gap between the home/away of THIS match
+                      gap: '2px'
                     }}>
                       {renderSlot('home')}
                       {renderSlot('away')}
                     </div>
-                    {matchCaption}
+                    {showCaption && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '-2px', left: 0, right: 0,
+                        // Pulled out of the centering math but kept visually
+                        // attached to its match.
+                        fontSize: '8.5px', color: 'var(--text-dim)',
+                        textAlign: 'center', lineHeight: '1.25',
+                        padding: '0 2px',
+                        pointerEvents: 'none'
+                      }}>
+                        {captionText}
+                        {matchInfo.city && <><br/>📍 {matchInfo.city}</>}
+                      </div>
+                    )}
                   </div>
                 )
               })}
