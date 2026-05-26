@@ -5,7 +5,6 @@ import {
   ROUNDS, R32_MATCHES, R16_MATCHES, QF_MATCHES, SF_MATCHES, FINAL_MATCH,
   resolveR32Matchups, resolveRoundMatchups
 } from '../../utils/bracketStructure'
-import BracketRound from './BracketRound'
 import { FootballSpinner } from '../Skeleton'
 
 export default function BracketView({ session }) {
@@ -326,13 +325,21 @@ export default function BracketView({ session }) {
   // Potential points: sum of round.pointsPerWin × matches in round + champion bonus if final picked
   const potentialPts = (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 5) + (totalFinalPicked * 8)
 
+  // R32 ordered to follow the R16 feeder chain: for each R16 match (89..96),
+  // place its two feeding R32 matches (homeMatch, awayMatch) adjacent. That
+  // way the visual position of each R32 card lines up with the R16 card it
+  // feeds — same trick we use for QF→SF→Final via the flex weights below.
+  const R32_ORDERED = R16_MATCHES.flatMap(r16 => [
+    R32_MATCHES.find(m => m.matchNumber === r16.homeMatch),
+    R32_MATCHES.find(m => m.matchNumber === r16.awayMatch),
+  ]).filter(Boolean)
+
   // flex weight per column: each card occupies vertical space proportional
-  // to how many R16 cards it sits "above". This is what lines every QF card
-  // up with the midpoint of its two feeding R16 cards (and so on up to Final),
-  // so the visual structure matches the actual matchup feed and the user no
-  // longer has the impression that tapping a card switches to a different
-  // country than its real opponent.
+  // to how many R32 cards it sits "above". 16 R32 cards × 0.5 = 8 units,
+  // 8 R16 cards × 1 = 8, 4 QF × 2 = 8, 2 SF × 4 = 8, 1 Final × 8 = 8.
+  // Every column has the same total height → matching cards line up.
   const COLUMNS = [
+    { key: 'r32', label: '16avos', pts: 0, matches: R32_ORDERED, flex: 0.5 },
     { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES, flex: 1 },
     { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES, flex: 2 },
     { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES, flex: 4 },
@@ -378,9 +385,9 @@ export default function BracketView({ session }) {
         </div>
       </div>
 
-      {/* 4-column grid */}
+      {/* 5-column grid: R32 / R16 / QF / SF / Final */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px',
+        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px',
         marginBottom: '14px'
       }}>
         {COLUMNS.map(col => (
@@ -393,7 +400,7 @@ export default function BracketView({ session }) {
       </div>
 
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px',
+        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px',
         marginBottom: '20px',
         alignItems: 'stretch'
       }}>
@@ -437,8 +444,11 @@ export default function BracketView({ session }) {
                   gap: '3px'
                 }
 
-                // Match metadata caption (date + city) — same look for every card
-                const matchCaption = matchInfo && (
+                // Match metadata caption (date + city). R32 cards are half the
+                // height of R16 cards and have 16 of them — packing fecha + city
+                // there would visually saturate the column. Show full caption
+                // only from R16 onwards. (R32 cards keep just the team name.)
+                const matchCaption = matchInfo && col.key !== 'r32' && (
                   <div style={{
                     fontSize: '8.5px', color: 'var(--text-dim)',
                     textAlign: 'center', lineHeight: '1.2',
@@ -479,14 +489,15 @@ export default function BracketView({ session }) {
                       title={matchLocked ? 'Partido ya iniciado' : ''}
                       style={{
                         width: '100%',
-                        padding: isFinal ? '12px 6px' : '8px 6px',
-                        borderRadius: '8px',
+                        padding: isFinal ? '12px 6px' : col.key === 'r32' ? '4px 3px' : '8px 6px',
+                        borderRadius: col.key === 'r32' ? '6px' : '8px',
                         cursor: matchLocked ? 'not-allowed' : 'pointer',
                         background: isFinal && winnerTeam ? 'var(--gold)' : 'var(--bg-secondary)',
                         border: winnerTeam
                           ? (isFinal ? '1px solid var(--gold)' : '1px solid var(--green)')
                           : '1px solid var(--border-light)',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        gap: col.key === 'r32' ? '1px' : '3px',
                         minHeight: isFinal ? '70px' : 'auto',
                         opacity: matchLocked ? 0.6 : 1
                       }}
@@ -499,17 +510,20 @@ export default function BracketView({ session }) {
                             }} />
                           )}
                           <span style={{
-                            fontSize: '10px', fontWeight: '700',
+                            fontSize: col.key === 'r32' ? '9px' : '10px',
+                            fontWeight: '700',
                             color: isFinal ? '#1a1d26' : 'var(--text-primary)',
                             textAlign: 'center', lineHeight: '1.1',
                             maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                           }}>{winnerTeam.name}</span>
-                          <span style={{
-                            fontSize: '9px', fontWeight: '800',
-                            color: isFinal ? 'rgba(0,0,0,0.7)' : 'var(--gold)'
-                          }}>
-                            {isFinal ? '🏆 +' : '+'}{pts}
-                          </span>
+                          {pts > 0 && (
+                            <span style={{
+                              fontSize: '9px', fontWeight: '800',
+                              color: isFinal ? 'rgba(0,0,0,0.7)' : 'var(--gold)'
+                            }}>
+                              {isFinal ? '🏆 +' : '+'}{pts}
+                            </span>
+                          )}
                         </>
                       ) : (
                         <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Elegir</span>
@@ -540,28 +554,6 @@ export default function BracketView({ session }) {
         </div>
       </div>
 
-      {/* R32 advanced view (collapsible) */}
-      <details style={{ marginBottom: '14px' }}>
-        <summary style={{
-          padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-secondary)',
-          cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)'
-        }}>
-          Ver dieciseisavos (R32) — auto-rellenado desde tus predicciones de grupo
-        </summary>
-        <div style={{ marginTop: '8px' }}>
-          <BracketRound
-            roundKey="r32"
-            label="Dieciseisavos"
-            matches={R32_MATCHES}
-            matchups={r32Matchups}
-            picks={picks}
-            points={0}
-            onPickWinner={handlePickWinner}
-            disabled={false}
-            r32Sources={true}
-          />
-        </div>
-      </details>
     </div>
   )
 }
