@@ -230,11 +230,17 @@ export default function BracketView({ session }) {
   // Potential points: sum of round.pointsPerWin × matches in round + champion bonus if final picked
   const potentialPts = (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 5) + (totalFinalPicked * 8)
 
+  // flex weight per column: each card occupies vertical space proportional
+  // to how many R16 cards it sits "above". This is what lines every QF card
+  // up with the midpoint of its two feeding R16 cards (and so on up to Final),
+  // so the visual structure matches the actual matchup feed and the user no
+  // longer has the impression that tapping a card switches to a different
+  // country than its real opponent.
   const COLUMNS = [
-    { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES },
-    { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES },
-    { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES },
-    { key: 'final', label: 'Final', pts: 5, matches: FINAL_MATCH }
+    { key: 'r16', label: 'Octavos', pts: 1, matches: R16_MATCHES, flex: 1 },
+    { key: 'qf', label: 'Cuartos', pts: 2, matches: QF_MATCHES, flex: 2 },
+    { key: 'sf', label: 'Semi', pts: 4, matches: SF_MATCHES, flex: 4 },
+    { key: 'final', label: 'Final', pts: 5, matches: FINAL_MATCH, flex: 8 }
   ]
 
   return (
@@ -292,12 +298,13 @@ export default function BracketView({ session }) {
 
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px',
-        marginBottom: '20px'
+        marginBottom: '20px',
+        alignItems: 'stretch'
       }}>
         {COLUMNS.map(col => {
           const matchups = allMatchups[col.key]
           return (
-            <div key={col.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px', justifyContent: 'space-around' }}>
+            <div key={col.key} style={{ display: 'flex', flexDirection: 'column' }}>
               {col.matches.map(m => {
                 const matchup = matchups[m.matchNumber]
                 const pick = picks[m.matchNumber]
@@ -321,60 +328,76 @@ export default function BracketView({ session }) {
                   handlePickWinner(m.matchNumber, next)
                 }
 
+                // Slot wrapper: flex weight ensures each card occupies vertical
+                // space proportional to its round, so cards align with the
+                // midpoint of the two cards feeding it in the previous round.
+                const slotStyle = {
+                  flex: col.flex,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '3px 0'
+                }
+
                 if (!matchup?.home || !matchup?.away) {
                   return (
-                    <div key={m.matchNumber} style={{
-                      padding: '8px 6px', borderRadius: '8px',
-                      background: 'rgba(255,255,255,0.02)',
-                      border: '1px dashed rgba(255,255,255,0.06)',
-                      fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center'
-                    }}>—</div>
+                    <div key={m.matchNumber} style={slotStyle}>
+                      <div style={{
+                        width: '100%',
+                        padding: '8px 6px', borderRadius: '8px',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px dashed rgba(255,255,255,0.06)',
+                        fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center'
+                      }}>—</div>
+                    </div>
                   )
                 }
 
                 return (
-                  <button
-                    key={m.matchNumber}
-                    onClick={togglePick}
-                    disabled={matchLocked}
-                    title={matchLocked ? 'Partido ya iniciado' : ''}
-                    style={{
-                      padding: isFinal ? '12px 6px' : '8px 6px',
-                      borderRadius: '8px',
-                      cursor: matchLocked ? 'not-allowed' : 'pointer',
-                      background: isFinal && winnerTeam ? 'var(--gold)' : 'var(--bg-secondary)',
-                      border: winnerTeam
-                        ? (isFinal ? '1px solid var(--gold)' : '1px solid var(--green)')
-                        : '1px solid var(--border-light)',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
-                      minHeight: isFinal ? '70px' : 'auto',
-                      opacity: matchLocked ? 0.6 : 1
-                    }}
-                  >
-                    {winnerTeam ? (
-                      <>
-                        {winnerTeam.flag_url && (
-                          <img src={winnerTeam.flag_url} alt="" style={{
-                            width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover'
-                          }} />
-                        )}
-                        <span style={{
-                          fontSize: '10px', fontWeight: '700',
-                          color: isFinal ? '#1a1d26' : 'var(--text-primary)',
-                          textAlign: 'center', lineHeight: '1.1',
-                          maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                        }}>{winnerTeam.name}</span>
-                        <span style={{
-                          fontSize: '9px', fontWeight: '800',
-                          color: isFinal ? 'rgba(0,0,0,0.7)' : 'var(--gold)'
-                        }}>
-                          {isFinal ? '🏆 +' : '+'}{pts}
-                        </span>
-                      </>
-                    ) : (
-                      <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Elegir</span>
-                    )}
-                  </button>
+                  <div key={m.matchNumber} style={slotStyle}>
+                    <button
+                      onClick={togglePick}
+                      disabled={matchLocked}
+                      title={matchLocked ? 'Partido ya iniciado' : ''}
+                      style={{
+                        width: '100%',
+                        padding: isFinal ? '12px 6px' : '8px 6px',
+                        borderRadius: '8px',
+                        cursor: matchLocked ? 'not-allowed' : 'pointer',
+                        background: isFinal && winnerTeam ? 'var(--gold)' : 'var(--bg-secondary)',
+                        border: winnerTeam
+                          ? (isFinal ? '1px solid var(--gold)' : '1px solid var(--green)')
+                          : '1px solid var(--border-light)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                        minHeight: isFinal ? '70px' : 'auto',
+                        opacity: matchLocked ? 0.6 : 1
+                      }}
+                    >
+                      {winnerTeam ? (
+                        <>
+                          {winnerTeam.flag_url && (
+                            <img src={winnerTeam.flag_url} alt="" style={{
+                              width: '20px', height: '14px', borderRadius: '2px', objectFit: 'cover'
+                            }} />
+                          )}
+                          <span style={{
+                            fontSize: '10px', fontWeight: '700',
+                            color: isFinal ? '#1a1d26' : 'var(--text-primary)',
+                            textAlign: 'center', lineHeight: '1.1',
+                            maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                          }}>{winnerTeam.name}</span>
+                          <span style={{
+                            fontSize: '9px', fontWeight: '800',
+                            color: isFinal ? 'rgba(0,0,0,0.7)' : 'var(--gold)'
+                          }}>
+                            {isFinal ? '🏆 +' : '+'}{pts}
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>Elegir</span>
+                      )}
+                    </button>
+                  </div>
                 )
               })}
             </div>
