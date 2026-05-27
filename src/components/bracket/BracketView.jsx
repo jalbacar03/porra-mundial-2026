@@ -457,7 +457,59 @@ export default function BracketView({ session }) {
         const matchups = allMatchups[col.key]
         const isFinal = col.key === 'final'
 
-        const renderMatch = (m, idx) => {
+        // Visual groupings: every group of matches feeding the same next-round
+        // match gets a header showing the destination ("Mitad izquierda →
+        // Semifinal 1", etc.) and clicking the header jumps to that round.
+        // Keeps the FIFA structure intact while making the bracket geometry
+        // explicit on a single-column phone layout.
+        const getGroupings = (roundKey) => {
+          if (roundKey === 'final') return null
+          if (roundKey === 'sf') {
+            return [{
+              label: 'Semifinales → Final',
+              destinationRound: 'final',
+              matches: SF_MATCHES
+            }]
+          }
+          if (roundKey === 'qf') {
+            return [
+              {
+                label: 'Mitad izquierda → Semifinal 1',
+                destinationRound: 'sf',
+                matches: QF_MATCHES.filter(m => [97, 98].includes(m.matchNumber))
+              },
+              {
+                label: 'Mitad derecha → Semifinal 2',
+                destinationRound: 'sf',
+                matches: QF_MATCHES.filter(m => [99, 100].includes(m.matchNumber))
+              }
+            ]
+          }
+          if (roundKey === 'r16') {
+            return QF_MATCHES.map((qf, idx) => ({
+              label: `→ Cuartos · Partido ${idx + 1}`,
+              destinationRound: 'qf',
+              matches: R16_MATCHES.filter(m =>
+                [qf.homeMatch, qf.awayMatch].includes(m.matchNumber)
+              )
+            }))
+          }
+          if (roundKey === 'r32') {
+            return R16_MATCHES.map((r16, idx) => ({
+              label: `→ Octavos · Partido ${idx + 1}`,
+              destinationRound: 'r16',
+              matches: R32_MATCHES_ORDERED.filter(m =>
+                [r16.homeMatch, r16.awayMatch].includes(m.matchNumber)
+              )
+            }))
+          }
+          return null
+        }
+
+        const groupings = getGroupings(col.key)
+        const orderedMatches = groupings ? groupings.flatMap(g => g.matches) : col.matches
+
+        const renderMatch = (m, idx, isLastInGroup) => {
           const matchup = matchups[m.matchNumber]
           const pick = picks[m.matchNumber]
           const matchInfo = knockoutDates[m.matchNumber]
@@ -540,7 +592,7 @@ export default function BracketView({ session }) {
           return (
             <div key={`${col.key}-${m.matchNumber}-${idx}`} style={{
               padding: '10px 0',
-              borderBottom: idx < col.matches.length - 1 ? '0.5px solid var(--border-light)' : 'none'
+              borderBottom: !isLastInGroup ? '0.5px solid var(--border-light)' : 'none'
             }}>
               {/* Match label */}
               <div style={{
@@ -596,7 +648,55 @@ export default function BracketView({ session }) {
               marginBottom: '10px'
             }}>{col.label}</div>
 
-            {col.matches.map(renderMatch)}
+            {groupings ? (
+              groupings.map((group, gIdx) => (
+                <div key={`${col.key}-grp-${gIdx}`} style={{
+                  marginTop: gIdx === 0 ? '4px' : '16px',
+                  background: 'rgba(0,122,69,0.04)',
+                  border: '1px solid rgba(0,122,69,0.15)',
+                  borderRadius: '10px',
+                  padding: '4px 10px 8px'
+                }}>
+                  {/* Clickable destination header — jumps to next round tab */}
+                  <button
+                    onClick={() => setActiveRound(group.destinationRound)}
+                    style={{
+                      width: '100%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 4px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: '1px dashed rgba(0,122,69,0.25)',
+                      cursor: 'pointer',
+                      marginBottom: '4px'
+                    }}
+                  >
+                    <span style={{
+                      fontSize: '11px', fontWeight: '800',
+                      color: 'var(--green)',
+                      letterSpacing: '0.3px',
+                      textTransform: 'uppercase'
+                    }}>
+                      {group.label}
+                    </span>
+                    <span style={{
+                      fontSize: '10px', fontWeight: '700',
+                      color: 'var(--green)',
+                      opacity: 0.8
+                    }}>
+                      Ver →
+                    </span>
+                  </button>
+                  {group.matches.map((m, mIdx) => {
+                    const globalIdx = orderedMatches.indexOf(m)
+                    const isLastInGroup = mIdx === group.matches.length - 1
+                    return renderMatch(m, globalIdx, isLastInGroup)
+                  })}
+                </div>
+              ))
+            ) : (
+              col.matches.map((m, idx) => renderMatch(m, idx, idx === col.matches.length - 1))
+            )}
           </div>
         )
       })()}
