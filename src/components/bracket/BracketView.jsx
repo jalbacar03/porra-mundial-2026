@@ -14,7 +14,9 @@ export default function BracketView({ session }) {
   const [teamsById, setTeamsById] = useState({})
   const [knockoutDates, setKnockoutDates] = useState({}) // { match_number: Date } — for per-match locking
   const [loading, setLoading] = useState(true)
-  const [activeRound, setActiveRound] = useState('r32')
+  // Default tab = Octavos (first round the user actually picks; R32 is read-
+  // only-ish since it auto-fills from group predictions).
+  const [activeRound, setActiveRound] = useState('r16')
   const debounceTimers = useRef({})
 
   useEffect(() => {
@@ -403,169 +405,201 @@ export default function BracketView({ session }) {
         </div>
       </div>
 
-      {/* One unified 5-column grid for headers + bracket cards. Two rows:
-          row 1 = column labels, row 2 = each column's match stack. Sharing
-          the same grid guarantees the labels sit exactly above their
-          respective columns (no mismatch from two separate grids). */}
+      {/* Round tabs — one round at a time. The earlier 5-column cascading
+          bracket fought against narrow phone screens (too cramped). Now we
+          show each round full-width: tap a tab → its matches expand below,
+          big and breathable, with home/away cards stacked. The progress
+          counters (X/Y per round) live in the tab so the user always knows
+          how much they have left. */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
-        gridTemplateRows: 'auto 1fr',
-        columnGap: '4px', rowGap: '8px',
-        marginBottom: '20px',
-        alignItems: 'stretch'
+        display: 'flex', gap: '4px',
+        marginBottom: '12px',
+        padding: '4px', borderRadius: '10px',
+        background: 'var(--bg-secondary)',
+        overflowX: 'auto', WebkitOverflowScrolling: 'touch'
       }}>
-        {/* Row 1: headers */}
-        {COLUMNS.map(col => (
-          <div key={`h-${col.key}`} style={{
-            fontSize: '9px', fontWeight: '700', color: 'var(--text-dim)',
-            textTransform: 'uppercase', letterSpacing: '0.8px', textAlign: 'center'
-          }}>{col.label}</div>
-        ))}
-        {/* Row 2: bracket columns */}
         {COLUMNS.map(col => {
-          const matchups = allMatchups[col.key]
+          const isActive = activeRound === col.key
+          const pickedThisRound = col.matches.filter(m => picks[m.matchNumber]?.predicted_winner_id).length
+          const totalThisRound = col.matches.length
           return (
-            <div key={col.key} style={{
-              display: 'flex', flexDirection: 'column',
-              // Uniform gap between match wrappers — this is what gives the
-              // visual grouping (slots inside a match are flush, gap shows
-              // up only between matches).
-              gap: '8px'
-            }}>
-              {col.matches.map((m, idx) => {
-                const matchup = matchups[m.matchNumber]
-                const pick = picks[m.matchNumber]
-                const isFinal = col.key === 'final'
-
-                const matchInfo = knockoutDates[m.matchNumber]
-                const matchLocked = matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled')
-
-                const showCaption = !!matchInfo && col.key !== 'r32'
-                const captionText = matchInfo && (
-                  matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-                  + ' · ' +
-                  matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-                )
-
-                // Render one team slot inside this match wrapper
-                const renderSlot = (side) => {
-                  const team = matchup?.[side]
-                  const isAdvancing = team && pick?.predicted_winner_id === team.id
-                  const clickable = team && !matchLocked && matchup?.home && matchup?.away
-                  const isChampion = isFinal && isAdvancing
-                  const handleClick = () => {
-                    if (!clickable || !team) return
-                    if (pick?.predicted_winner_id === team.id) return
-                    handlePickWinner(m.matchNumber, team.id)
-                  }
-
-                  if (!team) {
-                    return (
-                      <div style={{
-                        flex: 1,
-                        padding: '4px 6px', borderRadius: '6px',
-                        border: '1px dashed rgba(255,255,255,0.06)',
-                        fontSize: '9px', color: 'var(--text-dim)', textAlign: 'center',
-                        minHeight: col.key === 'final' ? '40px' : '24px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>?</div>
-                    )
-                  }
-
-                  return (
-                    <button
-                      onClick={handleClick}
-                      disabled={!clickable}
-                      title={
-                        matchLocked ? 'Partido ya iniciado'
-                        : isAdvancing ? 'Ya elegido como ganador'
-                        : 'Tap para elegir como ganador'
-                      }
-                      style={{
-                        flex: 1,
-                        padding: isFinal ? '8px 6px' : '4px 6px',
-                        borderRadius: '6px',
-                        cursor: clickable ? 'pointer' : 'default',
-                        background: isChampion ? 'var(--gold)'
-                          : isAdvancing ? 'rgba(0,122,69,0.20)'
-                          : 'rgba(255,255,255,0.03)',
-                        border: isChampion ? '1px solid var(--gold)'
-                          : isAdvancing ? '1px solid var(--green)'
-                          : '1px solid rgba(255,255,255,0.06)',
-                        display: 'flex', alignItems: 'center', gap: '5px',
-                        minHeight: isFinal ? '36px' : '24px',
-                        opacity: matchLocked && !isAdvancing ? 0.5 : 1,
-                        transition: 'background 0.15s ease, border-color 0.15s ease'
-                      }}
-                    >
-                      {team.flag_url && (
-                        <img src={team.flag_url} alt="" style={{
-                          width: isFinal ? '20px' : '15px',
-                          height: isFinal ? '14px' : '11px',
-                          borderRadius: '1.5px', objectFit: 'cover', flexShrink: 0,
-                          opacity: isAdvancing ? 1 : 0.55
-                        }} />
-                      )}
-                      <span style={{
-                        fontSize: isFinal ? '11px' : '9.5px',
-                        fontWeight: isAdvancing ? '700' : '500',
-                        color: isChampion ? '#1a1d26'
-                          : isAdvancing ? 'var(--text-primary)'
-                          : 'var(--text-muted)',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        flex: 1, textAlign: 'left'
-                      }}>{team.name}</span>
-                      {isChampion && (
-                        <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.7)', flexShrink: 0 }}>🏆</span>
-                      )}
-                    </button>
-                  )
-                }
-
-                return (
-                  <div key={`${col.key}-${m.matchNumber}-${idx}`} style={{
-                    // Wrapper: flex weight makes every column total 32 units.
-                    // Slots stay in normal flow (they MUST contribute to the
-                    // wrapper's intrinsic size or the whole column collapses).
-                    // The slot stack is centered inside the wrapper via
-                    // justify-content:center. The caption is position:absolute
-                    // so it does NOT push the slots up — keeps the slot
-                    // midpoint exactly on the wrapper midpoint regardless of
-                    // whether this column carries captions or not.
-                    flex: col.flex,
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center'
-                  }}>
-                    <div style={{
-                      display: 'flex', flexDirection: 'column',
-                      gap: '2px'
-                    }}>
-                      {renderSlot('home')}
-                      {renderSlot('away')}
-                    </div>
-                    {showCaption && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '2px', left: 0, right: 0,
-                        fontSize: '8.5px', color: 'var(--text-dim)',
-                        textAlign: 'center', lineHeight: '1.25',
-                        padding: '0 2px',
-                        pointerEvents: 'none'
-                      }}>
-                        {captionText}
-                        {matchInfo.city && <><br/>📍 {matchInfo.city}</>}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <button
+              key={col.key}
+              onClick={() => setActiveRound(col.key)}
+              style={{
+                flex: 1, minWidth: 0,
+                padding: '8px 6px', borderRadius: '8px',
+                border: 'none',
+                background: isActive ? 'var(--green)' : 'transparent',
+                color: isActive ? '#fff' : 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: '2px',
+                transition: 'background 0.18s ease, color 0.18s ease'
+              }}
+            >
+              <span style={{
+                fontSize: '11px', fontWeight: '700',
+                letterSpacing: '0.3px'
+              }}>{col.label}</span>
+              <span style={{
+                fontSize: '9px', fontWeight: '600',
+                opacity: isActive ? 0.85 : 0.55
+              }}>{pickedThisRound}/{totalThisRound}</span>
+            </button>
           )
         })}
       </div>
 
+      {/* Active round — matches expanded full-width */}
+      {(() => {
+        const col = COLUMNS.find(c => c.key === activeRound) || COLUMNS[1]
+        const matchups = allMatchups[col.key]
+        const isFinal = col.key === 'final'
+
+        const renderMatch = (m, idx) => {
+          const matchup = matchups[m.matchNumber]
+          const pick = picks[m.matchNumber]
+          const matchInfo = knockoutDates[m.matchNumber]
+          const matchLocked = matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled')
+
+          const renderSlot = (side) => {
+            const team = matchup?.[side]
+            const isAdvancing = team && pick?.predicted_winner_id === team.id
+            const clickable = team && !matchLocked && matchup?.home && matchup?.away
+            const isChampion = isFinal && isAdvancing
+            const handleClick = () => {
+              if (!clickable || !team) return
+              if (pick?.predicted_winner_id === team.id) return
+              handlePickWinner(m.matchNumber, team.id)
+            }
+
+            if (!team) {
+              return (
+                <div style={{
+                  padding: '12px 14px', borderRadius: '8px',
+                  border: '1px dashed rgba(255,255,255,0.08)',
+                  fontSize: '12px', color: 'var(--text-dim)', textAlign: 'center',
+                  minHeight: '44px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>Por determinar</div>
+              )
+            }
+
+            return (
+              <button
+                onClick={handleClick}
+                disabled={!clickable}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px', borderRadius: '8px',
+                  cursor: clickable ? 'pointer' : 'default',
+                  background: isChampion ? 'var(--gold)'
+                    : isAdvancing ? 'rgba(0,122,69,0.20)'
+                    : 'var(--bg-secondary)',
+                  border: isChampion ? '1.5px solid var(--gold)'
+                    : isAdvancing ? '1.5px solid var(--green)'
+                    : '1px solid var(--border-light)',
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  minHeight: '48px',
+                  opacity: matchLocked && !isAdvancing ? 0.5 : 1,
+                  transition: 'background 0.15s ease, border-color 0.15s ease'
+                }}
+              >
+                {team.flag_url && (
+                  <img src={team.flag_url} alt="" style={{
+                    width: '28px', height: '20px',
+                    borderRadius: '2px', objectFit: 'cover', flexShrink: 0,
+                    opacity: isAdvancing ? 1 : 0.6
+                  }} />
+                )}
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: isAdvancing ? '700' : '500',
+                  color: isChampion ? '#1a1d26'
+                    : isAdvancing ? 'var(--text-primary)'
+                    : 'var(--text-muted)',
+                  flex: 1, textAlign: 'left'
+                }}>{team.name}</span>
+                {isAdvancing && !isChampion && (
+                  <span style={{
+                    fontSize: '10px', fontWeight: '700', color: 'var(--green)',
+                    flexShrink: 0
+                  }}>✓ PASA</span>
+                )}
+                {isChampion && (
+                  <span style={{
+                    fontSize: '13px', color: 'rgba(0,0,0,0.7)', flexShrink: 0,
+                    fontWeight: '800'
+                  }}>🏆 CAMPEÓN</span>
+                )}
+              </button>
+            )
+          }
+
+          return (
+            <div key={`${col.key}-${m.matchNumber}-${idx}`} style={{
+              padding: '10px 0',
+              borderBottom: idx < col.matches.length - 1 ? '0.5px solid var(--border-light)' : 'none'
+            }}>
+              {/* Match label */}
+              <div style={{
+                fontSize: '10px', fontWeight: '700',
+                color: 'var(--text-dim)', letterSpacing: '0.6px',
+                textTransform: 'uppercase',
+                marginBottom: '8px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span>Partido {idx + 1}</span>
+                {matchInfo && (
+                  <span style={{ fontWeight: '500', letterSpacing: '0', textTransform: 'none' }}>
+                    {matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                    {' · '}
+                    {matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    {matchInfo.city && ` · 📍 ${matchInfo.city}`}
+                  </span>
+                )}
+              </div>
+
+              {/* Two stacked slots */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {renderSlot('home')}
+                {renderSlot('away')}
+              </div>
+
+              {/* Points hint per match (skip R32, which is 0 pts) */}
+              {col.pts > 0 && (
+                <div style={{
+                  marginTop: '6px',
+                  fontSize: '10px', color: 'var(--text-dim)',
+                  textAlign: 'right'
+                }}>
+                  Acertar el ganador: <span style={{ color: 'var(--gold)', fontWeight: '700' }}>+{col.pts} pts</span>
+                  {isFinal && <span style={{ color: 'var(--gold)' }}> · +8 pts campeón</span>}
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        return (
+          <div style={{
+            background: 'var(--bg-secondary)',
+            borderRadius: '12px',
+            padding: '14px 16px',
+            marginBottom: '14px'
+          }}>
+            {/* Section title */}
+            <div style={{
+              fontSize: '15px', fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginBottom: '10px'
+            }}>{col.label}</div>
+
+            {col.matches.map(renderMatch)}
+          </div>
+        )
+      })()}
       {/* Footer: cadena campeón hint */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
