@@ -434,7 +434,7 @@ export default function Dashboard({ session, demoMode }) {
                 color: isLive ? 'var(--red)' : '#7eb3ff',
                 letterSpacing: '1.4px', textTransform: 'uppercase'
               }}>
-                {isLive ? '🔴 EN DIRECTO · PRUEBA' : '🧪 Partido de prueba'}
+                {isLive ? '🔴 EN DIRECTO · PRUEBA' : 'Partido de prueba'}
               </span>
               {isLive && <span className="live-dot" />}
             </div>

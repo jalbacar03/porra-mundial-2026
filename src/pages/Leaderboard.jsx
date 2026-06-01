@@ -364,12 +364,24 @@ export default function Leaderboard({ demoMode }) {
                   }}>
                     {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
                   </span>
-                  {/* Tiny payment dot — discreet, doesn't take its own line */}
+                  {/* Payment status — small dot + label, only when NOT paid */}
                   {!isBot && !paymentConfirmed.has(user.user_id) && (
-                    <span title="No pagado" style={{
-                      width: '6px', height: '6px', borderRadius: '50%',
-                      background: '#c2362b', flexShrink: 0
-                    }} />
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      flexShrink: 0
+                    }}>
+                      <span style={{
+                        width: '6px', height: '6px', borderRadius: '50%',
+                        background: '#c2362b'
+                      }} />
+                      <span style={{
+                        fontSize: '10px', fontWeight: '600',
+                        color: '#c2362b', opacity: 0.9,
+                        letterSpacing: '0.2px'
+                      }}>
+                        No pagado
+                      </span>
+                    </span>
                   )}
                   {delta !== 0 && (
                     <span style={{
