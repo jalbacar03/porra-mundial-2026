@@ -23,6 +23,7 @@ export default function Dashboard({ session, demoMode }) {
   const [userPredictions, setUserPredictions] = useState({})
   const [totalUsers, setTotalUsers] = useState(0)
   const [totalParticipants, setTotalParticipants] = useState(0)
+  const [testMatch, setTestMatch] = useState(null) // Pre-Mundial dry-run match (stage='test')
   const [dailyInsight, setDailyInsight] = useState(null)
   const [dailyInsightLong, setDailyInsightLong] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
@@ -224,6 +225,22 @@ export default function Dashboard({ session, demoMode }) {
     const participantsCount = (allProfiles || []).filter(p => p.id !== BOT365_ID).length
     setTotalParticipants(participantsCount)
 
+    // Test match (pre-Mundial dry-run): a single friendly used to validate
+    // the live flow end-to-end. Shown as a prominent banner if it exists
+    // and hasn't finished yet.
+    const { data: testMatchData } = await supabase
+      .from('matches')
+      .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
+      .eq('stage', 'test')
+      .neq('status', 'finished')
+      .order('match_date', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (testMatchData) {
+      const testPred = preds?.find(p => p.match_id === testMatchData.id)
+      setTestMatch({ ...testMatchData, userPrediction: testPred || null })
+    }
+
     let rank = '-'
     let rankingsTotal = 0
     if (rankings) {
@@ -382,6 +399,102 @@ export default function Dashboard({ session, demoMode }) {
 
       {/* PWA install prompt — only renders when applicable (not standalone, not dismissed) */}
       {!demoMode && <PWAInstallBanner />}
+
+      {/* === TEST MATCH BANNER (dry-run pre-Mundial) === */}
+      {testMatch && (() => {
+        const matchDate = new Date(testMatch.match_date)
+        const isLive = testMatch.status === 'live'
+        const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })
+        const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        const pred = testMatch.userPrediction
+        const hasPred = pred && pred.predicted_home !== null && pred.predicted_away !== null
+        return (
+          <div
+            onClick={() => navigate(`/match/${testMatch.id}`)}
+            role="button" tabIndex={0}
+            className="tap-scale"
+            style={{
+              marginBottom: '14px',
+              padding: '14px 16px',
+              borderRadius: '14px',
+              background: isLive
+                ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
+                : 'linear-gradient(135deg, #1a2433, #2a3950)',
+              border: isLive
+                ? '1.5px solid rgba(226,75,74,0.5)'
+                : '1px solid rgba(100,150,255,0.25)',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <span style={{
+                fontSize: '10px', fontWeight: '800',
+                color: isLive ? 'var(--red)' : '#7eb3ff',
+                letterSpacing: '1.4px', textTransform: 'uppercase'
+              }}>
+                {isLive ? '🔴 EN DIRECTO · PRUEBA' : '🧪 Partido de prueba'}
+              </span>
+              {isLive && <span className="live-dot" />}
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: '12px', marginBottom: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                {testMatch.home_team?.flag_url && (
+                  <img src={testMatch.home_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />
+                )}
+                <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>
+                  {testMatch.home_team?.name || '?'}
+                </span>
+              </div>
+              {isLive ? (
+                <span className="live-pulse" style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>
+                  {testMatch.home_score ?? 0} - {testMatch.away_score ?? 0}
+                </span>
+              ) : (
+                <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>vs</span>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>
+                  {testMatch.away_team?.name || '?'}
+                </span>
+                {testMatch.away_team?.flag_url && (
+                  <img src={testMatch.away_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />
+                )}
+              </div>
+            </div>
+            <div style={{
+              fontSize: '12px', color: 'rgba(255,255,255,0.6)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <span>
+                {dateStr} · {timeStr}
+                {testMatch.city && ` · 📍 ${testMatch.city}`}
+              </span>
+              {hasPred ? (
+                <span style={{
+                  fontSize: '11px', fontWeight: '700', color: '#4ade80',
+                  background: 'rgba(74,222,128,0.12)',
+                  padding: '4px 8px', borderRadius: '6px'
+                }}>
+                  ✓ Tu predicción: {pred.predicted_home}-{pred.predicted_away}
+                </span>
+              ) : (
+                <span style={{
+                  fontSize: '11px', fontWeight: '700', color: '#ffcc00',
+                  background: 'rgba(255,204,0,0.12)',
+                  padding: '4px 8px', borderRadius: '6px'
+                }}>
+                  ¡Predice ahora! →
+                </span>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ===== HERO: TU POSICIÓN · LIVE + BOTE ===== */}
       <div style={{

@@ -89,10 +89,33 @@ export default async function handler(req, res) {
   try {
     const log = []
 
-    // 1. Fetch finished matches from API-Football
+    // 1. Fetch fixtures from API-Football
     log.push('📡 Fetching matches from API-Football...')
     const matchesResponse = await apiFetch(`/fixtures?league=${WORLD_CUP_ID}&season=${WORLD_CUP_SEASON}`)
     const apiMatches = matchesResponse.response || []
+
+    // 1b. Extra fixtures by ID — for matches outside the World Cup league
+    // (e.g. pre-tournament friendlies used to test the live flow end-to-end).
+    // Any DB row with api_football_fixture_id NOT NULL and status != 'finished'
+    // gets its fixture pulled individually so sync covers it too.
+    const ourExtraMatches = await supaFetch(
+      `/rest/v1/matches?select=api_football_fixture_id&api_football_fixture_id=not.is.null&status=neq.finished`
+    )
+    const extraIds = (ourExtraMatches || [])
+      .map(m => m.api_football_fixture_id)
+      .filter(Boolean)
+    for (const fid of extraIds) {
+      try {
+        const res = await apiFetch(`/fixtures?id=${fid}`)
+        const extra = res.response?.[0]
+        if (extra) {
+          apiMatches.push(extra)
+          log.push(`   ➕ Extra fixture ${fid}: ${extra.teams.home.name} vs ${extra.teams.away.name}`)
+        }
+      } catch (e) {
+        log.push(`   ⚠️ Failed extra fixture ${fid}: ${e.message}`)
+      }
+    }
 
     const finished = apiMatches.filter(m =>
       m.fixture.status.short === 'FT' ||
