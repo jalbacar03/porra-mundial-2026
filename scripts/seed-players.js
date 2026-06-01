@@ -5,8 +5,16 @@
  *   SUPABASE_URL=xxx SUPABASE_KEY=xxx API_FOOTBALL_KEY=xxx node scripts/seed-players.js
  *
  * Options:
- *   --only-missing   Only seed teams that have 0 players in DB (saves API calls)
- *   --dry-run        Show what would be done without making changes
+ *   --only-missing       Only seed teams that have 0 players in DB
+ *   --dry-run            Show what would be done without making changes
+ *   --max-players=26     Truncate squads to top-N (FIFA permits 26 al Mundial)
+ *
+ * Notes (Mundial 2026):
+ *   /players/squads?team=X devuelve la plantilla actual del seleccionado.
+ *   Cerca del torneo, API-Football suele tener la convocatoria oficial
+ *   (≤26 jugadores). Si vemos >30 jugadores, es señal de que el squad
+ *   está sin actualizar (lista histórica/plantilla del año) → revisar
+ *   manualmente con la lista oficial de la federación.
  */
 
 const SUPABASE_URL = process.env.SUPABASE_URL
@@ -15,6 +23,8 @@ const API_FOOTBALL_KEY = process.env.API_FOOTBALL_KEY
 
 const ONLY_MISSING = process.argv.includes('--only-missing')
 const DRY_RUN = process.argv.includes('--dry-run')
+const MAX_PLAYERS_ARG = process.argv.find(a => a.startsWith('--max-players='))
+const MAX_PLAYERS = MAX_PLAYERS_ARG ? parseInt(MAX_PLAYERS_ARG.split('=')[1], 10) : null
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !API_FOOTBALL_KEY) {
   console.error('Missing env vars.')
@@ -188,6 +198,7 @@ async function main() {
   // 3. Fetch squads
   let totalInserted = 0
   let skipped = 0
+  const suspectTeams = []
   const teamNames = Object.keys(TEAM_API_IDS)
 
   for (let i = 0; i < teamNames.length; i++) {
@@ -218,10 +229,31 @@ async function main() {
 
       if (!squadData.length || !squadData[0].players) {
         console.log(`   ⚠️  No squad data — verify API-Football ID ${apiTeamId} for ${teamName}`)
+        suspectTeams.push({ team: teamName, reason: 'no squad data' })
         continue
       }
 
-      const players = squadData[0].players.map(p => ({
+      const rawSquad = squadData[0].players
+      const squadSize = rawSquad.length
+
+      // Flag teams whose squad doesn't look like a World Cup call-up.
+      // FIFA permite 26 convocados al Mundial 2026. Cualquier plantilla
+      // con >30 jugadores es casi seguro la plantilla anual histórica,
+      // NO la convocatoria oficial — la marcamos para revisar.
+      if (squadSize > 30) {
+        console.log(`   ⚠️  ${teamName}: ${squadSize} players — looks like club squad, not Mundial call-up`)
+        suspectTeams.push({ team: teamName, count: squadSize, reason: 'too many players' })
+      } else if (squadSize < 20) {
+        console.log(`   ⚠️  ${teamName}: only ${squadSize} players — squad may be incomplete`)
+        suspectTeams.push({ team: teamName, count: squadSize, reason: 'too few players' })
+      }
+
+      // Optional truncation to MAX_PLAYERS (e.g. 26 for FIFA limit)
+      const finalSquad = MAX_PLAYERS && squadSize > MAX_PLAYERS
+        ? rawSquad.slice(0, MAX_PLAYERS)
+        : rawSquad
+
+      const players = finalSquad.map(p => ({
         name: p.name,
         team_id: supabaseTeamId,
         position: mapPosition(p.position),
@@ -257,6 +289,18 @@ async function main() {
     console.log(`\n⏭️  Skipped ${skipped} teams that already had players`)
   }
   console.log(`\n🎉 Done! Inserted ${totalInserted} players.`)
+
+  // Summary of suspect squads — these need manual review against the
+  // official federation call-up list (Dani Carvajal-style problem: club
+  // squad endpoint returns players who weren't called up).
+  if (suspectTeams.length > 0) {
+    console.log(`\n⚠️  ${suspectTeams.length} teams need manual review:`)
+    suspectTeams.forEach(s => {
+      console.log(`   - ${s.team}: ${s.reason}${s.count ? ` (${s.count} players)` : ''}`)
+    })
+    console.log('\n   For these teams, verify against the official call-up list')
+    console.log('   from each federation and clean up extra/missing players in the DB.')
+  }
 
   // Final count
   const countRes = await fetch(`${SUPABASE_URL}/rest/v1/players?select=id`, {
