@@ -287,24 +287,34 @@ export default function Leaderboard({ demoMode }) {
           subtitle="Se rellenará cuando empiecen los partidos del Mundial."
         />
       ) : (
-        <div>
+        // SofaScore/Flashscore-style: dense list, hairline separators between rows,
+        // no per-row card chrome. Card wraps the whole table.
+        <div style={{
+          background: 'var(--bg-secondary)',
+          borderRadius: '12px',
+          overflow: 'hidden'
+        }}>
           {fullRankings.map((user, idx) => {
             const isMe = user.user_id === userId
             const isBot = user.isBot
             // Compute tied rank within currentRankings (skip Bot for ranking)
-            let rankLabel, isTied
+            let rankLabel, isTied, rankNum
             if (isBot) {
               rankLabel = ''
               isTied = false
+              rankNum = null
             } else {
               const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
               const { rank, tied } = getTiedRank(realIdx)
               rankLabel = tied ? `T${rank}` : `${rank}`
               isTied = tied
+              rankNum = rank
             }
             const delta = isBot ? 0 : (positionChanges[user.user_id] || 0)
-            const pts = hasLive ? user.effective_points : user.total_points
-            const barPct = Math.max(8, Math.round((pts / maxPts) * 100))
+            const isLast = idx === fullRankings.length - 1
+
+            // Medal color for top 3 (only when not tied for cleaner visuals)
+            const medalColor = rankNum === 1 ? '#ffd700' : rankNum === 2 ? '#c0c0c0' : rankNum === 3 ? '#cd7f32' : null
 
             return (
               <div
@@ -312,114 +322,95 @@ export default function Leaderboard({ demoMode }) {
                 className={!isMe && !isBot ? 'tap-scale' : ''}
                 onClick={() => !isMe && !isBot && setH2hRival({ id: user.user_id, name: user.full_name })}
                 style={{
-                  position: 'relative',
                   display: 'flex', alignItems: 'center',
-                  padding: '14px 14px 16px',
-                  marginBottom: '6px',
-                  borderRadius: '12px',
-                  background: isMe ? 'rgba(0,122,69,0.1)' : isBot ? 'rgba(255,255,255,0.02)' : 'var(--bg-secondary)',
-                  border: isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid transparent',
+                  padding: '10px 12px',
+                  background: isMe ? 'rgba(0,122,69,0.10)' : 'transparent',
+                  borderBottom: isLast ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
+                  borderLeft: isMe ? '3px solid var(--green)' : '3px solid transparent',
                   cursor: !isMe && !isBot ? 'pointer' : 'default',
-                  opacity: isBot ? 0.7 : 1
+                  opacity: isBot ? 0.65 : 1,
+                  minHeight: '48px'
                 }}>
 
-                {/* Rank number */}
+                {/* Rank number — bold, no "º", small medal color for top 3 */}
                 <div style={{
-                  width: '28px', textAlign: 'center', flexShrink: 0,
-                  fontSize: '15px', fontWeight: '600',
-                  color: isBot ? 'var(--text-dim)' : isMe ? '#fff' : 'var(--text-muted)'
+                  width: '24px', textAlign: 'center', flexShrink: 0,
+                  fontSize: '13px', fontWeight: '700',
+                  color: isBot ? 'var(--text-dim)'
+                    : medalColor && !isTied ? medalColor
+                    : isMe ? '#fff' : 'var(--text-muted)'
                 }}>
                   {rankLabel}
                 </div>
 
-                {/* Avatar (initials only) */}
+                {/* Avatar (initials only, smaller) */}
                 <Avatar
                   name={isBot ? 'Bot365' : (profileFullNames[user.user_id] || user.full_name)}
-                  size={34}
+                  size={28}
                   color={isMe ? 'rgba(0,144,81,0.25)' : 'rgba(255,255,255,0.05)'}
                   border={isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid rgba(255,255,255,0.06)'}
                   textColor={isBot ? 'var(--text-dim)' : isMe ? '#4ade80' : 'var(--text-muted)'}
-                  style={{ marginLeft: '6px', marginRight: '12px' }}
+                  style={{ marginLeft: '8px', marginRight: '10px', flexShrink: 0 }}
                 />
 
-                {/* Name + delta + payment indicator */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Name (1 line, truncated) + delta + tiny payment dot */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{
+                    fontSize: '14px',
+                    fontWeight: isMe ? '700' : '500',
+                    color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    minWidth: 0, flex: 1
+                  }}>
+                    {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
+                  </span>
+                  {/* Tiny payment dot — discreet, doesn't take its own line */}
+                  {!isBot && !paymentConfirmed.has(user.user_id) && (
+                    <span title="No pagado" style={{
+                      width: '6px', height: '6px', borderRadius: '50%',
+                      background: '#c2362b', flexShrink: 0
+                    }} />
+                  )}
+                  {delta !== 0 && (
                     <span style={{
-                      fontSize: '15px',
-                      fontWeight: isMe ? '700' : '500',
-                      color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                      fontSize: '10px', fontWeight: '700',
+                      color: delta > 0 ? '#4ade80' : '#e74c3c',
+                      flexShrink: 0
                     }}>
-                      {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
-                    </span>
-                    {delta !== 0 && (
-                      <span style={{
-                        fontSize: '11px', fontWeight: '700',
-                        color: delta > 0 ? '#4ade80' : '#e74c3c',
-                        flexShrink: 0
-                      }}>
-                        {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
-                      </span>
-                    )}
-                  </div>
-                  {/* Payment status — small + discreet, managed by admins */}
-                  {!isBot && (
-                    <span style={{
-                      fontSize: '10px',
-                      color: paymentConfirmed.has(user.user_id) ? 'var(--text-dim)' : '#c2362b',
-                      opacity: 0.85
-                    }}>
-                      {paymentConfirmed.has(user.user_id) ? 'Pagado ✅' : 'No pagado ❌'}
+                      {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
                     </span>
                   )}
                 </div>
 
-                {/* Points + exact-hits (the tiebreaker), stacked on the right.
-                    Grouping the two ranking numbers together makes it clear
-                    why equal-points rows are ordered the way they are. */}
+                {/* Points (bold, right-aligned, no "pts" label) + live tentative */}
                 <div style={{
                   textAlign: 'right', flexShrink: 0,
-                  display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px'
+                  display: 'flex', alignItems: 'baseline', gap: '6px',
+                  marginLeft: '8px'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                    <span style={{
-                      fontSize: '17px', fontWeight: '700',
-                      color: isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)'
-                    }}>
-                      {user.total_points}
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>pts</span>
-                    {user.provisional > 0 && (
-                      <span className="live-pulse" style={{
-                        fontSize: '11px', fontWeight: '700', color: 'var(--red)', marginLeft: '2px'
-                      }}>
-                        +{user.provisional}
-                      </span>
-                    )}
-                  </div>
-                  {!isBot && (
-                    <span style={{
-                      fontSize: '11px', whiteSpace: 'nowrap',
-                      color: isTied ? 'var(--gold)' : 'var(--text-dim)',
-                      fontWeight: isTied ? '600' : '400'
-                    }}>
-                      🎯 {user.exact_hits || 0} {(user.exact_hits || 0) === 1 ? 'exacto' : 'exactos'}
+                  {user.provisional > 0 && (
+                    <span className="live-points" style={{ fontSize: '13px' }}>
+                      +{user.provisional}
                     </span>
                   )}
-                </div>
-
-                {/* Progress bar at bottom of row */}
-                <div style={{
-                  position: 'absolute', bottom: 0, left: '14px', right: '14px',
-                  height: '2px', borderRadius: '2px', overflow: 'hidden',
-                  background: 'rgba(255,255,255,0.04)'
-                }}>
-                  <div style={{
-                    width: `${barPct}%`, height: '100%',
-                    background: isBot ? 'rgba(255,255,255,0.1)' : isMe ? 'var(--gold)' : 'var(--green)',
-                    transition: 'width 0.4s ease'
-                  }} />
+                  <span style={{
+                    fontSize: '16px', fontWeight: '800',
+                    color: isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)',
+                    minWidth: '24px', textAlign: 'right'
+                  }}>
+                    {user.total_points}
+                  </span>
+                  {/* Exactos count — tiny, only if > 0 to reduce clutter */}
+                  {!isBot && (user.exact_hits || 0) > 0 && (
+                    <span style={{
+                      fontSize: '10px', whiteSpace: 'nowrap',
+                      color: isTied ? 'var(--gold)' : 'var(--text-dim)',
+                      fontWeight: isTied ? '600' : '400',
+                      minWidth: '22px', textAlign: 'right'
+                    }}>
+                      🎯{user.exact_hits}
+                    </span>
+                  )}
                 </div>
               </div>
             )

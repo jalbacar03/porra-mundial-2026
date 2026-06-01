@@ -8,6 +8,7 @@ import Avatar from '../components/Avatar'
 import PWAInstallBanner from '../components/PWAInstallBanner'
 import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
+import { useLivePoints } from '../hooks/useLivePoints'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -21,6 +22,7 @@ export default function Dashboard({ session, demoMode }) {
   const [nextMatches, setNextMatches] = useState([])
   const [userPredictions, setUserPredictions] = useState({})
   const [totalUsers, setTotalUsers] = useState(0)
+  const [totalParticipants, setTotalParticipants] = useState(0)
   const [dailyInsight, setDailyInsight] = useState(null)
   const [dailyInsightLong, setDailyInsightLong] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
@@ -30,6 +32,7 @@ export default function Dashboard({ session, demoMode }) {
   const [livePredictions, setLivePredictions] = useState({})
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
+  const { points: livePoints } = useLivePoints(session?.user?.id)
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -216,6 +219,11 @@ export default function Dashboard({ session, demoMode }) {
       if (p.has_paid) paidSet.add(p.id)
     })
 
+    // Bote: total de participantes (excluyendo Bot365), tanto pagados como no.
+    // El user pidió contar a todo el mundo: damos por hecho que pagarán todos.
+    const participantsCount = (allProfiles || []).filter(p => p.id !== BOT365_ID).length
+    setTotalParticipants(participantsCount)
+
     let rank = '-'
     let rankingsTotal = 0
     if (rankings) {
@@ -375,12 +383,18 @@ export default function Dashboard({ session, demoMode }) {
       {/* PWA install prompt — only renders when applicable (not standalone, not dismissed) */}
       {!demoMode && <PWAInstallBanner />}
 
-      {/* ===== HERO: TU POSICIÓN · LIVE ===== */}
+      {/* ===== HERO: TU POSICIÓN · LIVE + BOTE ===== */}
       <div style={{
+        display: 'flex',
+        gap: '12px',
+        marginBottom: '14px',
+        flexWrap: 'wrap'
+      }}>
+      <div style={{
+        flex: '2 1 280px',
         background: 'linear-gradient(135deg, #00392a, #00643d)',
         borderRadius: '14px',
         padding: '18px 20px',
-        marginBottom: '14px',
         position: 'relative',
         overflow: 'hidden'
       }}>
@@ -443,6 +457,11 @@ export default function Dashboard({ session, demoMode }) {
               <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
                 {displayStats.points}
               </span>
+              {livePoints > 0 && (
+                <span className="live-points" style={{ fontSize: '15px' }}>
+                  +{livePoints}
+                </span>
+              )}
               {leaderInfo && (
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: '500' }}>
                   · líder {leaderInfo.points} <span style={{ color: 'rgba(255,255,255,0.6)' }}>({leaderInfo.names})</span>
@@ -481,6 +500,42 @@ export default function Dashboard({ session, demoMode }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* === BOTE ACUMULADO === */}
+      <div style={{
+        flex: '1 1 180px',
+        background: 'linear-gradient(135deg, #1a1d26, #2a2410)',
+        borderRadius: '14px',
+        padding: '18px 20px',
+        position: 'relative',
+        overflow: 'hidden',
+        border: '1px solid rgba(255,204,0,0.18)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center'
+      }}>
+        {/* decorative circle */}
+        <div style={{
+          position: 'absolute', top: '-30px', right: '-30px',
+          width: '100px', height: '100px', borderRadius: '50%',
+          border: '1px solid rgba(255,204,0,0.08)'
+        }} />
+        <div style={{
+          fontSize: '10px', color: 'rgba(255,204,0,0.6)',
+          textTransform: 'uppercase', letterSpacing: '1.4px', fontWeight: '600',
+          marginBottom: '10px'
+        }}>
+          Bote acumulado
+        </div>
+        <div style={{
+          fontSize: '36px', fontWeight: '800', color: 'var(--gold)',
+          lineHeight: 1, letterSpacing: '-1px'
+        }}>
+          {(totalParticipants * 16).toLocaleString('es-ES')} €
+        </div>
+      </div>
+
       </div>
 
       {/* ===== TU PROGRESO (pre-Mundial only — pushes users to complete predictions) ===== */}

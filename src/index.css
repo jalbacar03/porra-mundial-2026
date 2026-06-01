@@ -264,6 +264,24 @@ input:focus, button:focus-visible {
   animation: livePulse 2s ease-in-out infinite;
 }
 
+/* Stronger pulse for live-tentative points in the leaderboard (SofaScore-style):
+   marked color + glow so the row visibly "breathes" when a match is in play. */
+@keyframes livePointsPulse {
+  0%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 6px rgba(226, 75, 74, 0.55);
+  }
+  50% {
+    opacity: 0.55;
+    text-shadow: 0 0 2px rgba(226, 75, 74, 0.25);
+  }
+}
+.live-points {
+  animation: livePointsPulse 1.1s ease-in-out infinite;
+  color: var(--red);
+  font-weight: 700;
+}
+
 .live-dot {
   width: 6px;
   height: 6px;
