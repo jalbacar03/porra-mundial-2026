@@ -182,7 +182,10 @@ export default function Dashboard({ session, demoMode }) {
     // and the user never picks it directly (so it would inflate the denominator).
     const [specialsRes, bracketRes, activeBetsRes] = await Promise.all([
       supabase.from('pre_tournament_entries').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
-      supabase.from('bracket_picks').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).not('predicted_winner_id', 'is', null),
+      // Cuadro: contar solo picks que el usuario hace manualmente (R16+QF+SF+Final = 15).
+      // R32 se auto-rellena desde las predicciones de grupo — incluirlo aquí infla
+      // el numerador (29/15) aunque el usuario no haya tocado nada.
+      supabase.from('bracket_picks').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).not('predicted_winner_id', 'is', null).neq('round', 'r32'),
       supabase.from('pre_tournament_bets').select('id', { count: 'exact', head: true }).eq('is_active', true).neq('slug', 'round_of_32')
     ])
     setSpecialsCount(specialsRes.count || 0)
