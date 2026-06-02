@@ -1,33 +1,47 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { FootballSpinner } from '../components/Skeleton'
+import { useToast } from '../components/Toast'
 import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 
 /**
- * Mini-torneo Pre-Mundial — 12 amistosos (4-9 jun 2026) antes del Mundial.
+ * La Liguilla — mini-torneo opcional con los 12 amistosos del 4-9 jun.
  *
- * Mecánica: idéntica al Mundial (3 pts exacto, 1 pt signo). Opt-in opcional
- * (profiles.friendly_joined). Premio: top 3 entrada gratis al Mundial real.
+ * Mismo look&feel que GroupMatchPredictions (Mundial) pero con tonos azules
+ * para diferenciarlo visualmente. Save batch con toast feedback (no
+ * auto-save silencioso). Botón "Volver" arriba para salir a la app normal.
  *
- * Visible solo si:
- *   - VITE_FRIENDLY_TOURNAMENT_ENABLED=true (env var Vercel)
- *   - user.has_paid = true
- *   - user.friendly_joined = true (después de aceptar el opt-in)
+ * Visible si:
+ *   - FRIENDLY_TOURNAMENT_ENABLED && (no admin-only || is_admin)
+ *   - payment_confirmed = true (si no, ven la página pero les sale "Falta pago")
  */
+
+// Paleta La Liguilla — azul + dorado en lugar de verde + dorado
+const LIGUILLA = {
+  primary:    '#2563eb',           // azul ación
+  primaryDim: 'rgba(37,99,235,0.15)',
+  borderSoft: 'rgba(37,99,235,0.25)',
+  gold:       '#ffcc00',
+  green:      '#4ade80',
+  red:        '#ff6b6b',
+}
+
 export default function PreMundial({ session }) {
   const navigate = useNavigate()
+  const toast = useToast()
   const [profile, setProfile] = useState(null)
   const [matches, setMatches] = useState([])
-  const [predictions, setPredictions] = useState({}) // matchId → {predicted_home, predicted_away, points_earned}
+  const [predictions, setPredictions] = useState({})        // matchId → { home_score, away_score }
+  const [savedPredictions, setSavedPredictions] = useState({})  // mirror DB
+  const [editingIds, setEditingIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [joining, setJoining] = useState(false)
-  const debounceTimers = useRef({})
 
   useEffect(() => {
     if (!FRIENDLY_TOURNAMENT_ENABLED) return
     fetchData()
-    return () => Object.values(debounceTimers.current).forEach(clearTimeout)
   }, [])
 
   async function fetchData() {
@@ -42,9 +56,17 @@ export default function PreMundial({ session }) {
     if (profRes.data) setProfile(profRes.data)
     if (mRes.data) setMatches(mRes.data)
     if (pRes.data) {
-      const map = {}
-      pRes.data.forEach(p => { map[p.match_id] = p })
-      setPredictions(map)
+      const m = {}
+      const s = {}
+      pRes.data.forEach(p => {
+        const entry = { home_score: p.predicted_home, away_score: p.predicted_away }
+        m[p.match_id] = entry
+        if (p.predicted_home != null && p.predicted_away != null) {
+          s[p.match_id] = entry
+        }
+      })
+      setPredictions(m)
+      setSavedPredictions(s)
     }
     setLoading(false)
   }
@@ -55,166 +77,294 @@ export default function PreMundial({ session }) {
       .from('profiles')
       .update({ friendly_joined: true })
       .eq('id', session.user.id)
-    if (!error) setProfile(p => ({ ...p, friendly_joined: true }))
+    if (error) {
+      toast.error('No se ha podido apuntar: ' + error.message)
+    } else {
+      setProfile(p => ({ ...p, friendly_joined: true }))
+      toast.success('Apuntado. Predice antes del primer partido.')
+    }
     setJoining(false)
   }
 
-  async function savePrediction(matchId, home, away) {
-    // Optimistic update
+  function setScore(matchId, side, value) {
     setPredictions(prev => ({
       ...prev,
-      [matchId]: { ...prev[matchId], predicted_home: home, predicted_away: away },
+      [matchId]: {
+        home_score: side === 'home' ? value : (prev[matchId]?.home_score ?? ''),
+        away_score: side === 'away' ? value : (prev[matchId]?.away_score ?? ''),
+      },
     }))
-    if (debounceTimers.current[matchId]) clearTimeout(debounceTimers.current[matchId])
-    debounceTimers.current[matchId] = setTimeout(async () => {
-      await supabase.from('predictions').upsert(
-        {
-          user_id: session.user.id,
-          match_id: matchId,
-          predicted_home: home,
-          predicted_away: away,
-        },
-        { onConflict: 'user_id,match_id' }
-      )
-    }, 400)
   }
 
-  const filledCount = useMemo(
-    () => Object.values(predictions).filter(p => {
-      if (p.predicted_home == null || p.predicted_away == null) return false
-      return matches.some(m => m.id === p.match_id)
-    }).length,
-    [predictions, matches]
-  )
+  function startEditing(matchId) {
+    setEditingIds(prev => new Set(prev).add(matchId))
+  }
 
-  // ── Guard: feature flag off → 404
+  function isEditing(matchId) {
+    return editingIds.has(matchId)
+  }
+
+  async function saveAll() {
+    setSaving(true)
+    try {
+      const toSave = []
+      for (const m of matches) {
+        const p = predictions[m.id]
+        if (p && p.home_score !== '' && p.home_score != null
+            && p.away_score !== '' && p.away_score != null) {
+          // Solo guardar si cambió respecto al saved
+          const saved = savedPredictions[m.id]
+          if (!saved || saved.home_score !== p.home_score || saved.away_score !== p.away_score) {
+            toSave.push({
+              user_id: session.user.id,
+              match_id: m.id,
+              predicted_home: parseInt(p.home_score),
+              predicted_away: parseInt(p.away_score),
+            })
+          }
+        }
+      }
+      if (toSave.length === 0) {
+        toast.info('Nada nuevo que guardar')
+        return
+      }
+      const { error } = await supabase
+        .from('predictions')
+        .upsert(toSave, { onConflict: 'user_id,match_id' })
+      if (error) {
+        toast.error('Error al guardar: ' + error.message)
+        return
+      }
+      const next = { ...savedPredictions }
+      toSave.forEach(p => {
+        next[p.match_id] = { home_score: p.predicted_home, away_score: p.predicted_away }
+      })
+      setSavedPredictions(next)
+      setEditingIds(prev => {
+        const n = new Set(prev)
+        toSave.forEach(p => n.delete(p.match_id))
+        return n
+      })
+      toast.success(`${toSave.length} predicción${toSave.length !== 1 ? 'es' : ''} guardada${toSave.length !== 1 ? 's' : ''}`)
+    } catch (err) {
+      console.error('Save error:', err)
+      toast.error('Error inesperado al guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const filledCount = useMemo(() => {
+    return matches.filter(m => {
+      const s = savedPredictions[m.id]
+      return s && s.home_score != null && s.away_score != null
+    }).length
+  }, [matches, savedPredictions])
+
+  const unsavedCount = useMemo(() => {
+    return matches.filter(m => {
+      const p = predictions[m.id]
+      const s = savedPredictions[m.id]
+      if (!p || p.home_score === '' || p.home_score == null || p.away_score === '' || p.away_score == null) return false
+      return !s || s.home_score !== p.home_score || s.away_score !== p.away_score
+    }).length
+  }, [matches, predictions, savedPredictions])
+
+  // ── Guard: feature flag off
   if (!FRIENDLY_TOURNAMENT_ENABLED) {
-    return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        Página no disponible.
-      </div>
-    )
+    return <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>Página no disponible.</div>
   }
-
   if (loading) return <FootballSpinner text="Cargando La Liguilla…" />
-
-  // ── Guard: admin-only durante la fase de prueba
   if (!isFriendlyVisible(profile)) {
-    return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        Página no disponible.
-      </div>
-    )
+    return <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>Página no disponible.</div>
   }
 
-  // ── Guard: no pagado → mensaje claro
-  // El requisito para participar en La Liguilla es haber pagado los 20€ de la
-  // porra real (payment_confirmed=true). El admin lo marca a mano cuando recibe
-  // el bizum. has_paid solo indica que está admitido.
+  // ── No ha pagado todavía
   if (!profile?.payment_confirmed) {
     return (
-      <div style={{ maxWidth: '500px', margin: '40px auto', padding: '20px' }}>
-        <div style={{
-          background: 'var(--bg-secondary)', borderRadius: '14px', padding: '24px',
-          textAlign: 'center', border: '1px solid rgba(226,75,74,0.25)'
-        }}>
-          <div style={{ fontSize: '13px', color: 'var(--gold)', fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '8px' }}>
-            La Liguilla
-          </div>
-          <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>
-            Falta el pago
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55' }}>
-            Para participar en La Liguilla primero hay que tener pagada la porra real (20€).
-            Cuando hagas el bizum a Javi y te confirme el pago, podrás apuntarte.
+      <PageWrap>
+        <BackBar navigate={navigate} />
+        <div style={{ maxWidth: '500px', margin: '20px auto', padding: '20px' }}>
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: '14px', padding: '24px',
+            textAlign: 'center', border: `1px solid ${LIGUILLA.borderSoft}`
+          }}>
+            <div style={{ fontSize: '13px', color: LIGUILLA.primary, fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              La Liguilla
+            </div>
+            <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>
+              Falta el pago
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55' }}>
+              Para participar en La Liguilla primero hay que tener pagada la porra real (20 €).
+              Cuando hagas el bizum al admin y te confirme el pago, podrás apuntarte.
+            </div>
           </div>
         </div>
-      </div>
+      </PageWrap>
     )
   }
 
-  // ── Opt-in screen: el user pagó pero aún no se inscribió
+  // ── Opt-in: pagado pero no apuntado todavía
   if (!profile?.friendly_joined) {
-    return <OptInScreen onJoin={handleJoin} joining={joining} />
+    return (
+      <PageWrap>
+        <BackBar navigate={navigate} />
+        <OptInScreen onJoin={handleJoin} joining={joining} />
+      </PageWrap>
+    )
   }
 
-  // ── Vista principal: lista de partidos para predecir
+  // ── Vista principal
   const now = new Date()
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
+    <PageWrap>
+      <BackBar navigate={navigate} />
 
-      {/* Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '4px' }}>
-          La Liguilla · 12 partidos
+      <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{
+            fontSize: '12px', color: LIGUILLA.primary, fontWeight: '800',
+            letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '4px'
+          }}>
+            La Liguilla · 12 partidos · 4-9 jun
+          </div>
+          <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
+            Tus predicciones
+          </h2>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+            {filledCount}/{matches.length} guardadas · top 3 recuperan los 20 €
+          </div>
         </div>
-        <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
-          Tus predicciones
-        </h2>
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-          {filledCount}/{matches.length} predichos · top 3 ganan entrada gratis al Mundial
-        </div>
-      </div>
 
-      {/* Progress bar */}
-      <div style={{
-        height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.05)',
-        overflow: 'hidden', marginBottom: '20px'
-      }}>
+        {/* Progress bar — azul Liguilla */}
         <div style={{
-          width: `${(filledCount / Math.max(matches.length, 1)) * 100}%`,
-          height: '100%',
-          background: 'linear-gradient(90deg, var(--green), var(--gold))',
-          transition: 'width 0.4s ease'
-        }} />
+          height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.05)',
+          overflow: 'hidden', marginBottom: '14px'
+        }}>
+          <div style={{
+            width: `${(filledCount / Math.max(matches.length, 1)) * 100}%`,
+            height: '100%',
+            background: `linear-gradient(90deg, ${LIGUILLA.primary}, ${LIGUILLA.gold})`,
+            transition: 'width 0.4s ease'
+          }} />
+        </div>
+
+        {/* Match cards */}
+        {matches.map(m => {
+          const matchDate = new Date(m.match_date)
+          const locked = matchDate <= now || m.status === 'finished'
+          const pred = predictions[m.id] || {}
+          const saved = savedPredictions[m.id]
+          const editing = isEditing(m.id)
+          const collapsed = !!saved && !editing && !locked
+
+          return (
+            <MatchCard
+              key={m.id}
+              match={m}
+              pred={pred}
+              saved={saved}
+              locked={locked}
+              collapsed={collapsed}
+              onSetScore={(side, value) => setScore(m.id, side, value)}
+              onEdit={() => startEditing(m.id)}
+            />
+          )
+        })}
+
+        {/* Sticky save bar */}
+        {unsavedCount > 0 && (
+          <div style={{
+            position: 'sticky', bottom: '12px', marginTop: '20px',
+            background: LIGUILLA.primary, borderRadius: '12px',
+            padding: '14px 16px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            zIndex: 10
+          }}>
+            <div style={{ fontSize: '13px', color: '#fff', fontWeight: '600' }}>
+              {unsavedCount} sin guardar
+            </div>
+            <button
+              onClick={saveAll}
+              disabled={saving}
+              style={{
+                padding: '10px 20px', borderRadius: '8px',
+                background: '#fff', color: LIGUILLA.primary,
+                border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: '13px', fontWeight: '800',
+                letterSpacing: '0.5px', textTransform: 'uppercase'
+              }}
+            >
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        )}
+
+        <div style={{
+          marginTop: '24px', padding: '14px',
+          background: LIGUILLA.primaryDim,
+          borderRadius: '10px', border: `1px solid ${LIGUILLA.borderSoft}`,
+          fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.55', textAlign: 'center'
+        }}>
+          Los partidos se bloquean al pitido inicial. Top 3 al final de La Liguilla
+          recuperan los 20 € de la inscripción.
+        </div>
       </div>
+    </PageWrap>
+  )
+}
 
-      {/* Match list */}
-      {matches.map(m => {
-        const matchDate = new Date(m.match_date)
-        const locked = matchDate <= now || m.status !== 'scheduled'
-        const pred = predictions[m.id] || {}
-        return (
-          <MatchCard
-            key={m.id}
-            match={m}
-            pred={pred}
-            locked={locked}
-            onSave={(h, a) => savePrediction(m.id, h, a)}
-          />
-        )
-      })}
+// ─── Wrappers ──────────────────────────────────────────────────────────────
 
-      <div style={{
-        marginTop: '24px', padding: '14px',
-        background: 'rgba(255,204,0,0.06)',
-        borderRadius: '10px', border: '1px solid rgba(255,204,0,0.15)',
-        fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5', textAlign: 'center'
-      }}>
-        Los partidos se bloquean al pitido inicial. Top 3 al final del mini-torneo
-        recuperan los 20 € de la porra. Suerte.
-      </div>
+function PageWrap({ children }) {
+  return <div style={{ minHeight: '100svh', background: 'var(--bg-primary)' }}>{children}</div>
+}
 
+function BackBar({ navigate }) {
+  return (
+    <div style={{
+      position: 'sticky', top: 0, zIndex: 20,
+      background: 'rgba(15,18,24,0.95)', backdropFilter: 'blur(8px)',
+      padding: '12px 16px',
+      borderBottom: '1px solid var(--border-light)'
+    }}>
+      <button
+        onClick={() => navigate('/')}
+        style={{
+          padding: '8px 12px', borderRadius: '8px',
+          background: 'transparent', border: 'none',
+          color: 'var(--text-muted)', fontSize: '13px', fontWeight: '700',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+        }}
+      >
+        ← Volver
+      </button>
     </div>
   )
 }
 
+// ─── Opt-in ────────────────────────────────────────────────────────────────
+
 function OptInScreen({ onJoin, joining }) {
   return (
-    <div style={{ maxWidth: '500px', margin: '40px auto', padding: '20px' }}>
+    <div style={{ maxWidth: '500px', margin: '20px auto', padding: '20px' }}>
       <div style={{
-        background: 'linear-gradient(135deg, #00392a, #00643d)',
+        background: `linear-gradient(135deg, #1a2433, #0f1b2e)`,
+        border: `1px solid ${LIGUILLA.borderSoft}`,
         borderRadius: '14px', padding: '28px 24px', marginBottom: '16px'
       }}>
-        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: '800', letterSpacing: '1.6px', textTransform: 'uppercase', marginBottom: '6px' }}>
+        <div style={{ fontSize: '11px', color: LIGUILLA.primary, fontWeight: '800', letterSpacing: '1.6px', textTransform: 'uppercase', marginBottom: '6px' }}>
           La Liguilla · mini-torneo opcional
         </div>
         <div style={{ fontSize: '24px', fontWeight: '800', color: '#fff', lineHeight: '1.2', marginBottom: '14px' }}>
-          Calienta motores con 12 amistosos pre-Mundial
+          Calienta motores con 12 amistosos antes del Mundial
         </div>
-        <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', lineHeight: '1.6' }}>
-          Del jueves 4 al martes 9 de junio. Las mismas reglas que la porra real:
-          3 pts por resultado exacto, 1 pt por acertar el signo.
+        <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.75)', lineHeight: '1.6' }}>
+          Del jueves 4 al martes 9 de junio. Mismas reglas que la porra real:
+          3 puntos por resultado exacto, 1 punto por acertar el signo.
         </div>
       </div>
 
@@ -222,12 +372,12 @@ function OptInScreen({ onJoin, joining }) {
         background: 'var(--bg-secondary)', borderRadius: '12px',
         padding: '20px', marginBottom: '14px', border: '1px solid var(--border-light)'
       }}>
-        <div style={{ fontSize: '11px', color: 'var(--gold)', fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '10px' }}>
+        <div style={{ fontSize: '11px', color: LIGUILLA.gold, fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '10px' }}>
           Premio
         </div>
         <div style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: '1.6' }}>
-          Los <strong style={{ color: 'var(--gold)' }}>3 primeros</strong> del mini-torneo recuperan
-          los <strong style={{ color: 'var(--gold)' }}>20 €</strong> de inscripción a la porra real.
+          Los <strong style={{ color: LIGUILLA.gold }}>3 primeros</strong> recuperan
+          los <strong style={{ color: LIGUILLA.gold }}>20 €</strong> de inscripción a la porra real.
         </div>
       </div>
 
@@ -237,52 +387,99 @@ function OptInScreen({ onJoin, joining }) {
         style={{
           width: '100%', padding: '16px',
           borderRadius: '12px', border: 'none',
-          background: joining ? 'var(--bg-input)' : 'var(--green)',
+          background: joining ? 'var(--bg-input)' : LIGUILLA.primary,
           color: '#fff', fontSize: '15px', fontWeight: '800',
           cursor: joining ? 'not-allowed' : 'pointer',
           letterSpacing: '0.6px', textTransform: 'uppercase',
-          marginBottom: '10px',
-          transition: 'background 0.15s ease'
+          marginBottom: '10px'
         }}
       >
         {joining ? 'Apuntándote…' : 'Apuntarme a La Liguilla'}
       </button>
 
       <div style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center', lineHeight: '1.5' }}>
-        Es totalmente opcional. Si no te apuntas no pasa nada, sigues con la porra real normal.
+        Opcional. Si no te apuntas sigues con la porra del Mundial normal.
       </div>
     </div>
   )
 }
 
+// ─── Match Card ────────────────────────────────────────────────────────────
+
 const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5]
 
-function MatchCard({ match, pred, locked, onSave }) {
+function MatchCard({ match, pred, saved, locked, collapsed, onSetScore, onEdit }) {
   const matchDate = new Date(match.match_date)
   const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
   const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
 
-  const homeScore = pred.predicted_home
-  const awayScore = pred.predicted_away
-  const filled = homeScore != null && awayScore != null
+  // ── Collapsed: ya guardado, mostrar compacto con Editar
+  if (collapsed && !isLive && !isFinished) {
+    return (
+      <div style={{
+        background: 'var(--bg-secondary)',
+        border: `1px solid ${LIGUILLA.borderSoft}`,
+        borderRadius: '10px', padding: '12px 14px', marginBottom: '8px'
+      }}>
+        <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '600', marginBottom: '8px', textAlign: 'center' }}>
+          {dateStr} · {timeStr}{match.city ? ` · ${match.city}` : ''}
+        </div>
+        <table role="presentation" cellPadding="0" cellSpacing="0" border="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            <tr>
+              <td width="40%" style={{ textAlign: 'right', verticalAlign: 'middle', paddingRight: '10px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginRight: '6px' }}>{match.home_team?.name}</span>
+                {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '20px', height: '14px', borderRadius: '2px', verticalAlign: 'middle' }} />}
+              </td>
+              <td width="20%" style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                <span style={{ fontSize: '20px', fontWeight: '800', color: LIGUILLA.gold, fontVariantNumeric: 'tabular-nums' }}>
+                  {saved.home_score}-{saved.away_score}
+                </span>
+              </td>
+              <td width="40%" style={{ textAlign: 'left', verticalAlign: 'middle', paddingLeft: '10px' }}>
+                {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '20px', height: '14px', borderRadius: '2px', verticalAlign: 'middle' }} />}
+                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginLeft: '6px' }}>{match.away_team?.name}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px', gap: '8px' }}>
+          <span style={{
+            padding: '2px 10px', borderRadius: '4px', fontSize: '10px',
+            background: LIGUILLA.primaryDim, color: LIGUILLA.primary, fontWeight: '700'
+          }}>
+            Guardado
+          </span>
+          <button onClick={onEdit} style={{
+            padding: '2px 10px', background: 'rgba(255,255,255,0.04)',
+            border: '1px solid var(--border-light)', borderRadius: '4px',
+            color: 'var(--text-muted)', fontSize: '10px', fontWeight: '600',
+            cursor: 'pointer', letterSpacing: '0.3px'
+          }}>
+            Editar
+          </button>
+        </div>
+      </div>
+    )
+  }
 
+  // ── Expanded: picker activo (o bloqueado / live / finished)
   return (
     <div style={{
-      background: 'var(--bg-secondary)', borderRadius: '12px',
-      padding: '14px 16px', marginBottom: '10px',
-      border: filled ? '1px solid rgba(0,144,81,0.3)' : '1px solid var(--border-light)',
-      opacity: locked && !filled ? 0.6 : 1,
+      background: 'var(--bg-secondary)',
+      border: `1px solid ${saved ? LIGUILLA.borderSoft : 'var(--border-light)'}`,
+      borderRadius: '10px', padding: '12px 14px', marginBottom: '8px',
+      opacity: locked && !saved ? 0.6 : 1,
     }}>
-      {/* Top row: fecha + status */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <span style={{ fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '600' }}>
+        <span style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: '600' }}>
           {dateStr} · {timeStr}{match.city ? ` · ${match.city}` : ''}
         </span>
         {isLive && (
           <span className="live-pulse" style={{
-            fontSize: '10px', fontWeight: '800', color: 'var(--red)',
+            fontSize: '10px', fontWeight: '800', color: LIGUILLA.red,
             background: 'rgba(226,75,74,0.15)', padding: '2px 8px', borderRadius: '20px'
           }}>● LIVE</span>
         )}
@@ -291,19 +488,16 @@ function MatchCard({ match, pred, locked, onSave }) {
         )}
       </div>
 
-      {/* Teams + score selector. Layout en tabla con anchos fijos:
-          equipos extremos, centro reservado para vs/score. Evita que
-          "Costa de Marfil" o "Irlanda del Norte" descuadre la fila. */}
       <table role="presentation" cellPadding="0" cellSpacing="0" border="0" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: locked ? '0' : '10px' }}>
         <tbody>
           <tr>
             <td width="45%" style={{ textAlign: 'right', verticalAlign: 'middle', paddingRight: '8px' }}>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginRight: '6px' }}>{match.home_team?.name}</span>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginRight: '6px' }}>{match.home_team?.name}</span>
               {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '22px', height: '15px', borderRadius: '2px', verticalAlign: 'middle' }} />}
             </td>
             <td width="10%" style={{ textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
               {isFinished || isLive ? (
-                <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--gold)' }}>
+                <span style={{ fontSize: '18px', fontWeight: '800', color: LIGUILLA.gold }}>
                   {match.home_score ?? 0}-{match.away_score ?? 0}
                 </span>
               ) : (
@@ -312,39 +506,25 @@ function MatchCard({ match, pred, locked, onSave }) {
             </td>
             <td width="45%" style={{ textAlign: 'left', verticalAlign: 'middle', paddingLeft: '8px' }}>
               {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '22px', height: '15px', borderRadius: '2px', verticalAlign: 'middle' }} />}
-              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginLeft: '6px' }}>{match.away_team?.name}</span>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginLeft: '6px' }}>{match.away_team?.name}</span>
             </td>
           </tr>
         </tbody>
       </table>
 
-      {/* Score selectors — compactos para caber en móvil sin overflow */}
       {!locked && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-          <ScoreSelector value={homeScore} onChange={v => onSave(v, awayScore ?? 0)} />
+          <ScoreSelector value={pred.home_score} onChange={v => onSetScore('home', v)} />
           <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '700' }}>-</span>
-          <ScoreSelector value={awayScore} onChange={v => onSave(homeScore ?? 0, v)} />
+          <ScoreSelector value={pred.away_score} onChange={v => onSetScore('away', v)} />
         </div>
       )}
 
-      {/* User's prediction shown post-lock */}
-      {locked && filled && (
-        <div style={{
-          fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '8px',
-          fontWeight: '600'
-        }}>
-          Tu predicción: {homeScore}-{awayScore}
-          {isFinished && pred.points_earned > 0 && (
-            <span style={{ color: pred.points_earned === 3 ? 'var(--green)' : 'var(--gold)', marginLeft: '8px' }}>
-              · +{pred.points_earned} pts
-            </span>
-          )}
-          {isFinished && (pred.points_earned ?? 0) === 0 && (
-            <span style={{ color: 'var(--red)', marginLeft: '8px' }}>· 0 pts</span>
-          )}
+      {locked && saved && (
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '8px', fontWeight: '600' }}>
+          Tu predicción: {saved.home_score}-{saved.away_score}
         </div>
       )}
-
     </div>
   )
 }
@@ -358,13 +538,11 @@ function ScoreSelector({ value, onChange }) {
           onClick={() => onChange(n)}
           style={{
             width: '28px', height: '28px',
-            borderRadius: '6px',
-            border: 'none', cursor: 'pointer',
-            background: value === n ? 'var(--green)' : 'var(--bg-input)',
+            borderRadius: '6px', border: 'none', cursor: 'pointer',
+            background: value === n ? LIGUILLA.primary : 'var(--bg-input)',
             color: value === n ? '#fff' : 'var(--text-muted)',
             fontSize: '13px', fontWeight: '700',
-            transition: 'all 0.12s ease',
-            padding: 0,
+            transition: 'all 0.12s ease', padding: 0,
           }}
         >
           {n}
