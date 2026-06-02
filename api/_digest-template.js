@@ -98,7 +98,7 @@ function renderGreeting(userName) {
 
 function renderHero({ rankLabel, totalParticipants, points, exactHits, delta, posDelta }) {
   const posDeltaBadge = posDelta && posDelta !== 0
-    ? `<span style="display:inline-block;margin-left:10px;padding:4px 10px;border-radius:20px;background:rgba(0,0,0,0.25);color:${posDelta > 0 ? '#4ade80' : '#ff6b6b'};font-size:12px;font-weight:700">
+    ? `<span style="display:inline-block;padding:4px 10px;border-radius:20px;background:rgba(0,0,0,0.28);color:${posDelta > 0 ? '#4ade80' : '#ff6b6b'};font-size:12px;font-weight:700;vertical-align:middle">
          ${posDelta > 0 ? `▲ ${posDelta}` : `▼ ${Math.abs(posDelta)}`}
        </span>`
     : ''
@@ -107,25 +107,34 @@ function renderHero({ rankLabel, totalParticipants, points, exactHits, delta, po
       <div style="font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:6px">
         Tu posición
       </div>
-      <div style="font-size:42px;font-weight:800;color:#fff;line-height:1">
-        ${rankLabel}<span style="font-size:18px;color:rgba(255,255,255,0.5);font-weight:500">/${totalParticipants}</span>
-        ${posDeltaBadge}
-      </div>
-      <table style="margin-top:14px;width:100%"><tr>
-        <td style="vertical-align:top;padding-right:16px">
-          <div style="font-size:24px;font-weight:800;color:#fff;line-height:1">${points}</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Puntos</div>
-        </td>
-        <td style="vertical-align:top;padding-right:16px">
-          <div style="font-size:24px;font-weight:800;color:#ffcc00;line-height:1">${exactHits}</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Exactos</div>
-        </td>
-        ${delta > 0 ? `
-        <td style="vertical-align:top">
-          <div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1">+${delta}</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Vs. ayer</div>
-        </td>` : ''}
-      </tr></table>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">
+        <tr>
+          <td style="vertical-align:middle;white-space:nowrap">
+            <span style="font-size:42px;font-weight:800;color:#fff;line-height:1;vertical-align:middle">${rankLabel}</span><span style="font-size:18px;color:rgba(255,255,255,0.5);font-weight:500;vertical-align:middle">/${totalParticipants}</span>
+          </td>
+          <td style="vertical-align:middle;padding-left:12px">
+            ${posDeltaBadge}
+          </td>
+        </tr>
+      </table>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;width:100%;border-collapse:collapse">
+        <tr>
+          <td width="33%" style="vertical-align:top;text-align:left">
+            <div style="font-size:24px;font-weight:800;color:#fff;line-height:1">${points}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Puntos</div>
+          </td>
+          <td width="33%" style="vertical-align:top;text-align:left">
+            <div style="font-size:24px;font-weight:800;color:#ffcc00;line-height:1">${exactHits}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Exactos</div>
+          </td>
+          <td width="34%" style="vertical-align:top;text-align:left">
+            ${delta > 0 ? `
+              <div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1">+${delta}</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Vs. ayer</div>
+            ` : ''}
+          </td>
+        </tr>
+      </table>
     </div>`
 }
 
@@ -136,20 +145,31 @@ function renderYourMatches(yourMatches) {
     miss:  { icon: '✗', label: 'Fallaste',         color: '#ff6b6b' },
     nopred:{ icon: '—', label: 'Sin predicción',   color: '#6b6e78' },
   }
+  // HTML email = nested tables. display:flex/grid se ignora en Gmail/Outlook.
+  // Layout: 3 columnas con anchos fijos (40% / 20% / 40%) para alinear scores
+  // perfectamente centrados entre los nombres de equipos.
   const rows = yourMatches.map(m => {
     const s = STATUS_LABEL[m.status] || STATUS_LABEL.miss
     const predStr = m.status === 'nopred' ? 'No predijiste' : `Tu predicción: ${m.predHome}-${m.predAway}`
     return `
       <tr><td style="padding:10px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:14px;color:#fff">${escapeHtml(m.home)}</span>
-          <span style="font-size:16px;font-weight:800;color:#ffcc00">${m.homeScore}-${m.awayScore}</span>
-          <span style="font-size:14px;color:#fff">${escapeHtml(m.away)}</span>
-        </div>
-        <div style="margin-top:4px;display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:11px;color:#9b9eaa">${predStr}</span>
-          <span style="font-size:11px;font-weight:700;color:${s.color}">${s.icon} ${s.label}${m.pts ? ` · +${m.pts} pts` : ''}</span>
-        </div>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">
+          <tr>
+            <td width="40%" style="font-size:14px;color:#fff;text-align:left">${escapeHtml(m.home)}</td>
+            <td width="20%" style="font-size:16px;font-weight:800;color:#ffcc00;text-align:center;white-space:nowrap">${m.homeScore}-${m.awayScore}</td>
+            <td width="40%" style="font-size:14px;color:#fff;text-align:right">${escapeHtml(m.away)}</td>
+          </tr>
+          <tr>
+            <td colspan="3" style="padding-top:4px">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">
+                <tr>
+                  <td style="font-size:11px;color:#9b9eaa;text-align:left">${predStr}</td>
+                  <td style="font-size:11px;font-weight:700;color:${s.color};text-align:right;white-space:nowrap">${s.icon} ${s.label}${m.pts ? ` · +${m.pts} pts` : ''}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </td></tr>`
   }).join('')
 
@@ -179,12 +199,22 @@ function renderYourMatches(yourMatches) {
 }
 
 function renderMovements(movements) {
+  // 4 columnas con anchos fijos para alinear verticalmente:
+  //   [emoji][arrow+nº][nombre][rango] — el emoji va en su propia columna
+  //   (vacía para items 2 y 3) para que la flecha quede a la misma X.
   const renderList = (items, up) => items.map((m, i) => `
-    <tr><td style="padding:6px 0;font-size:13px;color:${up ? '#4ade80' : '#ff6b6b'}">
-      ${i === 0 ? (up ? '🔥 ' : '📉 ') : ''}${up ? '▲' : '▼'} ${Math.abs(m.posDelta)}
-      <span style="color:#fff;margin-left:8px;font-weight:500">${escapeHtml(m.name)}</span>
-      <span style="color:#6b6e78;font-size:11px;margin-left:6px">${m.fromRank}º→${m.toRank}º</span>
-    </td></tr>
+    <tr>
+      <td width="18" style="padding:6px 2px;font-size:12px;text-align:center;vertical-align:middle">${i === 0 ? (up ? '🔥' : '📉') : ''}</td>
+      <td width="30" style="padding:6px 2px;font-size:13px;color:${up ? '#4ade80' : '#ff6b6b'};font-weight:700;text-align:left;white-space:nowrap;vertical-align:middle">
+        ${up ? '▲' : '▼'} ${Math.abs(m.posDelta)}
+      </td>
+      <td style="padding:6px 6px;font-size:13px;color:#fff;font-weight:500;vertical-align:middle">
+        ${escapeHtml(m.name)}
+      </td>
+      <td width="64" style="padding:6px 0;font-size:11px;color:#6b6e78;text-align:right;white-space:nowrap;vertical-align:middle">
+        ${m.fromRank}º→${m.toRank}º
+      </td>
+    </tr>
   `).join('')
 
   return `
@@ -192,14 +222,14 @@ function renderMovements(movements) {
       <div style="font-size:11px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:10px">
         Movimientos del día
       </div>
-      <table style="width:100%;border-collapse:collapse"><tr>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse"><tr>
         <td style="vertical-align:top;width:50%;padding-right:8px">
           <div style="font-size:10px;color:#4ade80;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Subieron</div>
-          <table style="width:100%">${renderList(movements.up || [], true)}</table>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">${renderList(movements.up || [], true)}</table>
         </td>
         <td style="vertical-align:top;width:50%;padding-left:8px;border-left:0.5px solid rgba(255,255,255,0.06)">
           <div style="font-size:10px;color:#ff6b6b;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Bajaron</div>
-          <table style="width:100%">${renderList(movements.down || [], false)}</table>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse">${renderList(movements.down || [], false)}</table>
         </td>
       </tr></table>
     </div>`
