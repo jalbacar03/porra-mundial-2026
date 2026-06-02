@@ -9,6 +9,7 @@ import PWAInstallBanner from '../components/PWAInstallBanner'
 import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
+import { displayName } from '../utils/nickname'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -214,12 +215,12 @@ export default function Dashboard({ session, demoMode }) {
       .select('*')
     const { data: allProfiles } = await supabase
       .from('profiles')
-      .select('id, full_name, has_paid')
+      .select('id, full_name, nickname, has_paid')
 
     const nicknameMap = {}
     const paidSet = new Set()
     allProfiles?.forEach(p => {
-      nicknameMap[p.id] = p.full_name
+      nicknameMap[p.id] = displayName(p)
       if (p.has_paid) paidSet.add(p.id)
     })
 

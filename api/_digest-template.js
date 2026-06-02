@@ -89,10 +89,13 @@ function renderHeader(dateStr) {
 }
 
 function renderGreeting(userName) {
-  const firstName = userName.split(' ')[0]
+  // Si parece un nickname (sin espacios, con puntos/guiones) lo usamos tal cual.
+  // Si es un nombre real ("Javi Albácar") usamos solo el primer nombre.
+  const looksLikeNickname = !userName.includes(' ')
+  const greetWith = looksLikeNickname ? userName : userName.split(' ')[0]
   return `
     <div style="font-size:18px;font-weight:700;margin-bottom:6px;color:#fff">
-      Buenos días, ${escapeHtml(firstName)} 👋
+      Buenos días, ${escapeHtml(greetWith)} 👋
     </div>`
 }
 

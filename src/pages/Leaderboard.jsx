@@ -5,6 +5,7 @@ import { SkeletonLeaderboard } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
 import Avatar from '../components/Avatar'
+import { displayName } from '../utils/nickname'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 function calcProvisionalPoints(pred, match) {
@@ -36,15 +37,16 @@ export default function Leaderboard({ demoMode }) {
 
   useEffect(() => {
     fetchData()
-    supabase.from('profiles').select('id, full_name, has_paid, payment_confirmed').then(({ data }) => {
+    supabase.from('profiles').select('id, full_name, nickname, has_paid, payment_confirmed').then(({ data }) => {
       if (data) {
         const map = {}
         const fullNames = {}
         const paid = new Set()
         const payConfirmed = new Set()
         data.forEach(p => {
-          map[p.id] = p.full_name || 'Participante'
-          fullNames[p.id] = p.full_name || 'Participante'
+          // Nickname tiene preferencia para display público; full_name como fallback.
+          map[p.id] = displayName(p)
+          fullNames[p.id] = displayName(p)
           if (p.has_paid) paid.add(p.id)
           if (p.payment_confirmed) payConfirmed.add(p.id)
         })

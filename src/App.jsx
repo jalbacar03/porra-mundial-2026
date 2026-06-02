@@ -22,6 +22,7 @@ const MatchDetail = lazy(() => import('./pages/MatchDetail'))
 
 import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
+import NicknameModal from './components/NicknameModal'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 
 /* ============================
@@ -604,6 +605,15 @@ function AppLayout({ session }) {
         <RulesPopup
           userId={session.user.id}
           onAccepted={() => setRulesAccepted(true)}
+        />
+      )}
+
+      {/* Nickname obligatorio — modal bloqueante si el user aún no eligió uno.
+          Aparece tras admisión + normas, antes de poder hacer nada en la app. */}
+      {hasPaid && rulesAccepted && (
+        <NicknameModal
+          session={session}
+          onSaved={(nick) => setProfile(p => p ? { ...p, nickname: nick } : p)}
         />
       )}
 

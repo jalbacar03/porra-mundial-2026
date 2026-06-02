@@ -98,7 +98,7 @@ export default async function handler(req, res) {
     log.push('📡 Fetching data…')
     const [lb, profiles, yMatches, insight] = await Promise.all([
       supaFetch('/rest/v1/leaderboard?select=*'),
-      supaFetch('/rest/v1/profiles?select=id,full_name,has_paid'),
+      supaFetch('/rest/v1/profiles?select=id,full_name,nickname,has_paid'),
       supaFetch(
         `/rest/v1/matches?select=id,home_score,away_score,match_date,stage,home_team:teams!matches_home_team_id_fkey(name,flag_url),away_team:teams!matches_away_team_id_fkey(name,flag_url)` +
           `&status=eq.finished` +
@@ -137,7 +137,11 @@ export default async function handler(req, res) {
 
     // 3. Build leaderboard (real users only, sorted by points + tiebreaker)
     const paidIds = new Set(profiles.filter(p => p.has_paid).map(p => p.id))
-    const nameById = Object.fromEntries(profiles.map(p => [p.id, p.full_name || 'Participante']))
+    // Display: nickname preferred, full_name fallback (mientras la gente
+    // no haya migrado al nickname obligatorio).
+    const nameById = Object.fromEntries(
+      profiles.map(p => [p.id, p.nickname || p.full_name || 'Participante'])
+    )
 
     const ranked = lb
       .filter(r => r.user_id !== BOT365_ID && paidIds.has(r.user_id))
