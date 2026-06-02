@@ -288,32 +288,38 @@ function MatchCard({ match, pred, locked, onSave }) {
         )}
       </div>
 
-      {/* Teams + score selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: locked ? '0' : '10px' }}>
-        <div style={{ flex: 1, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-          <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>{match.home_team?.name}</span>
-          {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />}
-        </div>
+      {/* Teams + score selector. Layout en tabla con anchos fijos:
+          equipos extremos, centro reservado para vs/score. Evita que
+          "Costa de Marfil" o "Irlanda del Norte" descuadre la fila. */}
+      <table role="presentation" cellPadding="0" cellSpacing="0" border="0" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: locked ? '0' : '10px' }}>
+        <tbody>
+          <tr>
+            <td width="45%" style={{ textAlign: 'right', verticalAlign: 'middle', paddingRight: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginRight: '6px' }}>{match.home_team?.name}</span>
+              {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '22px', height: '15px', borderRadius: '2px', verticalAlign: 'middle' }} />}
+            </td>
+            <td width="10%" style={{ textAlign: 'center', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+              {isFinished || isLive ? (
+                <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--gold)' }}>
+                  {match.home_score ?? 0}-{match.away_score ?? 0}
+                </span>
+              ) : (
+                <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '700' }}>vs</span>
+              )}
+            </td>
+            <td width="45%" style={{ textAlign: 'left', verticalAlign: 'middle', paddingLeft: '8px' }}>
+              {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '22px', height: '15px', borderRadius: '2px', verticalAlign: 'middle' }} />}
+              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginLeft: '6px' }}>{match.away_team?.name}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-        {isFinished || isLive ? (
-          <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--gold)', whiteSpace: 'nowrap', padding: '0 8px' }}>
-            {match.home_score ?? 0} - {match.away_score ?? 0}
-          </div>
-        ) : (
-          <div style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '700' }}>vs</div>
-        )}
-
-        <div style={{ flex: 1, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />}
-          <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>{match.away_team?.name}</span>
-        </div>
-      </div>
-
-      {/* Score selectors */}
+      {/* Score selectors — compactos para caber en móvil sin overflow */}
       {!locked && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
           <ScoreSelector value={homeScore} onChange={v => onSave(v, awayScore ?? 0)} />
-          <span style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '700' }}>-</span>
+          <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '700' }}>-</span>
           <ScoreSelector value={awayScore} onChange={v => onSave(homeScore ?? 0, v)} />
         </div>
       )}
@@ -342,19 +348,20 @@ function MatchCard({ match, pred, locked, onSave }) {
 
 function ScoreSelector({ value, onChange }) {
   return (
-    <div style={{ display: 'flex', gap: '4px' }}>
+    <div style={{ display: 'flex', gap: '3px' }}>
       {SCORE_OPTIONS.map(n => (
         <button
           key={n}
           onClick={() => onChange(n)}
           style={{
-            width: '34px', height: '34px',
-            borderRadius: '8px',
+            width: '28px', height: '28px',
+            borderRadius: '6px',
             border: 'none', cursor: 'pointer',
             background: value === n ? 'var(--green)' : 'var(--bg-input)',
             color: value === n ? '#fff' : 'var(--text-muted)',
-            fontSize: '14px', fontWeight: '700',
+            fontSize: '13px', fontWeight: '700',
             transition: 'all 0.12s ease',
+            padding: 0,
           }}
         >
           {n}
