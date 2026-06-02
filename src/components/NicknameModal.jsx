@@ -76,6 +76,10 @@ export default function NicknameModal({ session, onSaved }) {
       return
     }
 
+    // Actualizar el state local TAMBIÉN — sin esto el "if (profile.nickname)
+    // return null" no dispara y el modal sigue visible aunque el DB ya lo
+    // tenga guardado.
+    setProfile(p => ({ ...p, nickname: v.value }))
     setSaving(false)
     onSaved?.(v.value)
   }
@@ -110,7 +114,7 @@ export default function NicknameModal({ session, onSaved }) {
           fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)',
           marginBottom: '8px', letterSpacing: '-0.3px'
         }}>
-          ¡Elige cómo te verán! 👋
+          Elige cómo te verán
         </div>
         <div style={{
           fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5',

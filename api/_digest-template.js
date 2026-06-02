@@ -95,7 +95,7 @@ function renderGreeting(userName) {
   const greetWith = looksLikeNickname ? userName : userName.split(' ')[0]
   return `
     <div style="font-size:18px;font-weight:700;margin-bottom:6px;color:#fff">
-      Buenos días, ${escapeHtml(greetWith)} 👋
+      Buenos días, ${escapeHtml(greetWith)}.
     </div>`
 }
 
