@@ -39,11 +39,11 @@ const TEAM_API_IDS = {
   'Alemania': 25,
   'Arabia Saudí': 23,
   'Argentina': 26,
-  'Australia': 2388,
+  'Australia': 20,
   'Bélgica': 1,
   'Brasil': 6,
-  'Canadá': 2390,
-  'Colombia': 2391,
+  'Canadá': 5529,
+  'Colombia': 8,
   'Corea del Sur': 17,
   'Croacia': 3,
   'Ecuador': 2382,
@@ -60,7 +60,7 @@ const TEAM_API_IDS = {
   'Panamá': 11,
   'Paraguay': 2380,
   'Portugal': 27,
-  'Senegal': 2385,
+  'Senegal': 13,
   'Suiza': 15,
   'Uruguay': 7,
 
@@ -131,23 +131,32 @@ async function main() {
   console.log(`   Found ${teams.length} teams\n`)
 
   // 1b. Get player counts per team (for --only-missing mode)
+  // Supabase REST paginates at 1000 rows by default — if the players table has
+  // more rows than that, the count is silently truncated and teams further down
+  // appear as "0 players", causing the script to re-seed and DUPLICATE them.
+  // Use Prefer: count=exact + an explicit large limit to read everything.
   let teamPlayerCounts = {}
   if (ONLY_MISSING) {
     console.log('📊 Fetching player counts per team...')
     const countsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/players?select=team_id`,
+      `${SUPABASE_URL}/rest/v1/players?select=team_id&limit=10000`,
       {
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Range-Unit': 'items',
+          'Range': '0-9999'
         }
       }
     )
     const allPlayers = await countsRes.json()
+    if (allPlayers.length >= 9999) {
+      console.log('   ⚠️  Hit the 10000-row cap — count may be incomplete!')
+    }
     allPlayers.forEach(p => {
       teamPlayerCounts[p.team_id] = (teamPlayerCounts[p.team_id] || 0) + 1
     })
-    console.log('')
+    console.log(`   Loaded ${allPlayers.length} player rows across ${Object.keys(teamPlayerCounts).length} teams\n`)
   }
 
   // 1c. Update api_football_id for teams that don't have it set yet
