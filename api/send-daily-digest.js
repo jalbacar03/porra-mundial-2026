@@ -119,12 +119,15 @@ export default async function handler(req, res) {
     log.push(`   Leaderboard ${lb.length} · Profiles ${profiles.length} · Yesterday matches ${yMatches.length}`)
 
     // 2. Decide whether to send anything
-    // Pre-Mundial (antes del 11 jun): skip — no resultados que reportar
-    // Durante Mundial sin partidos ayer: enviar igualmente (crónica + leaderboard)
-    if (now < MUNDIAL_START && yMatches.length === 0) {
-      log.push('⏭️ Pre-Mundial sin partidos ayer — skip')
+    // Pre-Mundial (antes del 11 jun): skip — no resultados que reportar.
+    // Durante Mundial sin partidos ayer: enviar igualmente (crónica + leaderboard).
+    // ?force=true override: bypass del skip para testing manual.
+    const force = req.query?.force === 'true' || req.url?.includes('force=true')
+    if (now < MUNDIAL_START && yMatches.length === 0 && !force) {
+      log.push('⏭️ Pre-Mundial sin partidos ayer — skip (usa ?force=true para forzar)')
       return res.status(200).json({ sent: 0, reason: 'pre-mundial no matches', log })
     }
+    if (force) log.push('⚠️ Force mode — skipping pre-mundial guard')
 
     // 3. Build leaderboard (real users only, sorted by points + tiebreaker)
     const paidIds = new Set(profiles.filter(p => p.has_paid).map(p => p.id))

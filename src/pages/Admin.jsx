@@ -19,6 +19,8 @@ export default function Admin({ session }) {
   const [syncing, setSyncing] = useState(false)
   const [syncLog, setSyncLog] = useState(null)
   const [syncHistory, setSyncHistory] = useState([])
+  const [sendingDigest, setSendingDigest] = useState(false)
+  const [digestLog, setDigestLog] = useState(null)
 
   // Results tab — search filter
   const [matchSearch, setMatchSearch] = useState('')
@@ -192,6 +194,22 @@ export default function Admin({ session }) {
     const next = [entry, ...syncHistory].slice(0, 3)
     setSyncHistory(next)
     try { localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(next)) } catch {}
+  }
+
+  async function runDigest(force) {
+    setSendingDigest(true)
+    setDigestLog(null)
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const headers = s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}
+      const url = '/api/send-daily-digest' + (force ? '?force=true' : '')
+      const res = await fetch(url, { headers })
+      const data = await res.json()
+      setDigestLog(data)
+    } catch (err) {
+      setDigestLog({ error: err.message })
+    }
+    setSendingDigest(false)
   }
 
   async function runSync() {
@@ -979,6 +997,83 @@ export default function Admin({ session }) {
               ))}
             </div>
           )}
+
+          {/* === DIGEST DIARIO POR EMAIL === */}
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: '12px',
+            padding: '18px', marginTop: '14px', marginBottom: '14px',
+            border: '0.5px solid var(--border)'
+          }}>
+            <div style={sectionHeader}>📧 Digest diario por email</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55', marginBottom: '14px' }}>
+              Envía a todos los participantes (vía Resend) un email con su posición,
+              top 10, resultados del día anterior y la crónica. Cron automático a las
+              06:00 UTC (08:00 hora España). Pulsa para enviar ahora — fuerza el envío
+              aunque no haya partidos ayer.
+            </div>
+            <button
+              onClick={() => runDigest(true)}
+              disabled={sendingDigest}
+              style={{
+                width: '100%', padding: '14px', borderRadius: '10px',
+                border: 'none', cursor: sendingDigest ? 'not-allowed' : 'pointer',
+                fontSize: '13px', fontWeight: 700,
+                background: sendingDigest ? 'var(--bg-input)' : 'var(--green)',
+                color: sendingDigest ? 'var(--text-muted)' : '#fff',
+                letterSpacing: '0.6px', textTransform: 'uppercase',
+                transition: 'background 0.15s ease'
+              }}
+            >
+              {sendingDigest ? 'Enviando…' : '📨 Enviar digest ahora'}
+            </button>
+
+            {sendingDigest && !digestLog && (
+              <div style={{ marginTop: '14px' }}>
+                <FootballSpinner size={28} text="Generando emails y enviando vía Resend…" />
+              </div>
+            )}
+
+            {digestLog && !sendingDigest && (
+              <div style={{
+                marginTop: '14px', padding: '12px',
+                background: 'var(--bg-input)', borderRadius: '8px',
+                fontSize: '12px', color: 'var(--text-muted)'
+              }}>
+                {digestLog.error ? (
+                  <div style={{ color: '#e74c3c' }}>
+                    <strong>Error:</strong> {digestLog.error}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>
+                        ✅ {digestLog.sent || 0} emails enviados
+                      </strong>
+                      {digestLog.failed > 0 && (
+                        <span style={{ color: '#e74c3c', marginLeft: '8px' }}>
+                          · {digestLog.failed} fallos
+                        </span>
+                      )}
+                    </div>
+                    {digestLog.reason && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '8px' }}>
+                        Reason: {digestLog.reason}
+                      </div>
+                    )}
+                    {digestLog.log && (
+                      <details>
+                        <summary style={{ cursor: 'pointer', fontSize: '11px' }}>Ver log completo</summary>
+                        <pre style={{
+                          marginTop: '6px', fontSize: '10px', lineHeight: '1.5',
+                          whiteSpace: 'pre-wrap', wordBreak: 'break-all'
+                        }}>{digestLog.log.join('\n')}</pre>
+                      </details>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
 
