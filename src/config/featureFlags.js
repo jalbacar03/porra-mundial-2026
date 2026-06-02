@@ -5,12 +5,13 @@
  * y re-despliega. Default OFF (invisible en producción).
  */
 
-export const FRIENDLY_TOURNAMENT_ENABLED =
-  import.meta.env.VITE_FRIENDLY_TOURNAMENT_ENABLED === 'true'
+// Pre-Mundial activo. Solo admins lo ven mientras ADMIN_ONLY = true.
+// Para apagar todo: false. Para abrir a todos los participantes:
+// FRIENDLY_TOURNAMENT_ADMIN_ONLY = false.
+export const FRIENDLY_TOURNAMENT_ENABLED = true
 
-// Gate de prueba — mientras esté en true, solo los admins ven el Pre-Mundial
-// aunque FRIENDLY_TOURNAMENT_ENABLED esté activado. Cambiar a false (commit +
-// push) cuando se quiera abrir a todos los participantes.
+// Gate de prueba — mientras esté en true, solo los admins ven el Pre-Mundial.
+// Cambiar a false (commit + push) cuando se quiera abrir a todos.
 export const FRIENDLY_TOURNAMENT_ADMIN_ONLY = true
 
 /**
