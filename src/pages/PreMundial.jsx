@@ -32,7 +32,7 @@ export default function PreMundial({ session }) {
 
   async function fetchData() {
     const [profRes, mRes, pRes] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, nickname, has_paid, friendly_joined, is_admin').eq('id', session.user.id).single(),
+      supabase.from('profiles').select('id, full_name, nickname, has_paid, payment_confirmed, friendly_joined, is_admin').eq('id', session.user.id).single(),
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(id,name,flag_url,code), away_team:teams!matches_away_team_id_fkey(id,name,flag_url,code)')
         .eq('stage', 'friendly')
@@ -96,7 +96,7 @@ export default function PreMundial({ session }) {
     )
   }
 
-  if (loading) return <FootballSpinner text="Cargando Pre-Mundial…" />
+  if (loading) return <FootballSpinner text="Cargando La Liguilla…" />
 
   // ── Guard: admin-only durante la fase de prueba
   if (!isFriendlyVisible(profile)) {
@@ -107,23 +107,26 @@ export default function PreMundial({ session }) {
     )
   }
 
-  // ── Guard: no pagado → mensaje
-  if (!profile?.has_paid) {
+  // ── Guard: no pagado → mensaje claro
+  // El requisito para participar en La Liguilla es haber pagado los 20€ de la
+  // porra real (payment_confirmed=true). El admin lo marca a mano cuando recibe
+  // el bizum. has_paid solo indica que está admitido.
+  if (!profile?.payment_confirmed) {
     return (
       <div style={{ maxWidth: '500px', margin: '40px auto', padding: '20px' }}>
         <div style={{
           background: 'var(--bg-secondary)', borderRadius: '14px', padding: '24px',
-          textAlign: 'center', border: '1px solid var(--border-light)'
+          textAlign: 'center', border: '1px solid rgba(226,75,74,0.25)'
         }}>
           <div style={{ fontSize: '13px', color: 'var(--gold)', fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Pre-Mundial
+            La Liguilla
           </div>
           <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>
-            Solo participantes admitidos
+            Falta el pago
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            Para participar en el mini-torneo Pre-Mundial primero tienes que estar
-            admitido en la porra real. Avisa a Javi.
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55' }}>
+            Para participar en La Liguilla primero hay que tener pagada la porra real (20€).
+            Cuando hagas el bizum a Javi y te confirme el pago, podrás apuntarte.
           </div>
         </div>
       </div>
@@ -143,7 +146,7 @@ export default function PreMundial({ session }) {
       {/* Header */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '4px' }}>
-          Pre-Mundial · 12 partidos
+          La Liguilla · 12 partidos
         </div>
         <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
           Tus predicciones
@@ -204,7 +207,7 @@ function OptInScreen({ onJoin, joining }) {
         borderRadius: '14px', padding: '28px 24px', marginBottom: '16px'
       }}>
         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: '800', letterSpacing: '1.6px', textTransform: 'uppercase', marginBottom: '6px' }}>
-          Mini-torneo opcional
+          La Liguilla · mini-torneo opcional
         </div>
         <div style={{ fontSize: '24px', fontWeight: '800', color: '#fff', lineHeight: '1.2', marginBottom: '14px' }}>
           Calienta motores con 12 amistosos pre-Mundial
@@ -242,7 +245,7 @@ function OptInScreen({ onJoin, joining }) {
           transition: 'background 0.15s ease'
         }}
       >
-        {joining ? 'Apuntándote…' : 'Apuntarme al Pre-Mundial'}
+        {joining ? 'Apuntándote…' : 'Apuntarme a La Liguilla'}
       </button>
 
       <div style={{ fontSize: '11px', color: 'var(--text-dim)', textAlign: 'center', lineHeight: '1.5' }}>

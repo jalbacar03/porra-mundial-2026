@@ -5,14 +5,12 @@
  * y re-despliega. Default OFF (invisible en producción).
  */
 
-// Pre-Mundial activo. Solo admins lo ven mientras ADMIN_ONLY = true.
-// Para apagar todo: false. Para abrir a todos los participantes:
-// FRIENDLY_TOURNAMENT_ADMIN_ONLY = false.
+// Pre-Mundial activo y abierto a todos los participantes admitidos.
+// Para apagar: cambiar FRIENDLY_TOURNAMENT_ENABLED a false.
 export const FRIENDLY_TOURNAMENT_ENABLED = true
 
-// Gate de prueba — mientras esté en true, solo los admins ven el Pre-Mundial.
-// Cambiar a false (commit + push) cuando se quiera abrir a todos.
-export const FRIENDLY_TOURNAMENT_ADMIN_ONLY = true
+// Si en algún momento hay que volver a fase de pruebas, poner a true.
+export const FRIENDLY_TOURNAMENT_ADMIN_ONLY = false
 
 /**
  * Helper: ¿debe el Pre-Mundial ser visible para este profile?

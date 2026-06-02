@@ -313,7 +313,7 @@ export default function Leaderboard({ demoMode }) {
         }}>
           {[
             { key: 'mundial',  label: 'Mundial' },
-            { key: 'friendly', label: 'Pre-Mundial' },
+            { key: 'friendly', label: 'La Liguilla' },
           ].map(t => (
             <button
               key={t.key}

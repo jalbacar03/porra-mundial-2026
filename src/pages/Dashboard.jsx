@@ -501,7 +501,10 @@ export default function Dashboard({ session, demoMode }) {
         )
       })()}
 
-      {/* === PRE-MUNDIAL CARD (feature-flagged + admin-only mientras se prueba) === */}
+      {/* === PRE-MUNDIAL CARD ===
+          Visible para todos los users admitidos (has_paid). El gate real de
+          participación está dentro de /pre-mundial: si no payment_confirmed,
+          ven el card pero al entrar se les dice que tienen que pagar. */}
       {isFriendlyVisible(profile) && profile?.has_paid && (
         <div
           onClick={() => navigate('/pre-mundial')}
@@ -525,13 +528,13 @@ export default function Dashboard({ session, demoMode }) {
             letterSpacing: '1.4px', textTransform: 'uppercase',
             marginBottom: '6px'
           }}>
-            Pre-Mundial · 4-9 jun
+            🏆 La Liguilla · 4-9 jun
           </div>
           <div style={{
             fontSize: '16px', fontWeight: '700', color: '#fff',
             marginBottom: '4px'
           }}>
-            {profile.friendly_joined ? 'Estás dentro del mini-torneo' : '12 amistosos. Top 3 entrada gratis'}
+            {profile.friendly_joined ? 'Estás dentro de La Liguilla' : '12 amistosos. Top 3 recuperan los 20€'}
           </div>
           <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
             {profile.friendly_joined ? 'Predice tus partidos →' : 'Pulsa para apuntarte →'}
