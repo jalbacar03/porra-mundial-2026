@@ -3,16 +3,22 @@
  *
  * GET /api/send-daily-digest → Genera y envía digest diario a todos los
  * participantes (excluyendo Bot365). Contenido:
- *   - Saludo personalizado con nombre
- *   - Tu posición + delta vs ayer + puntos
- *   - Top 10 leaderboard
+ *   - Saludo personalizado
+ *   - Hero con posición + delta posiciones + puntos + exactos
+ *   - Tu jornada: predicciones vs realidad por partido
+ *   - Movimientos del día: top 3 que subieron/bajaron
  *   - Resultados del día anterior
+ *   - Consensus: cómo predijo el grupo cada partido (barras)
+ *   - Top 10 leaderboard
  *   - Crónica corta del día (Gemini)
  *   - CTA a la app
  *
  * Cron diario a las 06:00 UTC (08:00 hora España).
  * Auth: CRON_SECRET (opt-in, igual que sync-results).
+ * Query: ?force=true → bypass del skip pre-Mundial (testing manual).
  */
+
+import { buildEmailHTML, buildSubject } from './_digest-template.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Porra Mundial 2026 <noreply@porramundial2026.app>'
@@ -147,15 +153,90 @@ export default async function handler(req, res) {
       )
 
     // 4. Compute delta vs yesterday (points earned in yesterday's matches)
+    // + per-user breakdown of yesterday's predictions (for "Tu jornada")
+    // + per-match consensus stats (for "Cómo predijo el grupo")
     const yMatchIds = yMatches.map(m => m.id)
     const deltaByUser = {}
+    const yPredsByUserMatch = {} // { userId: { matchId: { predHome, predAway, pts } } }
+    const consensusByMatch = {}  // { matchId: { totalPreds, signCorrect, exactCorrect, signPct, exactPct } }
+
     if (yMatchIds.length > 0) {
       const yPreds = await supaFetch(
-        `/rest/v1/predictions?select=user_id,points_earned&match_id=in.(${yMatchIds.join(',')})`
+        `/rest/v1/predictions?select=user_id,match_id,predicted_home,predicted_away,points_earned&match_id=in.(${yMatchIds.join(',')})`
       )
+      // delta per user
       yPreds.forEach(p => {
         deltaByUser[p.user_id] = (deltaByUser[p.user_id] || 0) + (p.points_earned || 0)
+        if (!yPredsByUserMatch[p.user_id]) yPredsByUserMatch[p.user_id] = {}
+        yPredsByUserMatch[p.user_id][p.match_id] = {
+          predHome: p.predicted_home,
+          predAway: p.predicted_away,
+          pts: p.points_earned || 0,
+        }
       })
+      // consensus per match
+      for (const m of yMatches) {
+        const matchPreds = yPreds.filter(p => p.match_id === m.id && p.user_id !== BOT365_ID)
+        let exact = 0, sign = 0
+        for (const p of matchPreds) {
+          if (p.predicted_home == null || p.predicted_away == null) continue
+          if (p.predicted_home === m.home_score && p.predicted_away === m.away_score) {
+            exact++
+          } else {
+            const ps = Math.sign(p.predicted_home - p.predicted_away)
+            const rs = Math.sign(m.home_score - m.away_score)
+            if (ps === rs) sign++
+          }
+        }
+        const total = matchPreds.length
+        const signTotal = exact + sign  // signo correcto (incluye exactos)
+        consensusByMatch[m.id] = {
+          totalPreds: total,
+          signCorrect: signTotal,
+          exactCorrect: exact,
+          signPct: total > 0 ? Math.round((signTotal / total) * 100) : 0,
+          exactPct: total > 0 ? Math.round((exact / total) * 100) : 0,
+        }
+      }
+    }
+
+    // Decorate yMatches with consensus for the template
+    const yMatchesWithConsensus = yMatches.map(m => ({
+      ...m, consensus: consensusByMatch[m.id],
+    }))
+
+    // 4b. Compute rank deltas (movements: who went up/down most)
+    // ranked = current. "Yesterday's ranking" = subtract delta from each user's total.
+    const yesterdayRanked = ranked.map(r => ({
+      ...r,
+      total_points: (r.total_points || 0) - (deltaByUser[r.user_id] || 0),
+    })).sort(
+      (a, b) =>
+        (b.total_points || 0) - (a.total_points || 0) ||
+        (b.exact_hits || 0) - (a.exact_hits || 0)
+    )
+    const yesterdayRankByUser = {}
+    yesterdayRanked.forEach((r, i) => { yesterdayRankByUser[r.user_id] = i + 1 })
+    const todayRankByUser = {}
+    ranked.forEach((r, i) => { todayRankByUser[r.user_id] = i + 1 })
+
+    const posDeltaByUser = {}
+    for (const r of ranked) {
+      posDeltaByUser[r.user_id] = (yesterdayRankByUser[r.user_id] || 0) - (todayRankByUser[r.user_id] || 0)
+    }
+
+    const movementsAll = ranked
+      .map(r => ({
+        name: r.full_name,
+        posDelta: posDeltaByUser[r.user_id] || 0,
+        fromRank: yesterdayRankByUser[r.user_id],
+        toRank: todayRankByUser[r.user_id],
+      }))
+      .filter(m => m.posDelta !== 0)
+
+    const movements = {
+      up:   movementsAll.filter(m => m.posDelta > 0).sort((a, b) => b.posDelta - a.posDelta).slice(0, 3),
+      down: movementsAll.filter(m => m.posDelta < 0).sort((a, b) => a.posDelta - b.posDelta).slice(0, 3),
     }
 
     // 5. Compute tied ranks (T1, T1 for ties)
@@ -190,6 +271,28 @@ export default async function handler(req, res) {
       if (!user.email) continue
       const ri = rankInfo[user.user_id]
       const delta = deltaByUser[user.user_id] || 0
+      const posDelta = posDeltaByUser[user.user_id] || 0
+
+      // Build per-user "Tu jornada": match-by-match con tu predicción + status
+      const yourMatches = yMatches.map(m => {
+        const p = yPredsByUserMatch[user.user_id]?.[m.id]
+        if (!p) {
+          return {
+            home: m.home_team?.name || '?', away: m.away_team?.name || '?',
+            homeScore: m.home_score, awayScore: m.away_score,
+            predHome: null, predAway: null, pts: 0, status: 'nopred',
+          }
+        }
+        let status = 'miss'
+        if (p.predHome === m.home_score && p.predAway === m.away_score) status = 'exact'
+        else if (Math.sign(p.predHome - p.predAway) === Math.sign(m.home_score - m.away_score)) status = 'sign'
+        return {
+          home: m.home_team?.name || '?', away: m.away_team?.name || '?',
+          homeScore: m.home_score, awayScore: m.away_score,
+          predHome: p.predHome, predAway: p.predAway, pts: p.pts, status,
+        }
+      })
+
       const html = buildEmailHTML({
         userName: user.full_name,
         rankLabel: ri.label,
@@ -197,16 +300,23 @@ export default async function handler(req, res) {
         points: user.total_points || 0,
         exactHits: user.exact_hits || 0,
         delta,
+        posDelta,
+        yourMatches,
+        movements,
+        yMatches: yMatchesWithConsensus,
         top10,
         rankInfo,
-        yMatches,
         insightText,
         appUrl: APP_URL,
       })
       emails.push({
         from: RESEND_FROM_EMAIL,
         to: [user.email],
-        subject: buildSubject({ rankLabel: ri.label, delta, hasMatches: yMatches.length > 0 }),
+        subject: buildSubject({
+          rankLabel: ri.label, delta, posDelta,
+          hasMatches: yMatches.length > 0,
+          hasPredictions: yourMatches.some(m => m.status !== 'nopred'),
+        }),
         html,
       })
     }
@@ -253,181 +363,4 @@ export default async function handler(req, res) {
     console.error('Digest error:', err)
     return res.status(500).json({ error: String(err) })
   }
-}
-
-// ─── HTML builders ─────────────────────────────────────────────────────────
-
-function buildSubject({ rankLabel, delta, hasMatches }) {
-  if (!hasMatches) {
-    return `📰 Porra Mundial 26 — Crónica del día`
-  }
-  if (delta > 0) {
-    return `+${delta} pts · Estás ${rankLabel}º — Porra Mundial 26`
-  }
-  return `Estás ${rankLabel}º — Porra Mundial 26`
-}
-
-function buildEmailHTML({
-  userName,
-  rankLabel,
-  totalParticipants,
-  points,
-  exactHits,
-  delta,
-  top10,
-  rankInfo,
-  yMatches,
-  insightText,
-  appUrl,
-}) {
-  const dateStr = new Date().toLocaleDateString('es-ES', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  })
-
-  const matchRows = yMatches
-    .map(
-      m => `
-        <tr>
-          <td style="padding:8px 0;font-size:14px;color:#fff">
-            ${m.home_team?.flag_url ? `<img src="${m.home_team.flag_url}" alt="" width="20" height="14" style="vertical-align:middle;margin-right:6px;border-radius:2px">` : ''}
-            ${escapeHtml(m.home_team?.name || '?')}
-          </td>
-          <td style="padding:8px 12px;font-size:16px;font-weight:800;color:#ffcc00;text-align:center;white-space:nowrap">
-            ${m.home_score ?? '?'} - ${m.away_score ?? '?'}
-          </td>
-          <td style="padding:8px 0;font-size:14px;color:#fff;text-align:right">
-            ${escapeHtml(m.away_team?.name || '?')}
-            ${m.away_team?.flag_url ? `<img src="${m.away_team.flag_url}" alt="" width="20" height="14" style="vertical-align:middle;margin-left:6px;border-radius:2px">` : ''}
-          </td>
-        </tr>`
-    )
-    .join('')
-
-  const top10Rows = top10
-    .map((u, i) => {
-      const ri = rankInfo[u.user_id]
-      const isFirst = i === 0
-      return `
-        <tr>
-          <td style="padding:8px 4px;width:30px;font-size:13px;font-weight:700;color:${
-            i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#9b9eaa'
-          };text-align:center">
-            ${ri.label}
-          </td>
-          <td style="padding:8px 4px;font-size:14px;color:#fff;font-weight:${isFirst ? '700' : '500'}">
-            ${escapeHtml(u.full_name)}
-          </td>
-          <td style="padding:8px 4px;font-size:14px;font-weight:800;color:#fff;text-align:right">
-            ${u.total_points || 0}
-          </td>
-        </tr>`
-    })
-    .join('')
-
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Porra Mundial 26 — Resumen diario</title>
-</head>
-<body style="margin:0;padding:0;background:#0f1218;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff">
-  <div style="max-width:520px;margin:0 auto;padding:24px 16px">
-
-    <!-- Header -->
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:13px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:4px">
-        Porra Mundial <span style="color:#ffcc00">26</span>
-      </div>
-      <div style="font-size:13px;color:#6b6e78">${escapeHtml(dateStr)}</div>
-    </div>
-
-    <!-- Greeting -->
-    <div style="font-size:18px;font-weight:700;margin-bottom:6px;color:#fff">
-      Buenos días, ${escapeHtml(userName.split(' ')[0])} 👋
-    </div>
-
-    <!-- Hero: posición -->
-    <div style="background:linear-gradient(135deg,#00392a,#00643d);border-radius:14px;padding:20px;margin:16px 0">
-      <div style="font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:6px">
-        Tu posición
-      </div>
-      <div style="font-size:42px;font-weight:800;color:#fff;line-height:1">
-        ${rankLabel}<span style="font-size:18px;color:rgba(255,255,255,0.5);font-weight:500">/${totalParticipants}</span>
-      </div>
-      <div style="margin-top:14px;display:flex;gap:24px">
-        <div style="display:inline-block;margin-right:24px">
-          <div style="font-size:24px;font-weight:800;color:#fff;line-height:1">${points}</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Puntos</div>
-        </div>
-        <div style="display:inline-block;margin-right:24px">
-          <div style="font-size:24px;font-weight:800;color:#ffcc00;line-height:1">${exactHits}</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Exactos</div>
-        </div>
-        ${delta > 0 ? `
-        <div style="display:inline-block">
-          <div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1">+${delta}</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Vs. ayer</div>
-        </div>` : ''}
-      </div>
-    </div>
-
-    ${yMatches.length > 0 ? `
-    <!-- Resultados de ayer -->
-    <div style="background:#1a1d26;border-radius:12px;padding:18px;margin:16px 0;border:1px solid rgba(255,255,255,0.05)">
-      <div style="font-size:11px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:10px">
-        Resultados de ayer
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        ${matchRows}
-      </table>
-    </div>` : ''}
-
-    <!-- Top 10 -->
-    <div style="background:#1a1d26;border-radius:12px;padding:18px;margin:16px 0;border:1px solid rgba(255,255,255,0.05)">
-      <div style="font-size:11px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:10px">
-        Top 10
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        ${top10Rows}
-      </table>
-    </div>
-
-    ${insightText ? `
-    <!-- Crónica -->
-    <div style="background:#1a1d26;border-radius:12px;padding:18px;margin:16px 0;border:1px solid rgba(255,204,0,0.18)">
-      <div style="font-size:11px;color:#ffcc00;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:10px">
-        📰 Crónica del día
-      </div>
-      <div style="font-size:14px;line-height:1.55;color:#d4d6dd">
-        ${escapeHtml(insightText)}
-      </div>
-    </div>` : ''}
-
-    <!-- CTA -->
-    <div style="text-align:center;margin:28px 0">
-      <a href="${appUrl}" style="display:inline-block;background:#00904f;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:10px;font-size:15px">
-        Ver clasificación completa →
-      </a>
-    </div>
-
-    <!-- Footer -->
-    <div style="text-align:center;font-size:11px;color:#6b6e78;line-height:1.6;margin-top:32px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.05)">
-      Recibes este email porque participas en la Porra Mundial 26.<br>
-      Si no quieres recibir el resumen diario, responde a este email con "STOP".
-    </div>
-
-  </div>
-</body>
-</html>`
-}
-
-function escapeHtml(s) {
-  if (s == null) return ''
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
 }
