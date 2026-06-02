@@ -79,9 +79,17 @@ const TEAM_API_IDS = {
   'Qatar': 1569,
   'Sudáfrica': 1531,
   'Túnez': 28,
-  'Uzbekistán': 1568
-  // NOTE: Placeholder teams (Ganador Playoff UEFA A/B/C/D, Ganador Repesca
-  // Intercontinental 1/2) are intentionally excluded — no real squads yet.
+  'Uzbekistán': 1568,
+
+  // --- Playoff winners (IDs verified 2026-06-02 against /teams?id=X) ---
+  // Previous DB values pointed to wrong countries (Suecia→Denmark, Chequia
+  // →Indonesia, Bosnia→Costa Rica, Turquía→Catania club, etc.). Fixed.
+  'Bosnia y Herzegovina': 1113,
+  'Chequia': 770,
+  'Irak': 1567,
+  'RD Congo': 1508,
+  'Suecia': 5,
+  'Turquía': 777
 }
 
 function mapPosition(pos) {
