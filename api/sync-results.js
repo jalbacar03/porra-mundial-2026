@@ -693,12 +693,18 @@ function findApiFixtureId(apiMatches, ourMatch, teamByApiId) {
 async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, log) {
   let updated = 0
 
-  // Map API-Football round names to our stage names and match number ranges
+  // Map API-Football round names to our stage names and match number ranges.
+  // Third-place final (#103) included so it gets auto-filled like the rest —
+  // API-Football usa varios nombres distintos según fixture (3rd Place Final,
+  // Third Place Final, 3rd-place final) → todos apuntan al mismo match #103.
   const roundMapping = {
     'Round of 32': { stage: 'Round of 32', startMatch: 73, endMatch: 88 },
     'Round of 16': { stage: 'Round of 16', startMatch: 89, endMatch: 96 },
     'Quarter-finals': { stage: 'Quarter-finals', startMatch: 97, endMatch: 100 },
     'Semi-finals': { stage: 'Semi-finals', startMatch: 101, endMatch: 102 },
+    '3rd Place Final': { stage: 'Third place', startMatch: 103, endMatch: 103 },
+    'Third Place Final': { stage: 'Third place', startMatch: 103, endMatch: 103 },
+    '3rd-place final': { stage: 'Third place', startMatch: 103, endMatch: 103 },
     'Final': { stage: 'Final', startMatch: 104, endMatch: 104 }
   }
 
