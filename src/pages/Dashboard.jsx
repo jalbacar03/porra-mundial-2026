@@ -10,7 +10,7 @@ import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
-import { FRIENDLY_TOURNAMENT_ENABLED } from '../config/featureFlags'
+import { isFriendlyVisible } from '../config/featureFlags'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -501,8 +501,8 @@ export default function Dashboard({ session, demoMode }) {
         )
       })()}
 
-      {/* === PRE-MUNDIAL CARD (feature-flagged) === */}
-      {FRIENDLY_TOURNAMENT_ENABLED && profile?.has_paid && (
+      {/* === PRE-MUNDIAL CARD (feature-flagged + admin-only mientras se prueba) === */}
+      {isFriendlyVisible(profile) && profile?.has_paid && (
         <div
           onClick={() => navigate('/pre-mundial')}
           role="button" tabIndex={0}

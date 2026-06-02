@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { FootballSpinner } from '../components/Skeleton'
-import { FRIENDLY_TOURNAMENT_ENABLED } from '../config/featureFlags'
+import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 
 /**
  * Mini-torneo Pre-Mundial — 12 amistosos (4-9 jun 2026) antes del Mundial.
@@ -32,7 +32,7 @@ export default function PreMundial({ session }) {
 
   async function fetchData() {
     const [profRes, mRes, pRes] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, nickname, has_paid, friendly_joined').eq('id', session.user.id).single(),
+      supabase.from('profiles').select('id, full_name, nickname, has_paid, friendly_joined, is_admin').eq('id', session.user.id).single(),
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(id,name,flag_url,code), away_team:teams!matches_away_team_id_fkey(id,name,flag_url,code)')
         .eq('stage', 'friendly')
@@ -97,6 +97,15 @@ export default function PreMundial({ session }) {
   }
 
   if (loading) return <FootballSpinner text="Cargando Pre-Mundial…" />
+
+  // ── Guard: admin-only durante la fase de prueba
+  if (!isFriendlyVisible(profile)) {
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        Página no disponible.
+      </div>
+    )
+  }
 
   // ── Guard: no pagado → mensaje
   if (!profile?.has_paid) {

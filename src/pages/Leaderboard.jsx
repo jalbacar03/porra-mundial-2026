@@ -6,7 +6,7 @@ import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
 import Avatar from '../components/Avatar'
 import { displayName } from '../utils/nickname'
-import { FRIENDLY_TOURNAMENT_ENABLED } from '../config/featureFlags'
+import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 function calcProvisionalPoints(pred, match) {
@@ -89,16 +89,17 @@ export default function Leaderboard({ demoMode }) {
       setLivePredictions([])
     }
 
-    // Pre-Mundial leaderboard (feature-flagged)
+    // Pre-Mundial leaderboard (feature-flagged + admin-only durante prueba)
     if (FRIENDLY_TOURNAMENT_ENABLED) {
-      const [{ data: flb }, { data: meProf }] = await Promise.all([
-        supabase.from('leaderboard_friendly').select('*'),
-        user
-          ? supabase.from('profiles').select('friendly_joined').eq('id', user.id).single()
-          : Promise.resolve({ data: null }),
-      ])
-      if (flb) setFriendlyRankings(flb)
-      if (meProf?.friendly_joined) setUserJoinedFriendly(true)
+      const meProf = user
+        ? (await supabase.from('profiles').select('friendly_joined, is_admin').eq('id', user.id).single()).data
+        : null
+      // Solo cargar si el flag global ON y (admin si admin-only) — evita query inútil.
+      if (isFriendlyVisible(meProf)) {
+        const { data: flb } = await supabase.from('leaderboard_friendly').select('*')
+        if (flb) setFriendlyRankings(flb)
+        if (meProf?.friendly_joined) setUserJoinedFriendly(true)
+      }
     }
 
     setLoading(false)
@@ -301,8 +302,10 @@ export default function Leaderboard({ demoMode }) {
         )}
       </div>
 
-      {/* Tabs Mundial / Pre-Mundial (solo si feature flag ON y user inscrito) */}
-      {FRIENDLY_TOURNAMENT_ENABLED && userJoinedFriendly && (
+      {/* Tabs Mundial / Pre-Mundial (solo si feature flag ON y user inscrito).
+          userJoinedFriendly se setea solo si isFriendlyVisible(profile),
+          así que el admin-only guard se aplica también aquí. */}
+      {userJoinedFriendly && (
         <div style={{
           display: 'flex', gap: '6px', marginBottom: '14px',
           padding: '4px', borderRadius: '10px',
