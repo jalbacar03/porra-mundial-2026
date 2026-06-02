@@ -163,7 +163,7 @@ export default function NicknameModal({ session, onSaved }) {
           marginTop: '8px', fontSize: '11px', color: 'var(--text-dim)',
           lineHeight: '1.5'
         }}>
-          3-30 caracteres · solo letras, números, puntos, guiones y _
+          3-30 caracteres
         </div>
 
         <button

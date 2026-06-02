@@ -32,8 +32,12 @@ export function validateNickname(n) {
   const trimmed = n.trim()
   if (trimmed.length < 3) return { ok: false, error: 'Mínimo 3 caracteres' }
   if (trimmed.length > 30) return { ok: false, error: 'Máximo 30 caracteres' }
-  if (!/^[a-z0-9._-]+$/i.test(trimmed)) {
-    return { ok: false, error: 'Solo letras, números, puntos, guiones y _ (sin espacios)' }
+  // Permite letras (con tildes), números, espacios, puntos, guiones y _.
+  // Más permisivo que un username clásico — pensado como display name.
+  if (!/^[\p{L}\p{N} ._-]+$/u.test(trimmed)) {
+    return { ok: false, error: 'Solo letras, números, espacios y . _ -' }
   }
-  return { ok: true, value: trimmed }
+  // Collapse multiple spaces → uno
+  const normalized = trimmed.replace(/\s+/g, ' ')
+  return { ok: true, value: normalized }
 }
