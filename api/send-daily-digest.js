@@ -1,0 +1,430 @@
+/**
+ * Vercel Serverless Function — Daily email digest
+ *
+ * GET /api/send-daily-digest → Genera y envía digest diario a todos los
+ * participantes (excluyendo Bot365). Contenido:
+ *   - Saludo personalizado con nombre
+ *   - Tu posición + delta vs ayer + puntos
+ *   - Top 10 leaderboard
+ *   - Resultados del día anterior
+ *   - Crónica corta del día (Gemini)
+ *   - CTA a la app
+ *
+ * Cron diario a las 06:00 UTC (08:00 hora España).
+ * Auth: CRON_SECRET (opt-in, igual que sync-results).
+ */
+
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Porra Mundial 2026 <noreply@porramundial2026.app>'
+const SUPABASE_URL = process.env.SUPABASE_URL
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
+const APP_URL = process.env.APP_URL || 'https://porramundial2026.app'
+
+const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
+const MUNDIAL_START = new Date('2026-06-11T00:00:00Z')
+
+async function supaFetch(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}${path}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  })
+  if (!res.ok) {
+    console.error(`Supabase ${path}: ${res.status} ${await res.text().catch(() => '')}`)
+    return []
+  }
+  return res.json().catch(() => [])
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  if (req.method === 'OPTIONS') return res.status(200).end()
+
+  if (!RESEND_API_KEY) {
+    return res.status(500).json({ error: 'RESEND_API_KEY not set' })
+  }
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    return res.status(500).json({ error: 'Supabase env vars missing' })
+  }
+
+  // Auth — same opt-in pattern as sync-results
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const authHeader = req.headers.authorization || ''
+    const token = authHeader.replace(/^Bearer\s+/i, '')
+    if (!token) return res.status(401).json({ error: 'Unauthorized' })
+
+    let allowed = token === cronSecret
+    if (!allowed) {
+      try {
+        const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` },
+        })
+        if (userRes.ok) {
+          const user = await userRes.json()
+          if (user?.id) {
+            const prof = await supaFetch(`/rest/v1/profiles?id=eq.${user.id}&select=is_admin`)
+            if (Array.isArray(prof) && prof[0]?.is_admin) allowed = true
+          }
+        }
+      } catch {}
+    }
+    if (!allowed) return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  try {
+    const log = []
+    const now = new Date()
+
+    // Yesterday's window in Madrid time (UTC+2 in summer). Compute as UTC range.
+    // We want: matches that ended "yesterday" from a user's perspective.
+    const yesterdayStart = new Date(now)
+    yesterdayStart.setUTCHours(0, 0, 0, 0)
+    yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1)
+    const yesterdayEnd = new Date(yesterdayStart)
+    yesterdayEnd.setUTCDate(yesterdayEnd.getUTCDate() + 1)
+
+    // 1. Fetch data in parallel
+    log.push('📡 Fetching data…')
+    const [lb, profiles, yMatches, insight] = await Promise.all([
+      supaFetch('/rest/v1/leaderboard?select=*'),
+      supaFetch('/rest/v1/profiles?select=id,full_name,has_paid'),
+      supaFetch(
+        `/rest/v1/matches?select=id,home_score,away_score,match_date,stage,home_team:teams!matches_home_team_id_fkey(name,flag_url),away_team:teams!matches_away_team_id_fkey(name,flag_url)` +
+          `&status=eq.finished` +
+          `&match_date=gte.${yesterdayStart.toISOString()}` +
+          `&match_date=lt.${yesterdayEnd.toISOString()}` +
+          `&order=match_date.asc`
+      ),
+      supaFetch(
+        `/rest/v1/daily_insights?select=content&date=eq.${now.toISOString().slice(0, 10)}&limit=1`
+      ),
+    ])
+
+    // Fetch user emails from auth.users via admin API
+    const usersRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?per_page=500`, {
+      headers: {
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      },
+    })
+    const authUsers = usersRes.ok ? (await usersRes.json())?.users || [] : []
+    const emailById = {}
+    authUsers.forEach(u => { if (u.id && u.email) emailById[u.id] = u.email })
+
+    log.push(`   Leaderboard ${lb.length} · Profiles ${profiles.length} · Yesterday matches ${yMatches.length}`)
+
+    // 2. Decide whether to send anything
+    // Pre-Mundial (antes del 11 jun): skip — no resultados que reportar
+    // Durante Mundial sin partidos ayer: enviar igualmente (crónica + leaderboard)
+    if (now < MUNDIAL_START && yMatches.length === 0) {
+      log.push('⏭️ Pre-Mundial sin partidos ayer — skip')
+      return res.status(200).json({ sent: 0, reason: 'pre-mundial no matches', log })
+    }
+
+    // 3. Build leaderboard (real users only, sorted by points + tiebreaker)
+    const paidIds = new Set(profiles.filter(p => p.has_paid).map(p => p.id))
+    const nameById = Object.fromEntries(profiles.map(p => [p.id, p.full_name || 'Participante']))
+
+    const ranked = lb
+      .filter(r => r.user_id !== BOT365_ID && paidIds.has(r.user_id))
+      .map(r => ({
+        ...r,
+        full_name: nameById[r.user_id] || r.full_name || 'Participante',
+        email: emailById[r.user_id],
+      }))
+      .sort(
+        (a, b) =>
+          (b.total_points || 0) - (a.total_points || 0) ||
+          (b.exact_hits || 0) - (a.exact_hits || 0)
+      )
+
+    // 4. Compute delta vs yesterday (points earned in yesterday's matches)
+    const yMatchIds = yMatches.map(m => m.id)
+    const deltaByUser = {}
+    if (yMatchIds.length > 0) {
+      const yPreds = await supaFetch(
+        `/rest/v1/predictions?select=user_id,points_earned&match_id=in.(${yMatchIds.join(',')})`
+      )
+      yPreds.forEach(p => {
+        deltaByUser[p.user_id] = (deltaByUser[p.user_id] || 0) + (p.points_earned || 0)
+      })
+    }
+
+    // 5. Compute tied ranks (T1, T1 for ties)
+    const rankInfo = {}
+    ranked.forEach((r, idx) => {
+      const pts = r.total_points || 0
+      const exact = r.exact_hits || 0
+      let firstSame = idx
+      while (
+        firstSame > 0 &&
+        (ranked[firstSame - 1].total_points || 0) === pts &&
+        (ranked[firstSame - 1].exact_hits || 0) === exact
+      ) {
+        firstSame--
+      }
+      const rank = firstSame + 1
+      const tied =
+        firstSame < idx ||
+        (idx + 1 < ranked.length &&
+          (ranked[idx + 1].total_points || 0) === pts &&
+          (ranked[idx + 1].exact_hits || 0) === exact)
+      rankInfo[r.user_id] = { rank, label: tied ? `T${rank}` : `${rank}` }
+    })
+
+    const top10 = ranked.slice(0, 10)
+    const insightText = insight?.[0]?.content || null
+
+    // 6. Build personalized emails for each user with email
+    log.push('✉️  Building emails…')
+    const emails = []
+    for (const user of ranked) {
+      if (!user.email) continue
+      const ri = rankInfo[user.user_id]
+      const delta = deltaByUser[user.user_id] || 0
+      const html = buildEmailHTML({
+        userName: user.full_name,
+        rankLabel: ri.label,
+        totalParticipants: ranked.length,
+        points: user.total_points || 0,
+        exactHits: user.exact_hits || 0,
+        delta,
+        top10,
+        rankInfo,
+        yMatches,
+        insightText,
+        appUrl: APP_URL,
+      })
+      emails.push({
+        from: RESEND_FROM_EMAIL,
+        to: [user.email],
+        subject: buildSubject({ rankLabel: ri.label, delta, hasMatches: yMatches.length > 0 }),
+        html,
+      })
+    }
+
+    if (emails.length === 0) {
+      log.push('⚠️ No emails to send (no users with email)')
+      return res.status(200).json({ sent: 0, reason: 'no recipients', log })
+    }
+
+    log.push(`   ${emails.length} emails ready`)
+
+    // 7. Send via Resend batch API (max 100 per batch). For 100 users = 1 call.
+    log.push('📨 Sending via Resend…')
+    let sent = 0
+    let failed = 0
+    for (let i = 0; i < emails.length; i += 100) {
+      const batch = emails.slice(i, i + 100)
+      const r = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(batch),
+      })
+      if (r.ok) {
+        sent += batch.length
+        log.push(`   ✅ Batch ${i / 100 + 1}: ${batch.length} sent`)
+      } else {
+        failed += batch.length
+        const errText = await r.text().catch(() => '')
+        log.push(`   ❌ Batch ${i / 100 + 1} failed: ${r.status} ${errText.slice(0, 200)}`)
+      }
+    }
+
+    return res.status(200).json({
+      sent,
+      failed,
+      totalRecipients: emails.length,
+      yesterdayMatches: yMatches.length,
+      log,
+    })
+  } catch (err) {
+    console.error('Digest error:', err)
+    return res.status(500).json({ error: String(err) })
+  }
+}
+
+// ─── HTML builders ─────────────────────────────────────────────────────────
+
+function buildSubject({ rankLabel, delta, hasMatches }) {
+  if (!hasMatches) {
+    return `📰 Porra Mundial 26 — Crónica del día`
+  }
+  if (delta > 0) {
+    return `+${delta} pts · Estás ${rankLabel}º — Porra Mundial 26`
+  }
+  return `Estás ${rankLabel}º — Porra Mundial 26`
+}
+
+function buildEmailHTML({
+  userName,
+  rankLabel,
+  totalParticipants,
+  points,
+  exactHits,
+  delta,
+  top10,
+  rankInfo,
+  yMatches,
+  insightText,
+  appUrl,
+}) {
+  const dateStr = new Date().toLocaleDateString('es-ES', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  })
+
+  const matchRows = yMatches
+    .map(
+      m => `
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#fff">
+            ${m.home_team?.flag_url ? `<img src="${m.home_team.flag_url}" alt="" width="20" height="14" style="vertical-align:middle;margin-right:6px;border-radius:2px">` : ''}
+            ${escapeHtml(m.home_team?.name || '?')}
+          </td>
+          <td style="padding:8px 12px;font-size:16px;font-weight:800;color:#ffcc00;text-align:center;white-space:nowrap">
+            ${m.home_score ?? '?'} - ${m.away_score ?? '?'}
+          </td>
+          <td style="padding:8px 0;font-size:14px;color:#fff;text-align:right">
+            ${escapeHtml(m.away_team?.name || '?')}
+            ${m.away_team?.flag_url ? `<img src="${m.away_team.flag_url}" alt="" width="20" height="14" style="vertical-align:middle;margin-left:6px;border-radius:2px">` : ''}
+          </td>
+        </tr>`
+    )
+    .join('')
+
+  const top10Rows = top10
+    .map((u, i) => {
+      const ri = rankInfo[u.user_id]
+      const isFirst = i === 0
+      return `
+        <tr>
+          <td style="padding:8px 4px;width:30px;font-size:13px;font-weight:700;color:${
+            i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#9b9eaa'
+          };text-align:center">
+            ${ri.label}
+          </td>
+          <td style="padding:8px 4px;font-size:14px;color:#fff;font-weight:${isFirst ? '700' : '500'}">
+            ${escapeHtml(u.full_name)}
+          </td>
+          <td style="padding:8px 4px;font-size:14px;font-weight:800;color:#fff;text-align:right">
+            ${u.total_points || 0}
+          </td>
+        </tr>`
+    })
+    .join('')
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Porra Mundial 26 — Resumen diario</title>
+</head>
+<body style="margin:0;padding:0;background:#0f1218;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff">
+  <div style="max-width:520px;margin:0 auto;padding:24px 16px">
+
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:13px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:4px">
+        Porra Mundial <span style="color:#ffcc00">26</span>
+      </div>
+      <div style="font-size:13px;color:#6b6e78">${escapeHtml(dateStr)}</div>
+    </div>
+
+    <!-- Greeting -->
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px;color:#fff">
+      Buenos días, ${escapeHtml(userName.split(' ')[0])} 👋
+    </div>
+
+    <!-- Hero: posición -->
+    <div style="background:linear-gradient(135deg,#00392a,#00643d);border-radius:14px;padding:20px;margin:16px 0">
+      <div style="font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:6px">
+        Tu posición
+      </div>
+      <div style="font-size:42px;font-weight:800;color:#fff;line-height:1">
+        ${rankLabel}<span style="font-size:18px;color:rgba(255,255,255,0.5);font-weight:500">/${totalParticipants}</span>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:24px">
+        <div style="display:inline-block;margin-right:24px">
+          <div style="font-size:24px;font-weight:800;color:#fff;line-height:1">${points}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Puntos</div>
+        </div>
+        <div style="display:inline-block;margin-right:24px">
+          <div style="font-size:24px;font-weight:800;color:#ffcc00;line-height:1">${exactHits}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Exactos</div>
+        </div>
+        ${delta > 0 ? `
+        <div style="display:inline-block">
+          <div style="font-size:24px;font-weight:800;color:#4ade80;line-height:1">+${delta}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-top:4px">Vs. ayer</div>
+        </div>` : ''}
+      </div>
+    </div>
+
+    ${yMatches.length > 0 ? `
+    <!-- Resultados de ayer -->
+    <div style="background:#1a1d26;border-radius:12px;padding:18px;margin:16px 0;border:1px solid rgba(255,255,255,0.05)">
+      <div style="font-size:11px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:10px">
+        Resultados de ayer
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        ${matchRows}
+      </table>
+    </div>` : ''}
+
+    <!-- Top 10 -->
+    <div style="background:#1a1d26;border-radius:12px;padding:18px;margin:16px 0;border:1px solid rgba(255,255,255,0.05)">
+      <div style="font-size:11px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:10px">
+        Top 10
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        ${top10Rows}
+      </table>
+    </div>
+
+    ${insightText ? `
+    <!-- Crónica -->
+    <div style="background:#1a1d26;border-radius:12px;padding:18px;margin:16px 0;border:1px solid rgba(255,204,0,0.18)">
+      <div style="font-size:11px;color:#ffcc00;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:10px">
+        📰 Crónica del día
+      </div>
+      <div style="font-size:14px;line-height:1.55;color:#d4d6dd">
+        ${escapeHtml(insightText)}
+      </div>
+    </div>` : ''}
+
+    <!-- CTA -->
+    <div style="text-align:center;margin:28px 0">
+      <a href="${appUrl}" style="display:inline-block;background:#00904f;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:10px;font-size:15px">
+        Ver clasificación completa →
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;font-size:11px;color:#6b6e78;line-height:1.6;margin-top:32px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.05)">
+      Recibes este email porque participas en la Porra Mundial 26.<br>
+      Si no quieres recibir el resumen diario, responde a este email con "STOP".
+    </div>
+
+  </div>
+</body>
+</html>`
+}
+
+function escapeHtml(s) {
+  if (s == null) return ''
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
