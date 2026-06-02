@@ -19,6 +19,7 @@ const News = lazy(() => import('./pages/News'))
 const Forum = lazy(() => import('./pages/Forum'))
 const MatchDayLive = lazy(() => import('./pages/MatchDayLive'))
 const MatchDetail = lazy(() => import('./pages/MatchDetail'))
+const PreMundial = lazy(() => import('./pages/PreMundial'))
 
 import PaymentWall from './components/PaymentWall'
 import RulesPopup from './components/RulesPopup'
@@ -627,6 +628,7 @@ function AppLayout({ session }) {
                 <Route path="/" element={<Dashboard session={session} demoMode={demoMode} />} />
                 <Route path="/predictions" element={<Predictions session={session} demoMode={demoMode} />} />
                 <Route path="/match/:id" element={<MatchDetail session={session} />} />
+              <Route path="/pre-mundial" element={<PreMundial session={session} />} />
                 <Route path="/leaderboard" element={<Leaderboard demoMode={demoMode} />} />
                 <Route path="/stats" element={<Stats demoMode={demoMode} />} />
                 <Route path="/matchday" element={<MatchDayLive session={session} />} />

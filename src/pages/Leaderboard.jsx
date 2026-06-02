@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
 import Avatar from '../components/Avatar'
 import { displayName } from '../utils/nickname'
+import { FRIENDLY_TOURNAMENT_ENABLED } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 function calcProvisionalPoints(pred, match) {
@@ -34,6 +35,9 @@ export default function Leaderboard({ demoMode }) {
   const [paidUsers, setPaidUsers] = useState(new Set())
   const [profileFullNames, setProfileFullNames] = useState({})
   const [paymentConfirmed, setPaymentConfirmed] = useState(new Set())
+  const [activeTab, setActiveTab] = useState('mundial') // 'mundial' | 'friendly'
+  const [friendlyRankings, setFriendlyRankings] = useState([])
+  const [userJoinedFriendly, setUserJoinedFriendly] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -83,6 +87,18 @@ export default function Leaderboard({ demoMode }) {
       setLivePredictions(livePredsData || [])
     } else {
       setLivePredictions([])
+    }
+
+    // Pre-Mundial leaderboard (feature-flagged)
+    if (FRIENDLY_TOURNAMENT_ENABLED) {
+      const [{ data: flb }, { data: meProf }] = await Promise.all([
+        supabase.from('leaderboard_friendly').select('*'),
+        user
+          ? supabase.from('profiles').select('friendly_joined').eq('id', user.id).single()
+          : Promise.resolve({ data: null }),
+      ])
+      if (flb) setFriendlyRankings(flb)
+      if (meProf?.friendly_joined) setUserJoinedFriendly(true)
     }
 
     setLoading(false)
@@ -187,19 +203,22 @@ export default function Leaderboard({ demoMode }) {
     'linear-gradient(135deg, #cd7f32, #8b4513)'
   ]
 
+  // Source data depende de la tab. friendly leaderboard ya viene filtrado por
+  // friendly_joined desde la vista; solo aplicamos display name.
+  const sourceRankings = activeTab === 'friendly' ? friendlyRankings : rankings
   const allRankings = demoMode ? mockRankings :
-    rankings
-      .filter(r => r.user_id === BOT365_ID || paidUsers.has(r.user_id))
+    sourceRankings
+      .filter(r => activeTab === 'friendly' ? true : (r.user_id === BOT365_ID || paidUsers.has(r.user_id)))
       .map(r => ({
         ...r,
         full_name: profileNames[r.user_id] || r.full_name || 'Participante',
-        provisional: provisionalPoints[r.user_id] || 0,
-        effective_points: r.total_points + (provisionalPoints[r.user_id] || 0)
+        provisional: activeTab === 'friendly' ? 0 : (provisionalPoints[r.user_id] || 0),
+        effective_points: (r.total_points || 0) + (activeTab === 'friendly' ? 0 : (provisionalPoints[r.user_id] || 0))
       }))
       // Always sort points desc, then exact hits desc (the tiebreaker), so the
       // visible order matches both the rules and the 🎯 exactos shown per row —
       // independent of whatever order the leaderboard view returns.
-      .sort((a, b) => b.total_points - a.total_points || (b.exact_hits || 0) - (a.exact_hits || 0))
+      .sort((a, b) => (b.total_points || 0) - (a.total_points || 0) || (b.exact_hits || 0) - (a.exact_hits || 0))
 
   // Re-sort by effective points when live (provisional points in play)
   if (hasLive && !demoMode) {
@@ -262,14 +281,14 @@ export default function Leaderboard({ demoMode }) {
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <h2 style={{
           fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)',
           margin: 0, letterSpacing: '-0.5px'
         }}>
           Clasificación
         </h2>
-        {hasLive && (
+        {hasLive && activeTab === 'mundial' && (
           <span className="live-pulse" style={{
             display: 'inline-flex', alignItems: 'center', gap: '4px',
             padding: '3px 9px', borderRadius: '20px',
@@ -281,6 +300,36 @@ export default function Leaderboard({ demoMode }) {
           </span>
         )}
       </div>
+
+      {/* Tabs Mundial / Pre-Mundial (solo si feature flag ON y user inscrito) */}
+      {FRIENDLY_TOURNAMENT_ENABLED && userJoinedFriendly && (
+        <div style={{
+          display: 'flex', gap: '6px', marginBottom: '14px',
+          padding: '4px', borderRadius: '10px',
+          background: 'var(--bg-secondary)'
+        }}>
+          {[
+            { key: 'mundial',  label: 'Mundial' },
+            { key: 'friendly', label: 'Pre-Mundial' },
+          ].map(t => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: '8px',
+                border: 'none', cursor: 'pointer',
+                background: activeTab === t.key ? 'var(--green)' : 'transparent',
+                color: activeTab === t.key ? '#fff' : 'var(--text-muted)',
+                fontSize: '12px', fontWeight: '700',
+                letterSpacing: '0.4px',
+                transition: 'background 0.15s ease, color 0.15s ease'
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {isEmpty ? (
         <EmptyState

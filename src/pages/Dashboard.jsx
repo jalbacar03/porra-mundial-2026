@@ -10,6 +10,7 @@ import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
+import { FRIENDLY_TOURNAMENT_ENABLED } from '../config/featureFlags'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -499,6 +500,44 @@ export default function Dashboard({ session, demoMode }) {
           </div>
         )
       })()}
+
+      {/* === PRE-MUNDIAL CARD (feature-flagged) === */}
+      {FRIENDLY_TOURNAMENT_ENABLED && profile?.has_paid && (
+        <div
+          onClick={() => navigate('/pre-mundial')}
+          role="button" tabIndex={0}
+          className="tap-scale"
+          style={{
+            marginBottom: '14px', padding: '14px 16px',
+            borderRadius: '14px',
+            background: profile.friendly_joined
+              ? 'linear-gradient(135deg, #1a2433, #0f1b2e)'
+              : 'linear-gradient(135deg, #2a2410, #3a1d18)',
+            border: profile.friendly_joined
+              ? '1px solid rgba(100,150,255,0.25)'
+              : '1.5px solid rgba(255,204,0,0.4)',
+            cursor: 'pointer'
+          }}
+        >
+          <div style={{
+            fontSize: '10px', fontWeight: '800',
+            color: profile.friendly_joined ? '#7eb3ff' : '#ffcc00',
+            letterSpacing: '1.4px', textTransform: 'uppercase',
+            marginBottom: '6px'
+          }}>
+            Pre-Mundial · 4-9 jun
+          </div>
+          <div style={{
+            fontSize: '16px', fontWeight: '700', color: '#fff',
+            marginBottom: '4px'
+          }}>
+            {profile.friendly_joined ? 'Estás dentro del mini-torneo' : '12 amistosos. Top 3 entrada gratis'}
+          </div>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+            {profile.friendly_joined ? 'Predice tus partidos →' : 'Pulsa para apuntarte →'}
+          </div>
+        </div>
+      )}
 
       {/* ===== HERO: TU POSICIÓN · LIVE + BOTE ===== */}
       <div style={{
