@@ -27,6 +27,10 @@ const LIGUILLA = {
   red:        '#ff6b6b',
 }
 
+// Deadline global de La Liguilla: jueves 4 jun 18:00 hora España = 16:00 UTC.
+// Después de esto: no se puede inscribir, no se puede predecir, no se puede editar.
+export const LIGUILLA_DEADLINE = new Date('2026-06-04T16:00:00Z')
+
 export default function PreMundial({ session }) {
   const navigate = useNavigate()
   const toast = useToast()
@@ -72,6 +76,10 @@ export default function PreMundial({ session }) {
   }
 
   async function handleJoin() {
+    if (new Date() >= LIGUILLA_DEADLINE) {
+      toast.error('La inscripción a La Liguilla está cerrada.')
+      return
+    }
     setJoining(true)
     const { error } = await supabase
       .from('profiles')
@@ -105,6 +113,10 @@ export default function PreMundial({ session }) {
   }
 
   async function saveAll() {
+    if (new Date() >= LIGUILLA_DEADLINE) {
+      toast.error('La Liguilla está cerrada. No se pueden cambiar predicciones.')
+      return
+    }
     setSaving(true)
     try {
       const toSave = []
@@ -205,8 +217,34 @@ export default function PreMundial({ session }) {
     )
   }
 
+  // ── Deadline cerrado: La Liguilla terminó el periodo de inscripción/edición
+  const deadlinePassed = new Date() >= LIGUILLA_DEADLINE
+
   // ── Opt-in: pagado pero no apuntado todavía
   if (!profile?.friendly_joined) {
+    if (deadlinePassed) {
+      return (
+        <PageWrap>
+          <BackBar navigate={navigate} />
+          <div style={{ maxWidth: '500px', margin: '40px auto', padding: '20px' }}>
+            <div style={{
+              background: 'var(--bg-secondary)', borderRadius: '14px', padding: '24px',
+              textAlign: 'center', border: '1px solid var(--border-light)'
+            }}>
+              <div style={{ fontSize: '13px', color: LIGUILLA.red, fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                Inscripción cerrada
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>
+                La Liguilla ya está en marcha
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55' }}>
+                El plazo para apuntarse fue el jueves 4 de junio a las 18:00. Sigue la clasificación en la pestaña Pre-Mundial.
+              </div>
+            </div>
+          </div>
+        </PageWrap>
+      )
+    }
     return (
       <PageWrap>
         <BackBar navigate={navigate} />
@@ -226,9 +264,16 @@ export default function PreMundial({ session }) {
         <div style={{ marginBottom: '14px' }}>
           <div style={{
             fontSize: '12px', color: LIGUILLA.primary, fontWeight: '800',
-            letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '4px'
+            letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '4px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
           }}>
-            La Liguilla · 12 partidos · 4-9 jun
+            <span>La Liguilla · 12 partidos · 4-9 jun</span>
+            <span style={{
+              fontSize: '10px', color: deadlinePassed ? LIGUILLA.red : LIGUILLA.gold,
+              fontWeight: '700'
+            }}>
+              {deadlinePassed ? 'Cerrada' : 'Cierra jue 18:00'}
+            </span>
           </div>
           <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
             Tus predicciones
@@ -254,7 +299,8 @@ export default function PreMundial({ session }) {
         {/* Match cards */}
         {matches.map(m => {
           const matchDate = new Date(m.match_date)
-          const locked = matchDate <= now || m.status === 'finished'
+          // Lock por (a) deadline global de La Liguilla, (b) kickoff del partido, (c) finished.
+          const locked = deadlinePassed || matchDate <= now || m.status === 'finished'
           const pred = predictions[m.id] || {}
           const saved = savedPredictions[m.id]
           const editing = isEditing(m.id)
