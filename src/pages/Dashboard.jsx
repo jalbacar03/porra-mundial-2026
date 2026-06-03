@@ -663,10 +663,13 @@ export default function Dashboard({ session, demoMode }) {
 
       {/* === BOTE ACUMULADO === */}
       {(() => {
+        // El bote (N×16€) ya es el 100% repartible. Mantenemos la proporción
+        // antigua 5:2:1 (antes 50/20/10 sobre 100€/persona) renormalizada para
+        // que la suma cubra el bote entero: 62.5% / 25% / 12.5%.
         const bote = totalParticipants * 16
-        const first  = Math.round(bote * 0.50)
-        const second = Math.round(bote * 0.20)
-        const third  = Math.round(bote * 0.10)
+        const first  = Math.round(bote * 0.625)
+        const second = Math.round(bote * 0.25)
+        const third  = bote - first - second  // resto (asegura que suma exacta = bote)
         return (
           <div style={{
             flex: '1 1 220px',
