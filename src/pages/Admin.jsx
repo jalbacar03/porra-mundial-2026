@@ -268,12 +268,15 @@ export default function Admin({ session }) {
     )
   }
 
-  // Stats
+  // Stats. Bot365 es un participante interno (línea de referencia, oculto en
+  // todas las vistas públicas) → no debe contar como admitido en el Admin tampoco.
+  const BOT365_ID_STATS = 'b0365b03-65b0-365b-0365-b0365b036500'
+  const realProfilesStats = profiles.filter(p => p.id !== BOT365_ID_STATS)
   const totalMatches = matches.length
   const finishedMatches = matches.filter(m => m.status === 'finished').length
   const liveMatches = matches.filter(m => m.status === 'live').length
-  const totalUsers = profiles.length
-  const admittedUsers = profiles.filter(p => p.has_paid).length
+  const totalUsers = realProfilesStats.length
+  const admittedUsers = realProfilesStats.filter(p => p.has_paid).length
   const pendingUsers = totalUsers - admittedUsers
 
   // Group matches with optional search filter
@@ -330,9 +333,10 @@ export default function Admin({ session }) {
     }
   }
 
-  // Filter & sort profiles for the Admisiones tab
+  // Filter & sort profiles for the Admisiones tab.
+  // Bot365 oculto siempre (no es un participante real).
   const filteredProfiles = (() => {
-    let arr = profiles
+    let arr = profiles.filter(p => p.id !== BOT365_ID_STATS)
     if (admissionsFilter === 'pending') arr = arr.filter(p => !p.has_paid)
     else if (admissionsFilter === 'admitted') arr = arr.filter(p => p.has_paid)
 
