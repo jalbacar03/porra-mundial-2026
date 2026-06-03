@@ -84,7 +84,7 @@ export default function Admin({ session }) {
   async function fetchProfiles() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, has_paid, created_at, access_requested_at, avatar_url')
+      .select('id, full_name, nickname, has_paid, payment_confirmed, created_at, access_requested_at, avatar_url')
       .order('created_at', { ascending: true })
 
     if (!error && data) setProfiles(data)
@@ -157,6 +157,19 @@ export default function Admin({ session }) {
     if (!error) {
       setProfiles(prev => prev.map(p =>
         p.id === userId ? { ...p, has_paid: !currentStatus } : p
+      ))
+    }
+  }
+
+  // Pago confirmado (≠ admisión). Este es el que requiere La Liguilla.
+  async function togglePaymentConfirmed(userId, currentStatus) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ payment_confirmed: !currentStatus })
+      .eq('id', userId)
+    if (!error) {
+      setProfiles(prev => prev.map(p =>
+        p.id === userId ? { ...p, payment_confirmed: !currentStatus } : p
       ))
     }
   }
@@ -774,6 +787,16 @@ export default function Admin({ session }) {
                     }}>
                       {profile.has_paid ? 'Admitido' : 'Pendiente'}
                     </span>
+                    {profile.has_paid && (
+                      <span style={{
+                        padding: '1px 7px', borderRadius: '20px', fontSize: '10px',
+                        background: profile.payment_confirmed ? 'rgba(0,144,81,0.15)' : 'rgba(226,75,74,0.15)',
+                        color: profile.payment_confirmed ? 'var(--green)' : '#e74c3c',
+                        fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'
+                      }}>
+                        {profile.payment_confirmed ? '€ Pagado' : '€ Sin pagar'}
+                      </span>
+                    )}
                     {profile.access_requested_at && (
                       <span title={new Date(profile.access_requested_at).toLocaleString('es-ES')}>
                         Solicitó {formatRelative(profile.access_requested_at)}
@@ -781,31 +804,48 @@ export default function Admin({ session }) {
                     )}
                   </div>
                 </div>
-                {!profile.has_paid ? (
-                  <button
-                    onClick={() => togglePayment(profile.id, profile.has_paid)}
-                    style={{
-                      padding: '7px 14px', borderRadius: '8px', cursor: 'pointer',
-                      fontSize: '11px', fontWeight: 700, border: 'none',
-                      background: 'var(--green)', color: '#fff',
-                      letterSpacing: '0.4px', textTransform: 'uppercase'
-                    }}
-                  >
-                    Admitir
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => togglePayment(profile.id, profile.has_paid)}
-                    style={{
-                      padding: '7px 14px', borderRadius: '8px', cursor: 'pointer',
-                      fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)',
-                      background: 'var(--bg-input)', color: 'var(--text-muted)',
-                      letterSpacing: '0.4px', textTransform: 'uppercase'
-                    }}
-                  >
-                    Revocar
-                  </button>
-                )}
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  {!profile.has_paid ? (
+                    <button
+                      onClick={() => togglePayment(profile.id, profile.has_paid)}
+                      style={{
+                        padding: '7px 14px', borderRadius: '8px', cursor: 'pointer',
+                        fontSize: '11px', fontWeight: 700, border: 'none',
+                        background: 'var(--green)', color: '#fff',
+                        letterSpacing: '0.4px', textTransform: 'uppercase'
+                      }}
+                    >
+                      Admitir
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => togglePaymentConfirmed(profile.id, profile.payment_confirmed)}
+                        title={profile.payment_confirmed ? 'Marcar como NO pagado' : 'Marcar como pagado'}
+                        style={{
+                          padding: '7px 12px', borderRadius: '8px', cursor: 'pointer',
+                          fontSize: '11px', fontWeight: 700, border: 'none',
+                          background: profile.payment_confirmed ? 'var(--bg-input)' : 'var(--gold)',
+                          color: profile.payment_confirmed ? 'var(--text-muted)' : '#1a1d26',
+                          letterSpacing: '0.4px', textTransform: 'uppercase'
+                        }}
+                      >
+                        {profile.payment_confirmed ? 'Quitar €' : 'Marcar €'}
+                      </button>
+                      <button
+                        onClick={() => togglePayment(profile.id, profile.has_paid)}
+                        style={{
+                          padding: '7px 12px', borderRadius: '8px', cursor: 'pointer',
+                          fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)',
+                          background: 'var(--bg-input)', color: 'var(--text-muted)',
+                          letterSpacing: '0.4px', textTransform: 'uppercase'
+                        }}
+                      >
+                        Revocar
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             )
           })}
