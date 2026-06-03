@@ -68,7 +68,7 @@ export default function Leaderboard({ demoMode }) {
 
     const [lbRes, liveRes] = await Promise.all([
       supabase.from('leaderboard').select('*'),
-      supabase.from('matches').select('id, home_score, away_score, status').eq('status', 'live')
+      supabase.from('matches').select('id, home_score, away_score, status, stage').eq('status', 'live')
     ])
 
     if (!lbRes.error && lbRes.data) {
@@ -110,8 +110,12 @@ export default function Leaderboard({ demoMode }) {
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
     const cutoff = twoDaysAgo.toISOString()
 
+    // Position changes solo se calculan con partidos del MUNDIAL real
+    // (excluye friendlies). Sin esto, el día que termine España-Irak los
+    // "▲ N posiciones" del leaderboard del Mundial reflejarían cambios
+    // que no son del Mundial.
     const [matchesRes, preTournamentRes] = await Promise.all([
-      supabase.from('matches').select('id').eq('status', 'finished').gte('match_date', cutoff),
+      supabase.from('matches').select('id').eq('status', 'finished').gte('match_date', cutoff).not('stage', 'in', '("friendly","test")'),
       supabase.from('pre_tournament_entries').select('user_id, points_awarded').eq('is_resolved', true).gte('updated_at', cutoff)
     ])
 
@@ -157,27 +161,37 @@ export default function Leaderboard({ demoMode }) {
     setPositionChanges(changes)
   }
 
-  // Provisional points from live matches
-  const provisionalPoints = useMemo(() => {
-    if (liveMatches.length === 0) return {}
-    const byUser = {}
+  // Provisional points from live matches — SEPARADOS por stage. La tab
+  // Mundial usa solo matches stage != 'friendly'/'test'; la tab Liguilla
+  // usa solo matches stage='friendly'. Sin esto, durante España-Irak (un
+  // friendly) los puntos rojos contaminarían el leaderboard del Mundial Y
+  // la tab Liguilla mostraría 0 rojos.
+  const provisionalByStage = useMemo(() => {
+    const mundial = {}
+    const friendly = {}
+    if (liveMatches.length === 0) return { mundial, friendly }
     livePredictions.forEach(pred => {
       const match = liveMatches.find(m => m.id === pred.match_id)
       if (!match) return
       const pts = calcProvisionalPoints(pred, match)
-      if (pts > 0) byUser[pred.user_id] = (byUser[pred.user_id] || 0) + pts
+      if (pts <= 0) return
+      const target = match.stage === 'friendly' ? friendly : mundial
+      target[pred.user_id] = (target[pred.user_id] || 0) + pts
     })
-    return byUser
+    return { mundial, friendly }
   }, [liveMatches, livePredictions])
 
-  const hasLive = liveMatches.length > 0
+  // Stages live separados — para que el badge "LIVE" en el header de cada tab
+  // solo aparezca cuando hay un partido EN VIVO de esa tab concreta.
+  const hasLiveMundial = liveMatches.some(m => m.stage !== 'friendly' && m.stage !== 'test')
+  const hasLiveFriendly = liveMatches.some(m => m.stage === 'friendly')
 
   // Auto-refresh every 30s when there are live matches (fallback in case Realtime drops)
   useEffect(() => {
-    if (!hasLive) return
+    if (!hasLiveMundial && !hasLiveFriendly) return
     const interval = setInterval(fetchData, 30000)
     return () => clearInterval(interval)
-  }, [hasLive])
+  }, [hasLiveMundial, hasLiveFriendly])
 
   // Realtime push: when ANY match row changes (score, status), refetch immediately
   useEffect(() => {
@@ -213,8 +227,9 @@ export default function Leaderboard({ demoMode }) {
       .map(r => ({
         ...r,
         full_name: profileNames[r.user_id] || r.full_name || 'Participante',
-        provisional: activeTab === 'friendly' ? 0 : (provisionalPoints[r.user_id] || 0),
-        effective_points: (r.total_points || 0) + (activeTab === 'friendly' ? 0 : (provisionalPoints[r.user_id] || 0))
+        // Provisional según la tab activa — el cálculo ya separa friendly/mundial.
+        provisional: (activeTab === 'friendly' ? provisionalByStage.friendly : provisionalByStage.mundial)[r.user_id] || 0,
+        effective_points: (r.total_points || 0) + ((activeTab === 'friendly' ? provisionalByStage.friendly : provisionalByStage.mundial)[r.user_id] || 0)
       }))
       // Always sort points desc, then exact hits desc (the tiebreaker), so the
       // visible order matches both the rules and the 🎯 exactos shown per row —
@@ -222,7 +237,10 @@ export default function Leaderboard({ demoMode }) {
       .sort((a, b) => (b.total_points || 0) - (a.total_points || 0) || (b.exact_hits || 0) - (a.exact_hits || 0))
 
   // Re-sort by effective points when live (provisional points in play)
-  if (hasLive && !demoMode) {
+  // Resort por effective_points solo si hay live de la tab actual (si hay
+  // friendly live pero estoy en tab mundial, no resorting).
+  const tabHasLive = activeTab === 'friendly' ? hasLiveFriendly : hasLiveMundial
+  if (tabHasLive && !demoMode) {
     allRankings.sort((a, b) =>
       b.effective_points - a.effective_points || (b.exact_hits || 0) - (a.exact_hits || 0)
     )
@@ -240,7 +258,7 @@ export default function Leaderboard({ demoMode }) {
   const isEmpty = currentRankings.length === 0
 
   function getTiedRank(index) {
-    const getPts = (r) => hasLive ? r.effective_points : r.total_points
+    const getPts = (r) => tabHasLive ? r.effective_points : r.total_points
     const pts = getPts(currentRankings[index])
     const exactHits = currentRankings[index].exact_hits || 0
     // Walk back to the first row sharing this pts+exactHits → that's the rank.
@@ -275,7 +293,7 @@ export default function Leaderboard({ demoMode }) {
         ...currentRankings.slice(bot365InsertAfter)
       ]
     : currentRankings
-  const maxPts = Math.max(...fullRankings.map(u => hasLive ? u.effective_points : u.total_points), 1)
+  const maxPts = Math.max(...fullRankings.map(u => tabHasLive ? u.effective_points : u.total_points), 1)
   const firstLetter = (name) => ((name || '?')[0] || '?').toUpperCase()
 
   return (
@@ -289,7 +307,7 @@ export default function Leaderboard({ demoMode }) {
         }}>
           Clasificación
         </h2>
-        {hasLive && activeTab === 'mundial' && (
+        {((activeTab === 'mundial' && hasLiveMundial) || (activeTab === 'friendly' && hasLiveFriendly)) && (
           <span className="live-pulse" style={{
             display: 'inline-flex', alignItems: 'center', gap: '4px',
             padding: '3px 9px', borderRadius: '20px',

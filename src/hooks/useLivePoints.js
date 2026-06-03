@@ -25,10 +25,15 @@ export function useLivePoints(userId) {
     let mounted = true
 
     async function refresh() {
+      // Importante: excluir matches stage='friendly' o 'test'. El hero del
+      // Dashboard es el del MUNDIAL, no de La Liguilla — sumar puntos de un
+      // amistoso aquí confundiría al user (vería "+3 pts del Mundial" durante
+      // un partido que NO es del Mundial).
       const { data: liveMatches } = await supabase
         .from('matches')
-        .select('id, home_score, away_score, status')
+        .select('id, home_score, away_score, status, stage')
         .eq('status', 'live')
+        .not('stage', 'in', '("friendly","test")')
 
       if (!liveMatches?.length) {
         if (mounted) setState({ points: 0, matchCount: 0 })
