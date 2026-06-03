@@ -471,23 +471,28 @@ export default function Leaderboard({ demoMode }) {
                   )}
                 </div>
 
-                {/* Points (bold, right-aligned, no "pts" label) + live tentative */}
+                {/* Points (bold, right-aligned, no "pts" label).
+                    Si hay partido en vivo de la tab actual: mostramos el
+                    running total (total_points + provisional) en rojo
+                    parpadeante, SIN signo "+". Cuando el partido acabe se
+                    consolida y deja de parpadear.
+                    Si no hay live: total_points normal en blanco/dorado. */}
                 <div style={{
                   textAlign: 'right', flexShrink: 0,
                   display: 'flex', alignItems: 'baseline', gap: '6px',
                   marginLeft: '8px'
                 }}>
-                  {user.provisional > 0 && (
-                    <span className="live-points" style={{ fontSize: '13px' }}>
-                      +{user.provisional}
-                    </span>
-                  )}
-                  <span style={{
-                    fontSize: '16px', fontWeight: '800',
-                    color: isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)',
-                    minWidth: '24px', textAlign: 'right'
-                  }}>
-                    {user.total_points}
+                  <span
+                    className={tabHasLive ? 'live-points' : ''}
+                    style={{
+                      fontSize: '16px', fontWeight: '800',
+                      color: tabHasLive
+                        ? 'var(--red)'
+                        : isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)',
+                      minWidth: '24px', textAlign: 'right'
+                    }}
+                  >
+                    {tabHasLive ? user.effective_points : user.total_points}
                   </span>
                   {/* Exactos count — tiny, only if > 0 to reduce clutter */}
                   {!isBot && (user.exact_hits || 0) > 0 && (

@@ -37,7 +37,8 @@ export default function Dashboard({ session, demoMode }) {
   const [livePredictions, setLivePredictions] = useState({})
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
-  const { points: livePoints } = useLivePoints(session?.user?.id)
+  const { points: livePoints, matchCount: liveMatchCount } = useLivePoints(session?.user?.id)
+  const hasLiveMundial = liveMatchCount > 0
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -625,14 +626,16 @@ export default function Dashboard({ session, demoMode }) {
         <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
-                {displayStats.points}
+              <span
+                className={hasLiveMundial ? 'live-points' : ''}
+                style={{
+                  fontSize: '22px', fontWeight: '800',
+                  color: hasLiveMundial ? 'var(--red)' : '#fff',
+                  lineHeight: 1
+                }}
+              >
+                {hasLiveMundial ? (displayStats.points + livePoints) : displayStats.points}
               </span>
-              {livePoints > 0 && (
-                <span className="live-points" style={{ fontSize: '15px' }}>
-                  +{livePoints}
-                </span>
-              )}
               {leaderInfo && (
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: '500' }}>
                   · líder {leaderInfo.points} <span style={{ color: 'rgba(255,255,255,0.6)' }}>({leaderInfo.names})</span>
