@@ -10,10 +10,15 @@ import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featur
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 function calcProvisionalPoints(pred, match) {
-  if (match.home_score === null) return 0
-  if (pred.predicted_home === match.home_score && pred.predicted_away === match.away_score) return 3
+  // El partido está live: tratar scores null como 0. Esto garantiza que al
+  // kickoff (antes de que haya gol o el sync haya corrido), los que predijeron
+  // empates ya vean sus puntos provisionales (0-0 → quien predijo 0-0 = 3,
+  // quien predijo empate distinto = 1, resto = 0).
+  const home = match.home_score ?? 0
+  const away = match.away_score ?? 0
+  if (pred.predicted_home === home && pred.predicted_away === away) return 3
   const predSign = Math.sign(pred.predicted_home - pred.predicted_away)
-  const realSign = Math.sign(match.home_score - match.away_score)
+  const realSign = Math.sign(home - away)
   return predSign === realSign ? 1 : 0
 }
 

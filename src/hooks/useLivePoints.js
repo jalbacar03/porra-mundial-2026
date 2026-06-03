@@ -49,12 +49,16 @@ export function useLivePoints(userId) {
       let pts = 0
       preds?.forEach(p => {
         const m = liveMatches.find(x => x.id === p.match_id)
-        if (!m || m.home_score === null || m.away_score === null) return
-        if (p.predicted_home === m.home_score && p.predicted_away === m.away_score) {
+        if (!m) return
+        // Tratar scores null como 0: al kickoff de un partido live sin gol,
+        // el marcador "real" es 0-0 aunque sync aún no haya escrito eso.
+        const home = m.home_score ?? 0
+        const away = m.away_score ?? 0
+        if (p.predicted_home === home && p.predicted_away === away) {
           pts += 3
         } else {
           const ps = Math.sign(p.predicted_home - p.predicted_away)
-          const rs = Math.sign(m.home_score - m.away_score)
+          const rs = Math.sign(home - away)
           if (ps === rs) pts += 1
         }
       })
