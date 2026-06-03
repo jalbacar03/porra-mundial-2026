@@ -662,38 +662,72 @@ export default function Dashboard({ session, demoMode }) {
       </div>
 
       {/* === BOTE ACUMULADO === */}
-      <div style={{
-        flex: '1 1 180px',
-        background: 'linear-gradient(135deg, #1a1d26, #2a2410)',
-        borderRadius: '14px',
-        padding: '18px 20px',
-        position: 'relative',
-        overflow: 'hidden',
-        border: '1px solid rgba(255,204,0,0.18)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center'
-      }}>
-        {/* decorative circle */}
-        <div style={{
-          position: 'absolute', top: '-30px', right: '-30px',
-          width: '100px', height: '100px', borderRadius: '50%',
-          border: '1px solid rgba(255,204,0,0.08)'
-        }} />
-        <div style={{
-          fontSize: '10px', color: 'rgba(255,204,0,0.6)',
-          textTransform: 'uppercase', letterSpacing: '1.4px', fontWeight: '600',
-          marginBottom: '10px'
-        }}>
-          Bote acumulado
-        </div>
-        <div style={{
-          fontSize: '36px', fontWeight: '800', color: 'var(--gold)',
-          lineHeight: 1, letterSpacing: '-1px'
-        }}>
-          {(totalParticipants * 16).toLocaleString('es-ES')} €
-        </div>
-      </div>
+      {(() => {
+        const bote = totalParticipants * 16
+        const first  = Math.round(bote * 0.50)
+        const second = Math.round(bote * 0.20)
+        const third  = Math.round(bote * 0.10)
+        return (
+          <div style={{
+            flex: '1 1 220px',
+            background: 'linear-gradient(135deg, #1a1d26, #2a2410)',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            position: 'relative',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,204,0,0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px'
+          }}>
+            {/* decorative circle */}
+            <div style={{
+              position: 'absolute', top: '-30px', right: '-30px',
+              width: '100px', height: '100px', borderRadius: '50%',
+              border: '1px solid rgba(255,204,0,0.08)'
+            }} />
+
+            {/* Left: bote total */}
+            <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+              <div style={{
+                fontSize: '10px', color: 'rgba(255,204,0,0.6)',
+                textTransform: 'uppercase', letterSpacing: '1.4px', fontWeight: '600',
+                marginBottom: '8px'
+              }}>
+                Bote acumulado
+              </div>
+              <div style={{
+                fontSize: '30px', fontWeight: '800', color: 'var(--gold)',
+                lineHeight: 1, letterSpacing: '-1px'
+              }}>
+                {bote.toLocaleString('es-ES')} €
+              </div>
+            </div>
+
+            {/* Right: distribución compacta */}
+            <div style={{
+              flexShrink: 0, paddingLeft: '12px',
+              borderLeft: '1px solid rgba(255,204,0,0.12)',
+              fontSize: '10px', lineHeight: '1.45',
+              color: 'rgba(255,255,255,0.65)',
+              minWidth: '90px'
+            }}>
+              <div style={{
+                fontSize: '8.5px', color: 'rgba(255,204,0,0.55)',
+                textTransform: 'uppercase', letterSpacing: '1.1px', fontWeight: '700',
+                marginBottom: '4px'
+              }}>
+                Reparto
+              </div>
+              <div><span style={{ color: '#ffd700', fontWeight: 700 }}>1º</span> · {first.toLocaleString('es-ES')}€</div>
+              <div><span style={{ color: '#c0c0c0', fontWeight: 700 }}>2º</span> · {second.toLocaleString('es-ES')}€</div>
+              <div><span style={{ color: '#cd7f32', fontWeight: 700 }}>3º</span> · {third.toLocaleString('es-ES')}€</div>
+              <div style={{ opacity: 0.75 }}>4º · entrada</div>
+              <div style={{ opacity: 0.75 }}>5º · entrada</div>
+            </div>
+          </div>
+        )
+      })()}
 
       </div>
 
