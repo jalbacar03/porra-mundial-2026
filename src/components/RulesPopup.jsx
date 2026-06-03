@@ -6,7 +6,7 @@ const RULES_SECTIONS = [
     icon: '🎯',
     title: '¿Qué es la Porra Mundial 26?',
     content: [
-      'Una porra amistosa de predicciones entre amigos para el Mundial de Fútbol 2026. Se trata de un juego entre amigos sin ánimo de lucro — no es una casa de apuestas.',
+      'Una porra de predicciones entre amigos para el Mundial de Fútbol 2026.',
       'Cada participante compite por acertar los resultados de los partidos, el cuadro eliminatorio y otras predicciones especiales.',
       'El que más puntos acumule al final del torneo, gana.'
     ]
@@ -103,25 +103,6 @@ export default function RulesPopup({ userId, onAccepted }) {
           }}>
             Lee y acepta las normas para continuar
           </p>
-        </div>
-
-        {/* Highlight box */}
-        <div style={{
-          background: 'rgba(255,204,0,0.1)',
-          border: '1px solid rgba(255,204,0,0.3)',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          marginBottom: '16px',
-          textAlign: 'center'
-        }}>
-          <span style={{
-            fontSize: '13px',
-            color: 'var(--gold, #ffcc00)',
-            fontWeight: '600',
-            lineHeight: '1.5'
-          }}>
-            Esta es una porra amistosa entre amigos. No es una casa de apuestas ni tiene ánimo de lucro.
-          </span>
         </div>
 
         {/* Rules sections */}

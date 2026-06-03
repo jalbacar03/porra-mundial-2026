@@ -39,7 +39,7 @@ export default function Rules() {
 
       {/* ===== INTRO ===== */}
       <Section icon="🎯" title="¿Qué es la Porra Mundial 26?">
-        <P>Una porra amistosa de predicciones entre amigos para el Mundial 2026. No es una casa de apuestas — es un juego entre amigos sin ánimo de lucro.</P>
+        <P>Una porra de predicciones entre amigos para el Mundial 2026.</P>
         <P>El que más puntos acumule al final del torneo, gana.</P>
       </Section>
 
