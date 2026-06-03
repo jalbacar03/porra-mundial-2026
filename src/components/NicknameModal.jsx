@@ -3,18 +3,17 @@ import { supabase } from '../supabase'
 import { defaultNickname, validateNickname } from '../utils/nickname'
 
 /**
- * Modal bloqueante que aparece cuando un user logueado todavía no ha elegido
- * nickname. No se puede cerrar sin guardar. Una vez guardado, el modal se
- * desmonta y el resto de la app sigue su curso.
+ * Modal de nickname. Dos modos:
  *
- * Lógica:
- *   - mount: lee profile del user
- *   - si profile.nickname IS NULL → muestra modal con default sugerido
- *   - guardar: UPDATE profiles SET nickname = ... + refresh
+ *   mode="blocking" (default): aparece automáticamente cuando profile.nickname
+ *      IS NULL. No se puede cerrar sin guardar. Se monta en App.jsx para que
+ *      aplique a toda la app.
  *
- * Se monta en App.jsx para que aplique a TODA la app (no por página).
+ *   mode="edit": abierto manualmente (ej. desde el avatar del Dashboard) para
+ *      cambiar un nickname ya existente. Se puede cerrar con la X o haciendo
+ *      click fuera. Pre-rellena con el nickname actual.
  */
-export default function NicknameModal({ session, onSaved }) {
+export default function NicknameModal({ session, onSaved, mode = 'blocking', onClose }) {
   const [profile, setProfile] = useState(null)
   const [nickname, setNickname] = useState('')
   const [saving, setSaving] = useState(false)
@@ -34,13 +33,17 @@ export default function NicknameModal({ session, onSaved }) {
       .then(({ data }) => {
         if (data) {
           setProfile(data)
-          if (!data.nickname) {
+          // Edit: pre-rellena con el nickname actual.
+          // Blocking: pre-rellena con default sugerido.
+          if (mode === 'edit' && data.nickname) {
+            setNickname(data.nickname)
+          } else if (!data.nickname) {
             setNickname(defaultNickname(data.full_name))
           }
         }
         setLoading(false)
       })
-  }, [session?.user?.id])
+  }, [session?.user?.id, mode])
 
   async function handleSave() {
     setError(null)
@@ -50,6 +53,14 @@ export default function NicknameModal({ session, onSaved }) {
       return
     }
     setSaving(true)
+
+    // No-op si no cambió (modo edit)
+    if (v.value === profile?.nickname) {
+      setSaving(false)
+      onSaved?.(v.value)
+      onClose?.()
+      return
+    }
 
     // Check uniqueness (case-insensitive)
     const { data: existing } = await supabase
@@ -76,52 +87,77 @@ export default function NicknameModal({ session, onSaved }) {
       return
     }
 
-    // Actualizar el state local TAMBIÉN — sin esto el "if (profile.nickname)
-    // return null" no dispara y el modal sigue visible aunque el DB ya lo
-    // tenga guardado.
     setProfile(p => ({ ...p, nickname: v.value }))
     setSaving(false)
     onSaved?.(v.value)
+    if (mode === 'edit') onClose?.()
   }
 
   // No render conditions
   if (loading) return null
   if (!profile) return null
-  if (profile.nickname) return null  // ya tiene nickname → no mostrar
+  // En modo blocking solo aparece si NO tiene nickname.
+  // En modo edit siempre aparece (el padre controla cuándo montarlo).
+  if (mode === 'blocking' && profile.nickname) return null
+
+  const isEdit = mode === 'edit'
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '20px', backdropFilter: 'blur(4px)'
-    }}>
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.7)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '20px', backdropFilter: 'blur(4px)'
+      }}
+      onClick={(e) => { if (isEdit && e.target === e.currentTarget) onClose?.() }}
+    >
       <div style={{
         background: 'var(--bg-secondary)',
         borderRadius: '16px',
         padding: '28px 24px',
         maxWidth: '420px', width: '100%',
         border: '1px solid rgba(255,204,0,0.2)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
+        boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+        position: 'relative'
       }}>
+        {/* Close button (solo en modo edit) */}
+        {isEdit && (
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              position: 'absolute', top: '12px', right: '12px',
+              background: 'transparent', border: 'none',
+              color: 'var(--text-muted)', cursor: 'pointer',
+              fontSize: '20px', lineHeight: 1,
+              width: '32px', height: '32px', borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            ×
+          </button>
+        )}
+
         <div style={{
           fontSize: '11px', fontWeight: '800', color: 'var(--gold)',
           letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '8px'
         }}>
-          Falta tu nickname
+          {isEdit ? 'Tu nickname' : 'Falta tu nickname'}
         </div>
         <div style={{
           fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)',
           marginBottom: '8px', letterSpacing: '-0.3px'
         }}>
-          Elige cómo te verán
+          {isEdit ? 'Cambiar nickname' : 'Elige cómo te verán'}
         </div>
         <div style={{
           fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5',
           marginBottom: '18px'
         }}>
-          Así aparecerás en la clasificación, foro y comparativas H2H.
-          Te hemos pre-rellenado uno por defecto — cámbialo si quieres.
+          {isEdit
+            ? 'Cambia el nombre con el que apareces en la clasificación, foro y comparativas H2H.'
+            : 'Así aparecerás en la clasificación, foro y comparativas H2H. Te hemos pre-rellenado uno por defecto — cámbialo si quieres.'}
         </div>
 
         <label style={{
@@ -180,7 +216,7 @@ export default function NicknameModal({ session, onSaved }) {
             transition: 'background 0.15s ease'
           }}
         >
-          {saving ? 'Guardando…' : 'Guardar nickname'}
+          {saving ? 'Guardando…' : (isEdit ? 'Guardar cambio' : 'Guardar nickname')}
         </button>
 
         <div style={{

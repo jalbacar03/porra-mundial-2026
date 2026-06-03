@@ -11,6 +11,7 @@ import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
 import { isFriendlyVisible } from '../config/featureFlags'
+import NicknameModal from '../components/NicknameModal'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -26,6 +27,7 @@ export default function Dashboard({ session, demoMode }) {
   const [totalUsers, setTotalUsers] = useState(0)
   const [totalParticipants, setTotalParticipants] = useState(0)
   const [testMatch, setTestMatch] = useState(null) // Pre-Mundial dry-run match (stage='test')
+  const [editingNickname, setEditingNickname] = useState(false)
   const [dailyInsight, setDailyInsight] = useState(null)
   const [dailyInsightLong, setDailyInsightLong] = useState(null)
   const [insightLoading, setInsightLoading] = useState(true)
@@ -392,13 +394,23 @@ export default function Dashboard({ session, demoMode }) {
           }}>
             Hola, {userName}
           </h1>
-          <Avatar
-            name={profile?.full_name}
-            size={40}
-            color="rgba(0,144,81,0.18)"
-            border="1px solid rgba(0,144,81,0.3)"
-            textColor="#4ade80"
-          />
+          <button
+            onClick={() => setEditingNickname(true)}
+            aria-label="Cambiar nickname"
+            title="Cambiar nickname"
+            style={{
+              background: 'transparent', border: 'none', padding: 0,
+              cursor: 'pointer', borderRadius: '50%'
+            }}
+          >
+            <Avatar
+              name={profile?.nickname || profile?.full_name}
+              size={40}
+              color="rgba(0,144,81,0.18)"
+              border="1px solid rgba(0,144,81,0.3)"
+              textColor="#4ade80"
+            />
+          </button>
         </div>
       </div>
 
@@ -1343,6 +1355,16 @@ export default function Dashboard({ session, demoMode }) {
 
       {/* Points history chart */}
       {!demoMode && <PointsChart userId={session.user.id} />}
+
+      {/* Nickname edit modal — abierto al pulsar el avatar arriba */}
+      {editingNickname && (
+        <NicknameModal
+          session={session}
+          mode="edit"
+          onClose={() => setEditingNickname(false)}
+          onSaved={(nick) => setProfile(p => p ? { ...p, nickname: nick } : p)}
+        />
+      )}
 
     </div>
   )
