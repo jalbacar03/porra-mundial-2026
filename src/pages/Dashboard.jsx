@@ -722,8 +722,6 @@ export default function Dashboard({ session, demoMode }) {
               <div><span style={{ color: '#ffd700', fontWeight: 700 }}>1º</span> · {first.toLocaleString('es-ES')}€</div>
               <div><span style={{ color: '#c0c0c0', fontWeight: 700 }}>2º</span> · {second.toLocaleString('es-ES')}€</div>
               <div><span style={{ color: '#cd7f32', fontWeight: 700 }}>3º</span> · {third.toLocaleString('es-ES')}€</div>
-              <div style={{ opacity: 0.75 }}>4º · entrada</div>
-              <div style={{ opacity: 0.75 }}>5º · entrada</div>
             </div>
           </div>
         )
