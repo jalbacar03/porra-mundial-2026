@@ -757,95 +757,92 @@ export default function Admin({ session }) {
             const name = profile.full_name || 'Sin nombre'
             return (
               <div key={profile.id} style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '12px 14px', marginBottom: '6px',
+                padding: '12px 14px', marginBottom: '8px',
                 background: 'var(--bg-secondary)', borderRadius: '10px',
                 border: '0.5px solid var(--border)'
               }}>
-                <Avatar
-                  url={profile.avatar_url}
-                  name={name}
-                  size={36}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: '13px', fontWeight: 700,
-                    color: profile.has_paid ? 'var(--text-primary)' : 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                  }}>
-                    {name}
-                  </div>
-                  <div style={{
-                    fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px',
-                    display: 'flex', gap: '8px', alignItems: 'center'
-                  }}>
-                    <span style={{
-                      padding: '1px 7px', borderRadius: '20px', fontSize: '10px',
-                      background: profile.has_paid ? 'var(--green-light)' : 'rgba(255,204,0,0.1)',
-                      color: profile.has_paid ? 'var(--green)' : 'var(--gold)',
-                      fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'
+                {/* Fila 1: avatar + nombre + badges (info) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: profile.has_paid ? '10px' : '0' }}>
+                  <Avatar url={profile.avatar_url} name={name} size={36} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
-                      {profile.has_paid ? 'Admitido' : 'Pendiente'}
-                    </span>
-                    {profile.has_paid && (
+                      {name}
+                    </div>
+                    <div style={{
+                      fontSize: '11px', color: 'var(--text-dim)', marginTop: '3px',
+                      display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap'
+                    }}>
                       <span style={{
                         padding: '1px 7px', borderRadius: '20px', fontSize: '10px',
-                        background: profile.payment_confirmed ? 'rgba(0,144,81,0.15)' : 'rgba(226,75,74,0.15)',
-                        color: profile.payment_confirmed ? 'var(--green)' : '#e74c3c',
+                        background: profile.has_paid ? 'var(--green-light)' : 'rgba(255,204,0,0.1)',
+                        color: profile.has_paid ? 'var(--green)' : 'var(--gold)',
                         fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'
                       }}>
-                        {profile.payment_confirmed ? '€ Pagado' : '€ Sin pagar'}
+                        {profile.has_paid ? 'Admitido' : 'Pendiente'}
                       </span>
-                    )}
-                    {profile.access_requested_at && (
-                      <span title={new Date(profile.access_requested_at).toLocaleString('es-ES')}>
-                        Solicitó {formatRelative(profile.access_requested_at)}
-                      </span>
-                    )}
+                      {profile.has_paid && (
+                        <span style={{
+                          padding: '1px 7px', borderRadius: '20px', fontSize: '10px',
+                          background: profile.payment_confirmed ? 'rgba(0,144,81,0.15)' : 'rgba(226,75,74,0.15)',
+                          color: profile.payment_confirmed ? 'var(--green)' : '#e74c3c',
+                          fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'
+                        }}>
+                          {profile.payment_confirmed ? '€ Pagado' : '€ Sin pagar'}
+                        </span>
+                      )}
+                      {profile.access_requested_at && !profile.has_paid && (
+                        <span title={new Date(profile.access_requested_at).toLocaleString('es-ES')}>
+                          {formatRelative(profile.access_requested_at)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  {!profile.has_paid ? (
+
+                {/* Fila 2: botones a ancho completo (sin solape) */}
+                {!profile.has_paid ? (
+                  <button
+                    onClick={() => togglePayment(profile.id, profile.has_paid)}
+                    style={{
+                      width: '100%', padding: '9px 14px', borderRadius: '8px', cursor: 'pointer',
+                      fontSize: '12px', fontWeight: 700, border: 'none',
+                      background: 'var(--green)', color: '#fff',
+                      letterSpacing: '0.5px', textTransform: 'uppercase'
+                    }}
+                  >
+                    Admitir
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '6px' }}>
                     <button
-                      onClick={() => togglePayment(profile.id, profile.has_paid)}
+                      onClick={() => togglePaymentConfirmed(profile.id, profile.payment_confirmed)}
+                      title={profile.payment_confirmed ? 'Marcar como NO pagado' : 'Marcar como pagado'}
                       style={{
-                        padding: '7px 14px', borderRadius: '8px', cursor: 'pointer',
+                        flex: 2, padding: '9px 8px', borderRadius: '8px', cursor: 'pointer',
                         fontSize: '11px', fontWeight: 700, border: 'none',
-                        background: 'var(--green)', color: '#fff',
+                        background: profile.payment_confirmed ? 'var(--bg-input)' : 'var(--gold)',
+                        color: profile.payment_confirmed ? 'var(--text-muted)' : '#1a1d26',
                         letterSpacing: '0.4px', textTransform: 'uppercase'
                       }}
                     >
-                      Admitir
+                      {profile.payment_confirmed ? 'Quitar pago' : 'Marcar pagado'}
                     </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => togglePaymentConfirmed(profile.id, profile.payment_confirmed)}
-                        title={profile.payment_confirmed ? 'Marcar como NO pagado' : 'Marcar como pagado'}
-                        style={{
-                          padding: '7px 12px', borderRadius: '8px', cursor: 'pointer',
-                          fontSize: '11px', fontWeight: 700, border: 'none',
-                          background: profile.payment_confirmed ? 'var(--bg-input)' : 'var(--gold)',
-                          color: profile.payment_confirmed ? 'var(--text-muted)' : '#1a1d26',
-                          letterSpacing: '0.4px', textTransform: 'uppercase'
-                        }}
-                      >
-                        {profile.payment_confirmed ? 'Quitar €' : 'Marcar €'}
-                      </button>
-                      <button
-                        onClick={() => togglePayment(profile.id, profile.has_paid)}
-                        style={{
-                          padding: '7px 12px', borderRadius: '8px', cursor: 'pointer',
-                          fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)',
-                          background: 'var(--bg-input)', color: 'var(--text-muted)',
-                          letterSpacing: '0.4px', textTransform: 'uppercase'
-                        }}
-                      >
-                        Revocar
-                      </button>
-                    </>
-                  )}
-                </div>
+                    <button
+                      onClick={() => togglePayment(profile.id, profile.has_paid)}
+                      style={{
+                        flex: 1, padding: '9px 8px', borderRadius: '8px', cursor: 'pointer',
+                        fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)',
+                        background: 'var(--bg-input)', color: 'var(--text-muted)',
+                        letterSpacing: '0.4px', textTransform: 'uppercase'
+                      }}
+                    >
+                      Revocar
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}
