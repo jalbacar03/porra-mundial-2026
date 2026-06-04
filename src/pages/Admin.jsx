@@ -111,6 +111,76 @@ export default function Admin({ session }) {
     return t ? t.name : `Equipo ${teamId}`
   }
 
+  // Export CSV: 1 fila por participante inscrito a La Liguilla, 1 columna por
+  // partido. Celda = "X-Y" si predijo, "-" si no. Abre en Excel sin reformat.
+  async function exportLiguillaCSV() {
+    try {
+      const [profRes, matchRes, predRes, teamRes] = await Promise.all([
+        supabase.from('profiles')
+          .select('id, full_name, nickname')
+          .eq('friendly_joined', true)
+          .order('full_name'),
+        supabase.from('matches')
+          .select('id, home_team_id, away_team_id, match_date, home_score, away_score, status')
+          .eq('stage', 'friendly')
+          .order('match_date'),
+        supabase.from('predictions')
+          .select('user_id, match_id, predicted_home, predicted_away'),
+        supabase.from('teams').select('id, name')
+      ])
+      const liguillaProfiles = profRes.data || []
+      const liguillaMatches  = matchRes.data  || []
+      const allPreds         = predRes.data   || []
+      const teamMap = Object.fromEntries((teamRes.data || []).map(t => [t.id, t.name]))
+
+      // Predicción por (user, match) → "X-Y"
+      const predMap = {}
+      allPreds.forEach(p => {
+        if (p.predicted_home == null || p.predicted_away == null) return
+        predMap[`${p.user_id}__${p.match_id}`] = `${p.predicted_home}-${p.predicted_away}`
+      })
+
+      const matchHeader = (m) => `${teamMap[m.home_team_id] || '?'} - ${teamMap[m.away_team_id] || '?'}`
+      const matchResult = (m) =>
+        m.home_score != null && m.away_score != null ? `${m.home_score}-${m.away_score}` : ''
+
+      // CSV con BOM para que Excel detecte UTF-8 (acentos OK)
+      const escape = (s) => {
+        const str = String(s ?? '')
+        return /[",;\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
+      }
+      const sep = ';' // Excel ES por defecto usa ; como separador
+
+      const headers = ['Participante', ...liguillaMatches.map(matchHeader)]
+      const lines = [headers.map(escape).join(sep)]
+      // Fila adicional con el resultado real (útil para comparar a ojo en Excel)
+      lines.push(['Resultado real', ...liguillaMatches.map(matchResult)].map(escape).join(sep))
+      liguillaProfiles.forEach(p => {
+        const row = [p.full_name || p.nickname || p.id]
+        liguillaMatches.forEach(m => {
+          row.push(predMap[`${p.id}__${m.id}`] || '-')
+        })
+        lines.push(row.map(escape).join(sep))
+      })
+
+      const csv = '﻿' + lines.join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const today = new Date().toISOString().slice(0, 10)
+      a.download = `liguilla-predicciones-${today}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast?.success(`Exportadas ${liguillaProfiles.length} filas × ${liguillaMatches.length} partidos`)
+    } catch (e) {
+      console.error('Export Liguilla failed', e)
+      toast?.error('No se pudo exportar — revisa consola')
+    }
+  }
+
   function formatBetValue(value, inputType) {
     if (!value) return '-'
     if (inputType === 'single_team') return getTeamName(value.team_id)
@@ -1145,6 +1215,33 @@ export default function Admin({ session }) {
 
         return (
           <>
+            {/* Export Liguilla CSV — disponible cualquier momento (post-deadline
+                muestra picks congelados; pre-deadline muestra estado vivo). */}
+            <div style={{
+              marginBottom: '12px', padding: '10px 12px',
+              background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.25)',
+              borderRadius: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#60a5fa' }}>
+                  Export Liguilla → Excel
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  1 fila por participante · 12 columnas (1 por partido) · resultado real arriba
+                </div>
+              </div>
+              <button
+                onClick={exportLiguillaCSV}
+                style={{
+                  padding: '8px 14px', borderRadius: '8px', border: 'none',
+                  background: '#2563eb', color: '#fff',
+                  fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                  whiteSpace: 'nowrap', flexShrink: 0
+                }}
+              >Descargar CSV</button>
+            </div>
+
             {/* Sub-tab switcher */}
             <div style={{
               display: 'flex', gap: '6px', marginBottom: '14px',
