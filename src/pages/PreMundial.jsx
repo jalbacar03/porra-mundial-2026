@@ -358,6 +358,14 @@ export default function PreMundial({ session }) {
           Los partidos se bloquean al pitido inicial. Top 3 al final de La Liguilla
           recuperan los 20 € de la inscripción.
         </div>
+
+        {/* Predicciones de otros — solo tras el cierre, para no spoiler */}
+        {deadlinePassed && (
+          <OtherPredictionsViewer
+            currentUserId={session.user.id}
+            matches={matches}
+          />
+        )}
       </div>
     </PageWrap>
   )
@@ -577,6 +585,100 @@ function MatchCard({ match, pred, saved, locked, collapsed, onSetScore, onEdit }
           Tu predicción: {saved.home_score}-{saved.away_score}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Viewer de predicciones de otros ─────────────────────────────────────
+// Solo se muestra tras el cierre. Selector con todos los inscritos a La
+// Liguilla; al elegir uno, fetch de sus 12 predicciones y lista compacta
+// con el resultado real al lado si el partido ya terminó.
+function OtherPredictionsViewer({ currentUserId, matches }) {
+  const [people, setPeople] = useState([])
+  const [selectedId, setSelectedId] = useState('')
+  const [theirPreds, setTheirPreds] = useState({})
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('profiles')
+      .select('id, full_name, nickname')
+      .eq('friendly_joined', true)
+      .neq('id', currentUserId)
+      .order('full_name')
+      .then(({ data }) => setPeople(data || []))
+  }, [currentUserId])
+
+  async function load(uid) {
+    if (!uid) { setTheirPreds({}); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('predictions')
+      .select('match_id, predicted_home, predicted_away, points_earned')
+      .eq('user_id', uid)
+      .in('match_id', matches.map(m => m.id))
+    const map = {}
+    ;(data || []).forEach(p => { map[p.match_id] = p })
+    setTheirPreds(map)
+    setLoading(false)
+  }
+
+  return (
+    <div style={{
+      marginTop: '20px', padding: '16px',
+      background: 'var(--bg-secondary)', borderRadius: '12px',
+      border: '1px solid var(--border-light)'
+    }}>
+      <div style={{
+        fontSize: '11px', color: LIGUILLA.primary, fontWeight: '800',
+        letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '10px'
+      }}>
+        Ver predicciones de otros
+      </div>
+      <select
+        value={selectedId}
+        onChange={e => { setSelectedId(e.target.value); load(e.target.value) }}
+        style={{
+          width: '100%', padding: '10px 12px', borderRadius: '8px',
+          border: '1px solid var(--border-light)', background: 'var(--bg-primary)',
+          color: 'var(--text-primary)', fontSize: '13px', fontWeight: '600', outline: 'none',
+          marginBottom: selectedId ? '12px' : '0'
+        }}
+      >
+        <option value="">Selecciona participante…</option>
+        {people.map(p => (
+          <option key={p.id} value={p.id}>{p.nickname || p.full_name}</option>
+        ))}
+      </select>
+      {loading && <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '12px' }}>Cargando…</div>}
+      {!loading && selectedId && matches.map(m => {
+        const p = theirPreds[m.id]
+        const isFinished = m.status === 'finished'
+        return (
+          <div key={m.id} style={{
+            padding: '8px 0', borderBottom: '1px solid var(--border-light)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'
+          }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-primary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {m.home_team?.name} – {m.away_team?.name}
+            </span>
+            {isFinished && (
+              <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 600 }}>
+                Real: {m.home_score}-{m.away_score}
+              </span>
+            )}
+            <span style={{
+              fontSize: '13px', fontWeight: '800',
+              color: p ? (p.points_earned === 3 ? 'var(--green)' : p.points_earned === 1 ? 'var(--gold)' : 'var(--text-primary)') : 'var(--text-dim)',
+              minWidth: '50px', textAlign: 'right'
+            }}>
+              {p && p.predicted_home != null
+                ? `${p.predicted_home}-${p.predicted_away}${isFinished ? ` (${p.points_earned || 0}pt)` : ''}`
+                : '—'}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }

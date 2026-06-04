@@ -533,13 +533,12 @@ function formatDateShort(dateStr) {
         )
       })()}
 
-      {/* === PRE-MUNDIAL CARD ===
-          Siempre visible para usuarios admitidos. Copy adaptado según estado:
-            · Inscrito: "Estás dentro · predice"
-            · No inscrito + deadline abierto: "Apúntate"
-            · No inscrito + deadline cerrado: "En marcha · sigue la clasificación"
+      {/* === PRE-MUNDIAL CARD (genérico) ===
+          Solo aparece cuando NO hay próximo partido friendly en ventana ±3h
+          (es decir, no estamos mostrando el banner "próximo partido" arriba).
+          Evita el doble widget azul cuando ya hay info concreta del partido.
        */}
-      {isFriendlyVisible(profile) && profile?.has_paid && (() => {
+      {isFriendlyVisible(profile) && profile?.has_paid && !testMatch && (() => {
         const LIGUILLA_DEADLINE = new Date('2026-06-04T18:30:00Z') // 20:30 hora España
         const deadlinePassed = new Date() >= LIGUILLA_DEADLINE
         const inLiguilla = !!profile.friendly_joined
