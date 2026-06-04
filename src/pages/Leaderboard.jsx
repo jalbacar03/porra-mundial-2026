@@ -16,8 +16,18 @@ const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 //   "Gonzalo de Parellada Menéndez"      → "Gonzalo Parellada" (salta "de" y 2º apellido)
 //   "Álvaro García-Valdecasas"           → "Álvaro García-Valdecasas" (1 apellido compuesto OK)
 //   "José Antonio Menéndez"              → "José Antonio" (compromiso: trata 2ª palabra como apellido)
+// Overrides manuales para nombres que el algoritmo no resuelve bien
+// (nombres compuestos, preposiciones que SÍ van, etc). Key = full_name exacto.
+const NAME_OVERRIDES = {
+  'José Antonio Menéndez': 'José Menéndez',
+  'Gonzalo de Parellada Menéndez': 'Gonzalo de Parellada',
+  'Jose Maria Guitart': 'Jose María Guitart',
+  'Álvaro García Magro': 'Álvaro García M.',
+}
+
 function formatRealName(fullName) {
   if (!fullName) return ''
+  if (NAME_OVERRIDES[fullName]) return NAME_OVERRIDES[fullName]
   const PREPS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'da', 'do', 'di'])
   const isInitial = (w) => /^[a-záéíóúñ]\.?$/i.test(w)
   const titleCase = (w) => {
@@ -72,6 +82,9 @@ export default function Leaderboard({ demoMode }) {
   const [activeTab, setActiveTab] = useState(onlyFriendly ? 'friendly' : 'mundial')
   const [friendlyRankings, setFriendlyRankings] = useState([])
   const [userJoinedFriendly, setUserJoinedFriendly] = useState(false)
+  // PJ = partidos JUGADOS (empezados o terminados), contador global por stage.
+  // No es "predichos": cuando arranque España-Irak, friendly pasa a 1.
+  const [playedCounts, setPlayedCounts] = useState({ friendly: 0, mundial: 0 })
   // (Antes había friendlyDetail/mundialDetail computados client-side, pero el
   // RLS en `predictions` bloqueaba ver picks ajenos → solo aparecía la fila
   // propia con PJ correcto. Ahora usamos los agregados que ya devuelven las
@@ -120,6 +133,18 @@ export default function Leaderboard({ demoMode }) {
 
     const liveData = liveRes.data || []
     setLiveMatches(liveData)
+
+    // PJ global por stage: partidos que ya han empezado (live o finished).
+    const { data: playedRows } = await supabase
+      .from('matches')
+      .select('stage, status')
+      .in('status', ['live', 'finished'])
+    const pc = { friendly: 0, mundial: 0 }
+    ;(playedRows || []).forEach(m => {
+      if (m.stage === 'friendly') pc.friendly++
+      else if (m.stage !== 'test') pc.mundial++
+    })
+    setPlayedCounts(pc)
 
     if (liveData.length > 0) {
       const { data: livePredsData } = await supabase
@@ -426,6 +451,7 @@ export default function Leaderboard({ demoMode }) {
           fullRankings, currentRankings, getTiedRank,
           userId, tabHasLive,
           theme: activeTab === 'friendly' ? 'friendly' : 'mundial',
+          playedCount: activeTab === 'friendly' ? playedCounts.friendly : playedCounts.mundial,
           paymentConfirmed: activeTab === 'friendly' ? null : paymentConfirmed,
           onRowClick: activeTab === 'friendly'
             ? null
@@ -483,7 +509,7 @@ function compactName(name, maxLen = 18) {
 function renderSofaScore({
   fullRankings, currentRankings, getTiedRank,
   userId, tabHasLive, theme = 'friendly',
-  paymentConfirmed, onRowClick,
+  playedCount = 0, paymentConfirmed, onRowClick,
 }) {
   const isFriendly = theme === 'friendly'
   // Paleta — accent cambia con el theme; 3·/1· mantienen siempre azul/verde
@@ -520,7 +546,7 @@ function renderSofaScore({
       }}>
         <span>#</span>
         <span>Participante</span>
-        <span title="Predichos" style={{ textAlign: 'center', color: 'var(--text-dim)' }}>PJ</span>
+        <span title="Partidos jugados" style={{ textAlign: 'center', color: 'var(--text-dim)' }}>PJ</span>
         <span title="Exactos (3pt)" style={{ textAlign: 'center', color: C.blue }}>3·</span>
         <span title="Signos (1pt)" style={{ textAlign: 'center', color: C.green }}>1·</span>
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
@@ -537,14 +563,13 @@ function renderSofaScore({
           : isBottom3
             ? C.red
             : 'var(--text-muted)'
-        // PJ/ex/si vienen directos de la vista. La vista Mundial no expone
-        // predictions_made → derivar como exact + sign + misses (aciertos
-        // exactos + signos + fallos = todas las predicciones en finished).
+        // ex/si vienen directos de la vista (SECURITY DEFINER, ve todo — el
+        // RLS de predictions no aplica). PJ = partidos jugados, contador
+        // global del stage (igual para todas las filas): cuando empieza un
+        // partido sube a 1, no depende de cuántas predijo cada uno.
         const ex = user.exact_hits || 0
         const si = user.sign_hits  || 0
-        const pj = isFriendly
-          ? (user.predictions_made || 0)
-          : (ex + si + (user.misses || 0))
+        const pj = playedCount
         const pts = tabHasLive ? user.effective_points : user.total_points
         const isLast = idx === total - 1
         const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
