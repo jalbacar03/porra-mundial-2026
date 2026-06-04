@@ -348,29 +348,43 @@ export default function Leaderboard({ demoMode }) {
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <h2 style={{
-          fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)',
-          margin: 0, letterSpacing: '-0.5px'
-        }}>
-          Clasificación
-        </h2>
-        {((activeTab === 'mundial' && hasLiveMundial) || (activeTab === 'friendly' && hasLiveFriendly)) && (
-          <span className="live-pulse" style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            padding: '3px 9px', borderRadius: '20px',
-            background: 'rgba(226,75,74,0.15)', border: '1px solid rgba(226,75,74,0.3)',
-            fontSize: '10px', fontWeight: '700', color: 'var(--red)',
-            textTransform: 'uppercase', letterSpacing: '1px'
+      {/* Header — título dinámico: si estoy en tab Liguilla (o modo onlyFriendly)
+          el título refleja que solo se ve la clasificación de La Liguilla. */}
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h2 style={{
+            fontSize: '28px', fontWeight: '800',
+            color: activeTab === 'friendly' ? '#60a5fa' : 'var(--text-primary)',
+            margin: 0, letterSpacing: '-0.5px'
           }}>
-            <span className="live-dot" /> LIVE
-          </span>
+            {activeTab === 'friendly' ? 'Liguilla' : 'Clasificación'}
+          </h2>
+          {((activeTab === 'mundial' && hasLiveMundial) || (activeTab === 'friendly' && hasLiveFriendly)) && (
+            <span className="live-pulse" style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '3px 9px', borderRadius: '20px',
+              background: 'rgba(226,75,74,0.15)', border: '1px solid rgba(226,75,74,0.3)',
+              fontSize: '10px', fontWeight: '700', color: 'var(--red)',
+              textTransform: 'uppercase', letterSpacing: '1px'
+            }}>
+              <span className="live-dot" /> LIVE
+            </span>
+          )}
+        </div>
+        {activeTab === 'friendly' && (
+          <div style={{
+            fontSize: '12px', fontWeight: '600',
+            color: 'var(--text-muted)', marginTop: '4px',
+            letterSpacing: '0.2px'
+          }}>
+            Amistosos previos al Mundial · 12 partidos
+          </div>
         )}
       </div>
 
       {/* Tabs Mundial / Pre-Mundial — ocultas en modo onlyFriendly (entrada
-          directa desde /pre-mundial → Clasificación). */}
+          directa desde /pre-mundial → Clasificación). Indicador azul para la
+          tab Liguilla, verde para Mundial — refuerza la separación visual. */}
       {userJoinedFriendly && !onlyFriendly && (
         <div style={{
           display: 'flex', gap: '6px', marginBottom: '14px',
@@ -378,8 +392,8 @@ export default function Leaderboard({ demoMode }) {
           background: 'var(--bg-secondary)'
         }}>
           {[
-            { key: 'mundial',  label: 'Mundial' },
-            { key: 'friendly', label: 'La Liguilla' },
+            { key: 'mundial',  label: 'Mundial',     accent: 'var(--green)' },
+            { key: 'friendly', label: 'La Liguilla', accent: '#2563eb' },
           ].map(t => (
             <button
               key={t.key}
@@ -387,7 +401,7 @@ export default function Leaderboard({ demoMode }) {
               style={{
                 flex: 1, padding: '8px 12px', borderRadius: '8px',
                 border: 'none', cursor: 'pointer',
-                background: activeTab === t.key ? 'var(--green)' : 'transparent',
+                background: activeTab === t.key ? t.accent : 'transparent',
                 color: activeTab === t.key ? '#fff' : 'var(--text-muted)',
                 fontSize: '12px', fontWeight: '700',
                 letterSpacing: '0.4px',
@@ -573,14 +587,44 @@ export default function Leaderboard({ demoMode }) {
   )
 }
 
+// Recorta nombres largos para que quepan sin truncar bruscamente con "...".
+// Reglas:
+//  - "Pedro J Albacar" (3+ palabras, > maxLen) → "Pedro J. Albacar" cortado a inicial intermedia
+//  - "Gonzalo de Parellada" (3 palabras larga) → "Gonzalo Parellada" o inicial 2º apellido
+//  - "gonzalo.deparellada" (1 token largo) → recorta tras un punto si lo hay
+//  - Fallback: ellipsis al final.
+function compactName(name, maxLen = 16) {
+  if (!name) return ''
+  if (name.length <= maxLen) return name
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) {
+    // Estrategia 1: inicial al último apellido. "Gonzalo de Parellada" → "Gonzalo de P."
+    const first = parts.slice(0, parts.length - 1).join(' ')
+    const candidate = `${first} ${parts[parts.length - 1][0]}.`
+    if (candidate.length <= maxLen) return candidate
+    // Estrategia 2: solo primer nombre
+    if (parts[0].length <= maxLen) return parts[0]
+    return parts[0].slice(0, maxLen - 1) + '…'
+  }
+  // 1 token con puntos (handles tipo "gonzalo.deparellada")
+  if (name.includes('.')) {
+    const segs = name.split('.')
+    const first = segs[0]
+    if (first.length <= maxLen - 2) return `${first}.${segs[1][0]}.`
+    return first.slice(0, maxLen - 1) + '…'
+  }
+  return name.slice(0, maxLen - 1) + '…'
+}
+
 // ─── Vista SofaScore-style para La Liguilla ──────────────────────────────
 // Tabla compacta: #, NICK, PJ, 3·(exactos), 1·(signos), PTS.
 // Sin × (derivable: PJ - 3· - 1·) y sin FORM para maximizar espacio al nombre.
-// Paleta: azul=3pts (exacto), verde=1pt (signo), rojo parpadeo=live.
+// Columnas numéricas comprimidas (22px). Paleta full azul Liguilla.
 // Top 3 con medalla (oro/plata/bronce) · Últimos 3 con rank en rojo.
 function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, friendlyDetail, userId, tabHasLive }) {
   const C = {
     blue: '#2563eb',
+    blueLight: '#60a5fa',
     green: '#4ade80',
     gold: '#ffd700',
     silver: '#c0c0c0',
@@ -588,26 +632,27 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
     red: '#ef4444',
   }
   const total = fullRankings.length
-  const GRID = '22px 1fr 26px 26px 26px 40px'
+  const GRID = '20px 1fr 22px 22px 22px 36px'
   return (
     <div style={{
       background: 'var(--bg-secondary)',
       borderRadius: '8px',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      border: `1px solid rgba(37,99,235,0.18)`
     }}>
       {/* Header con columnas */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: GRID,
-        gap: '4px', padding: '6px 8px',
+        gap: '3px', padding: '6px 8px',
         fontSize: '9px', fontWeight: '800',
-        color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px',
-        background: 'rgba(37,99,235,0.05)',
-        borderBottom: '1px solid rgba(37,99,235,0.15)'
+        color: C.blueLight, textTransform: 'uppercase', letterSpacing: '0.6px',
+        background: 'rgba(37,99,235,0.10)',
+        borderBottom: '1px solid rgba(37,99,235,0.20)'
       }}>
         <span>#</span>
         <span>Participante</span>
-        <span title="Predichos" style={{ textAlign: 'center' }}>PJ</span>
+        <span title="Predichos" style={{ textAlign: 'center', color: 'var(--text-dim)' }}>PJ</span>
         <span title="Exactos (3pt)" style={{ textAlign: 'center', color: C.blue }}>3·</span>
         <span title="Signos (1pt)" style={{ textAlign: 'center', color: C.green }}>1·</span>
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
@@ -631,20 +676,20 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
           <div key={user.user_id} style={{
             display: 'grid',
             gridTemplateColumns: GRID,
-            gap: '4px', padding: '7px 8px',
+            gap: '3px', padding: '7px 8px',
             alignItems: 'center', minHeight: '34px',
-            background: isMe ? 'rgba(37,99,235,0.10)' : 'transparent',
+            background: isMe ? 'rgba(37,99,235,0.12)' : 'transparent',
             borderLeft: isMe ? `3px solid ${C.blue}` : '3px solid transparent',
-            borderBottom: isLast ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
+            borderBottom: isLast ? 'none' : '0.5px solid rgba(37,99,235,0.08)',
             fontSize: '13px',
             fontVariantNumeric: 'tabular-nums'
           }}>
             <span style={{ fontWeight: 800, color: rankColor, textAlign: 'center', fontSize: '12px' }}>{rankLabel}</span>
             <span style={{
-              color: 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
+              color: isMe ? C.blueLight : 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               minWidth: 0
-            }}>{user.full_name}</span>
+            }}>{compactName(user.full_name)}</span>
             <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{d.pj}</span>
             <span style={{ color: d.ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.ex}</span>
             <span style={{ color: d.si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.si}</span>
@@ -652,7 +697,7 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
               className={user.provisional > 0 ? 'live-points' : ''}
               style={{
                 textAlign: 'right', fontWeight: 800,
-                color: user.provisional > 0 ? 'var(--red)' : (isMe ? C.blue : 'var(--text-primary)'),
+                color: user.provisional > 0 ? 'var(--red)' : (isMe ? C.blueLight : 'var(--text-primary)'),
                 fontSize: '14px'
               }}
             >{pts}</span>
