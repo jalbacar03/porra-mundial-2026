@@ -107,7 +107,7 @@ export default function Leaderboard({ demoMode }) {
         const { data: flb } = await supabase.from('leaderboard_friendly').select('*')
         if (flb) setFriendlyRankings(flb)
         // Tab visible si está apuntado O si deadline pasó y es pagado.
-        const deadlinePassed = new Date() >= new Date('2026-06-04T16:00:00Z')
+        const deadlinePassed = new Date() >= new Date('2026-06-04T18:30:00Z') // 20:30 hora España
         const canSeeSpectator = deadlinePassed && meProf?.payment_confirmed
         if (meProf?.friendly_joined || canSeeSpectator) setUserJoinedFriendly(true)
       }

@@ -236,11 +236,16 @@ export default function Dashboard({ session, demoMode }) {
     // Test match (pre-Mundial dry-run): a single friendly used to validate
     // the live flow end-to-end. Shown as a prominent banner if it exists
     // and hasn't finished yet.
+    // Próximo partido a destacar: el friendly más cercano (live > scheduled
+    // ordenado por fecha). Si está live, el banner muestra score + minuto.
+    const nowIso = new Date().toISOString()
+    const in3hIso = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
     const { data: testMatchData } = await supabase
       .from('matches')
       .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
-      .eq('stage', 'test')
+      .eq('stage', 'friendly')
       .neq('status', 'finished')
+      .lte('match_date', in3hIso)  // solo si está en próximas 3h (o ya en juego)
       .order('match_date', { ascending: true })
       .limit(1)
       .maybeSingle()
@@ -330,7 +335,19 @@ export default function Dashboard({ session, demoMode }) {
     setLoading(false)
   }
 
-  function formatDateShort(dateStr) {
+  // Formato del minuto/estado del partido para el banner: "23'", "HT", "75'", "FT", etc.
+function formatLiveMinute(m) {
+  if (!m) return ''
+  const s = m.live_status_short
+  if (s === 'HT') return 'Descanso'
+  if (s === 'BT') return 'Break'
+  if (s === 'P')  return 'Penaltis'
+  if (s === 'ET') return `${m.live_minute || ''}' prórroga`.trim()
+  if (m.live_minute != null) return `${m.live_minute}'`
+  return ''
+}
+
+function formatDateShort(dateStr) {
     if (!dateStr) return ''
     const date = new Date(dateStr)
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -452,7 +469,9 @@ export default function Dashboard({ session, demoMode }) {
                 color: isLive ? 'var(--red)' : '#7eb3ff',
                 letterSpacing: '1.4px', textTransform: 'uppercase'
               }}>
-                {isLive ? '🔴 EN DIRECTO · PRUEBA' : 'Partido de prueba'}
+                {isLive
+                  ? `🔴 EN DIRECTO${formatLiveMinute(testMatch) ? ` · ${formatLiveMinute(testMatch)}` : ''}`
+                  : 'La Liguilla · próximo partido'}
               </span>
               {isLive && <span className="live-dot" />}
             </div>
@@ -521,7 +540,7 @@ export default function Dashboard({ session, demoMode }) {
             · No inscrito + deadline cerrado: "En marcha · sigue la clasificación"
        */}
       {isFriendlyVisible(profile) && profile?.has_paid && (() => {
-        const LIGUILLA_DEADLINE = new Date('2026-06-04T16:00:00Z')
+        const LIGUILLA_DEADLINE = new Date('2026-06-04T18:30:00Z') // 20:30 hora España
         const deadlinePassed = new Date() >= LIGUILLA_DEADLINE
         const inLiguilla = !!profile.friendly_joined
         // Color/copy según el estado

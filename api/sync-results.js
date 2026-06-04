@@ -175,7 +175,9 @@ export default async function handler(req, res) {
         const updateData = {
           home_score: homeScore,
           away_score: awayScore,
-          status: 'finished'
+          status: 'finished',
+          live_minute: null,
+          live_status_short: null,
         }
 
         // For knockout matches, determine winner_team_id
@@ -233,7 +235,9 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             home_score: homeScore,
             away_score: awayScore,
-            status: 'live'
+            status: 'live',
+            live_minute: apiMatch.fixture.status.elapsed ?? null,
+            live_status_short: apiMatch.fixture.status.short ?? null,
           })
         })
         liveUpdated++

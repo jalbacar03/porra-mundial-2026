@@ -60,7 +60,7 @@ export default function Stats({ demoMode }) {
     const queries = [
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
-        .eq('stage', 'group').order('match_date', { ascending: true }),
+        .in('stage', ['group', 'friendly']).order('match_date', { ascending: true }),
       supabase.from('predictions').select('match_id, predicted_home, predicted_away, user_id'),
       supabase.from('profiles').select('id, full_name, has_paid, avatar_url'),
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),

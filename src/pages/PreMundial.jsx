@@ -28,9 +28,9 @@ const LIGUILLA = {
   red:        '#ff6b6b',
 }
 
-// Deadline global de La Liguilla: jueves 4 jun 18:00 hora España = 16:00 UTC.
+// Deadline global de La Liguilla: jueves 4 jun 20:30 hora España = 18:30 UTC.
 // Después de esto: no se puede inscribir, no se puede predecir, no se puede editar.
-export const LIGUILLA_DEADLINE = new Date('2026-06-04T16:00:00Z')
+export const LIGUILLA_DEADLINE = new Date('2026-06-04T18:30:00Z') // 20:30 hora España, 30 min antes del kickoff
 
 export default function PreMundial({ session }) {
   const navigate = useNavigate()
@@ -268,7 +268,7 @@ export default function PreMundial({ session }) {
               fontSize: '10px', color: deadlinePassed ? LIGUILLA.red : LIGUILLA.gold,
               fontWeight: '700'
             }}>
-              {deadlinePassed ? 'Cerrada' : 'Cierra jue 18:00'}
+              {deadlinePassed ? 'Cerrada' : 'Cierra jue 20:30'}
             </span>
           </div>
           <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
