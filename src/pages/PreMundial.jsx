@@ -4,6 +4,7 @@ import { supabase } from '../supabase'
 import { FootballSpinner } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
 import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
+import ScorePicker from '../components/predictions/ScorePicker'
 
 /**
  * La Liguilla — mini-torneo opcional con los 12 amistosos del 4-9 jun.
@@ -452,7 +453,6 @@ function OptInScreen({ onJoin, joining }) {
 
 // ─── Match Card ────────────────────────────────────────────────────────────
 
-const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5]
 
 function MatchCard({ match, pred, saved, locked, collapsed, onSetScore, onEdit }) {
   const matchDate = new Date(match.match_date)
@@ -559,10 +559,17 @@ function MatchCard({ match, pred, saved, locked, collapsed, onSetScore, onEdit }
       </table>
 
       {!locked && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-          <ScoreSelector value={pred.home_score} onChange={v => onSetScore('home', v)} />
-          <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '700' }}>-</span>
-          <ScoreSelector value={pred.away_score} onChange={v => onSetScore('away', v)} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <ScorePicker
+            value={typeof pred.home_score === 'number' ? pred.home_score : null}
+            onChange={v => onSetScore('home', v)}
+            accent="green"
+          />
+          <ScorePicker
+            value={typeof pred.away_score === 'number' ? pred.away_score : null}
+            onChange={v => onSetScore('away', v)}
+            accent="green"
+          />
         </div>
       )}
 
@@ -575,25 +582,3 @@ function MatchCard({ match, pred, saved, locked, collapsed, onSetScore, onEdit }
   )
 }
 
-function ScoreSelector({ value, onChange }) {
-  return (
-    <div style={{ display: 'flex', gap: '3px' }}>
-      {SCORE_OPTIONS.map(n => (
-        <button
-          key={n}
-          onClick={() => onChange(n)}
-          style={{
-            width: '28px', height: '28px',
-            borderRadius: '6px', border: 'none', cursor: 'pointer',
-            background: value === n ? LIGUILLA.primary : 'var(--bg-input)',
-            color: value === n ? '#fff' : 'var(--text-muted)',
-            fontSize: '13px', fontWeight: '700',
-            transition: 'all 0.12s ease', padding: 0,
-          }}
-        >
-          {n}
-        </button>
-      ))}
-    </div>
-  )
-}
