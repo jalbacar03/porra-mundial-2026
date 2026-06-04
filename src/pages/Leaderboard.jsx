@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonLeaderboard } from '../components/Skeleton'
@@ -40,9 +41,14 @@ export default function Leaderboard({ demoMode }) {
   const [paidUsers, setPaidUsers] = useState(new Set())
   const [profileFullNames, setProfileFullNames] = useState({})
   const [paymentConfirmed, setPaymentConfirmed] = useState(new Set())
-  const [activeTab, setActiveTab] = useState('mundial') // 'mundial' | 'friendly'
+  const [searchParams] = useSearchParams()
+  // ?only=friendly → modo "solo Liguilla": tab activa friendly + tab bar oculta.
+  const onlyFriendly = searchParams.get('only') === 'friendly'
+  const [activeTab, setActiveTab] = useState(onlyFriendly ? 'friendly' : 'mundial')
   const [friendlyRankings, setFriendlyRankings] = useState([])
   const [userJoinedFriendly, setUserJoinedFriendly] = useState(false)
+  // Datos por user para vista SofaScore (PJ, exactos, signos, fallos, form)
+  const [friendlyDetail, setFriendlyDetail] = useState({}) // { userId: {pj, ex, si, mi, form: [3,1,0,...]} }
 
   useEffect(() => {
     fetchData()
@@ -106,10 +112,42 @@ export default function Leaderboard({ demoMode }) {
       if (isFriendlyVisible(meProf)) {
         const { data: flb } = await supabase.from('leaderboard_friendly').select('*')
         if (flb) setFriendlyRankings(flb)
-        // Tab visible si está apuntado O si deadline pasó y es pagado.
         const deadlinePassed = new Date() >= new Date('2026-06-04T18:30:00Z') // 20:30 hora España
         const canSeeSpectator = deadlinePassed && meProf?.payment_confirmed
         if (meProf?.friendly_joined || canSeeSpectator) setUserJoinedFriendly(true)
+
+        // Detalle SofaScore-style: PJ, ex, si, mi, FORM por user.
+        const { data: friendlyMatches } = await supabase
+          .from('matches')
+          .select('id, match_date, status')
+          .eq('stage', 'friendly')
+        if (friendlyMatches?.length) {
+          const matchIds = friendlyMatches.map(m => m.id)
+          const matchById = Object.fromEntries(friendlyMatches.map(m => [m.id, m]))
+          const { data: detailPreds } = await supabase
+            .from('predictions')
+            .select('user_id, match_id, predicted_home, predicted_away, points_earned')
+            .in('match_id', matchIds)
+          const byUser = {}
+          ;(detailPreds || []).forEach(p => {
+            if (!byUser[p.user_id]) byUser[p.user_id] = { pj: 0, ex: 0, si: 0, mi: 0, form: [] }
+            const u = byUser[p.user_id]
+            if (p.predicted_home != null) u.pj++
+            const m = matchById[p.match_id]
+            if (m?.status === 'finished' && p.predicted_home != null) {
+              const pts = p.points_earned || 0
+              if (pts === 3) u.ex++
+              else if (pts === 1) u.si++
+              else u.mi++
+              u.form.push({ pts, date: m.match_date })
+            }
+          })
+          Object.values(byUser).forEach(u => {
+            u.form.sort((a, b) => new Date(b.date) - new Date(a.date))
+            u.form = u.form.slice(0, 5).map(f => f.pts)
+          })
+          setFriendlyDetail(byUser)
+        }
       }
     }
 
@@ -331,10 +369,9 @@ export default function Leaderboard({ demoMode }) {
         )}
       </div>
 
-      {/* Tabs Mundial / Pre-Mundial (solo si feature flag ON y user inscrito).
-          userJoinedFriendly se setea solo si isFriendlyVisible(profile),
-          así que el admin-only guard se aplica también aquí. */}
-      {userJoinedFriendly && (
+      {/* Tabs Mundial / Pre-Mundial — ocultas en modo onlyFriendly (entrada
+          directa desde /pre-mundial → Clasificación). */}
+      {userJoinedFriendly && !onlyFriendly && (
         <div style={{
           display: 'flex', gap: '6px', marginBottom: '14px',
           padding: '4px', borderRadius: '10px',
@@ -369,6 +406,11 @@ export default function Leaderboard({ demoMode }) {
           title="Sin clasificación aún"
           subtitle="Se rellenará cuando empiecen los partidos del Mundial."
         />
+      ) : activeTab === 'friendly' ? (
+        renderFriendlySofaScore({
+          fullRankings, currentRankings, getTiedRank, friendlyDetail,
+          userId, tabHasLive
+        })
       ) : (
         // SofaScore/Flashscore-style: dense list, hairline separators between rows,
         // no per-row card chrome. Card wraps the whole table.
@@ -527,6 +569,98 @@ export default function Leaderboard({ demoMode }) {
           onClose={() => setH2hRival(null)}
         />
       )}
+    </div>
+  )
+}
+
+// ─── Vista SofaScore-style para La Liguilla ──────────────────────────────
+// Tabla compacta con columnas: #, NICK, PJ, 3·(exactos), 1·(signos), ×(fallos),
+// PTS y FORM (últimos 5 resultados como puntitos colorados).
+// Paleta: azul=3pts (exacto), verde=1pt (signo), gris=0pt, rojo parpadeo=live.
+function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, friendlyDetail, userId, tabHasLive }) {
+  const C = {
+    blue: '#2563eb',
+    green: '#4ade80',
+    gold: '#ffd700',
+    silver: '#c0c0c0',
+    bronze: '#cd7f32',
+  }
+  return (
+    <div style={{
+      background: 'var(--bg-secondary)',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      border: '1px solid rgba(37,99,235,0.15)'
+    }}>
+      {/* Header con columnas */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '28px 1fr 28px 28px 28px 28px 32px 70px',
+        gap: '4px', padding: '8px 10px',
+        fontSize: '9px', fontWeight: '800',
+        color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.8px',
+        background: 'rgba(37,99,235,0.05)',
+        borderBottom: '1px solid rgba(37,99,235,0.15)'
+      }}>
+        <span>#</span>
+        <span>Participante</span>
+        <span title="Predichos" style={{ textAlign: 'center' }}>PJ</span>
+        <span title="Exactos (3pt)" style={{ textAlign: 'center', color: C.blue }}>3·</span>
+        <span title="Signos (1pt)" style={{ textAlign: 'center', color: C.green }}>1·</span>
+        <span title="Fallos" style={{ textAlign: 'center' }}>×</span>
+        <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
+        <span title="Últimos 5" style={{ textAlign: 'center' }}>FORM</span>
+      </div>
+      {fullRankings.map((user, idx) => {
+        const isMe = user.user_id === userId
+        const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
+        const { rank, tied } = getTiedRank(realIdx)
+        const rankLabel = tied ? `T${rank}` : `${rank}`
+        const medalColor = rank === 1 ? C.gold : rank === 2 ? C.silver : rank === 3 ? C.bronze : 'var(--text-muted)'
+        const d = friendlyDetail[user.user_id] || { pj: 0, ex: 0, si: 0, mi: 0, form: [] }
+        const pts = tabHasLive ? user.effective_points : user.total_points
+        const isLast = idx === fullRankings.length - 1
+        const formDots = (d.form || []).map((p, i) => (
+          <span key={i} style={{
+            display: 'inline-block', width: '8px', height: '8px',
+            borderRadius: '50%', marginRight: '2px',
+            background: p === 3 ? C.blue : p === 1 ? C.green : 'rgba(255,255,255,0.18)'
+          }} />
+        ))
+        return (
+          <div key={user.user_id} style={{
+            display: 'grid',
+            gridTemplateColumns: '28px 1fr 28px 28px 28px 28px 32px 70px',
+            gap: '4px', padding: '8px 10px',
+            alignItems: 'center', minHeight: '36px',
+            background: isMe ? 'rgba(37,99,235,0.10)' : 'transparent',
+            borderLeft: isMe ? `3px solid ${C.blue}` : '3px solid transparent',
+            borderBottom: isLast ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
+            fontSize: '13px',
+            fontVariantNumeric: 'tabular-nums'
+          }}>
+            <span style={{ fontWeight: 800, color: medalColor, textAlign: 'center' }}>{rankLabel}</span>
+            <span style={{
+              color: 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              minWidth: 0
+            }}>{user.full_name}</span>
+            <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{d.pj}</span>
+            <span style={{ color: d.ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.ex}</span>
+            <span style={{ color: d.si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.si}</span>
+            <span style={{ color: 'var(--text-dim)', textAlign: 'center' }}>{d.mi}</span>
+            <span
+              className={user.provisional > 0 ? 'live-points' : ''}
+              style={{
+                textAlign: 'right', fontWeight: 800,
+                color: user.provisional > 0 ? 'var(--red)' : (isMe ? C.blue : 'var(--text-primary)'),
+                fontSize: '14px'
+              }}
+            >{pts}</span>
+            <span style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{formDots}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

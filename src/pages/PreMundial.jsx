@@ -280,7 +280,7 @@ export default function PreMundial({ session }) {
               {spectatorMode ? 'Partidos y resultados' : 'Tus predicciones'}
             </h2>
             <button
-              onClick={() => navigate('/leaderboard')}
+              onClick={() => navigate('/leaderboard?only=friendly')}
               style={{
                 background: LIGUILLA.primaryDim, border: `1px solid ${LIGUILLA.borderSoft}`,
                 color: LIGUILLA.primary, padding: '8px 14px', borderRadius: '8px',
