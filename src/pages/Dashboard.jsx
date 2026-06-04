@@ -525,9 +525,18 @@ function formatDateShort(dateStr) {
                   background: 'rgba(255,204,0,0.12)',
                   padding: '4px 8px', borderRadius: '6px'
                 }}>
-                  ¡Predice ahora! →
+                  Predice ahora →
                 </span>
               )}
+            </div>
+            {/* CTA siempre visible: lleva al calendario de los 12 partidos */}
+            <div style={{
+              marginTop: '12px', paddingTop: '10px',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '600',
+              textAlign: 'center'
+            }}>
+              Ver los 12 partidos y clasificación de La Liguilla →
             </div>
           </div>
         )
