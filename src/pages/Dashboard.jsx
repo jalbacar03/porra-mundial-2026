@@ -515,45 +515,70 @@ export default function Dashboard({ session, demoMode }) {
       })()}
 
       {/* === PRE-MUNDIAL CARD ===
-          Visible para todos los users admitidos (has_paid). El gate real de
-          participación está dentro de /pre-mundial: si no payment_confirmed,
-          ven el card pero al entrar se les dice que tienen que pagar. */}
-      {isFriendlyVisible(profile) && profile?.has_paid && (
-        <div
-          onClick={() => navigate('/pre-mundial')}
-          role="button" tabIndex={0}
-          className="tap-scale"
-          style={{
-            marginBottom: '14px', padding: '14px 16px',
-            borderRadius: '14px',
-            background: profile.friendly_joined
-              ? 'linear-gradient(135deg, #1a2433, #0f1b2e)'
-              : 'linear-gradient(135deg, #2a2410, #3a1d18)',
-            border: profile.friendly_joined
-              ? '1px solid rgba(100,150,255,0.25)'
-              : '1.5px solid rgba(255,204,0,0.4)',
-            cursor: 'pointer'
-          }}
-        >
-          <div style={{
-            fontSize: '10px', fontWeight: '800',
-            color: profile.friendly_joined ? '#7eb3ff' : '#ffcc00',
-            letterSpacing: '1.4px', textTransform: 'uppercase',
-            marginBottom: '6px'
-          }}>
-            🏆 La Liguilla · 4-9 jun
+          Siempre visible para usuarios admitidos. Copy adaptado según estado:
+            · Inscrito: "Estás dentro · predice"
+            · No inscrito + deadline abierto: "Apúntate"
+            · No inscrito + deadline cerrado: "En marcha · sigue la clasificación"
+       */}
+      {isFriendlyVisible(profile) && profile?.has_paid && (() => {
+        const LIGUILLA_DEADLINE = new Date('2026-06-04T16:00:00Z')
+        const deadlinePassed = new Date() >= LIGUILLA_DEADLINE
+        const inLiguilla = !!profile.friendly_joined
+        // Color/copy según el estado
+        const stateColor = inLiguilla ? '#7eb3ff' : (deadlinePassed ? '#9b9eaa' : '#ffcc00')
+        const bgGradient = inLiguilla
+          ? 'linear-gradient(135deg, #1a2433, #0f1b2e)'
+          : deadlinePassed
+            ? 'linear-gradient(135deg, #1a1d26, #1a1d26)'
+            : 'linear-gradient(135deg, #2a2410, #3a1d18)'
+        const borderColor = inLiguilla
+          ? '1px solid rgba(100,150,255,0.25)'
+          : deadlinePassed
+            ? '1px solid rgba(255,255,255,0.08)'
+            : '1.5px solid rgba(255,204,0,0.4)'
+        const titleText = inLiguilla
+          ? 'Estás dentro de La Liguilla'
+          : deadlinePassed
+            ? 'La Liguilla en marcha'
+            : '12 amistosos. Top 3 recuperan los 20€'
+        const ctaText = inLiguilla
+          ? 'Predice tus partidos →'
+          : deadlinePassed
+            ? 'Sigue la clasificación y resultados →'
+            : 'Pulsa para apuntarte →'
+        return (
+          <div
+            onClick={() => navigate('/pre-mundial')}
+            role="button" tabIndex={0}
+            className="tap-scale"
+            style={{
+              marginBottom: '14px', padding: '14px 16px',
+              borderRadius: '14px',
+              background: bgGradient,
+              border: borderColor,
+              cursor: 'pointer'
+            }}
+          >
+            <div style={{
+              fontSize: '10px', fontWeight: '800',
+              color: stateColor,
+              letterSpacing: '1.4px', textTransform: 'uppercase',
+              marginBottom: '6px'
+            }}>
+              🏆 La Liguilla · 4-9 jun
+            </div>
+            <div style={{
+              fontSize: '16px', fontWeight: '700', color: '#fff',
+              marginBottom: '4px'
+            }}>
+              {titleText}
+            </div>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+              {ctaText}
+            </div>
           </div>
-          <div style={{
-            fontSize: '16px', fontWeight: '700', color: '#fff',
-            marginBottom: '4px'
-          }}>
-            {profile.friendly_joined ? 'Estás dentro de La Liguilla' : '12 amistosos. Top 3 recuperan los 20€'}
-          </div>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-            {profile.friendly_joined ? 'Predice tus partidos →' : 'Pulsa para apuntarte →'}
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ===== HERO: TU POSICIÓN · LIVE + BOTE ===== */}
       <div style={{

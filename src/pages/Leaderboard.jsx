@@ -95,15 +95,21 @@ export default function Leaderboard({ demoMode }) {
     }
 
     // Pre-Mundial leaderboard (feature-flagged + admin-only durante prueba)
+    // Visible para: (a) usuarios inscritos a La Liguilla, o
+    //               (b) cualquier usuario pagado una vez pasado el deadline
+    //                   de inscripción (modo espectador — pueden seguir el
+    //                   torneo aunque no se apuntaron).
     if (FRIENDLY_TOURNAMENT_ENABLED) {
       const meProf = user
-        ? (await supabase.from('profiles').select('friendly_joined, is_admin').eq('id', user.id).single()).data
+        ? (await supabase.from('profiles').select('friendly_joined, payment_confirmed, is_admin').eq('id', user.id).single()).data
         : null
-      // Solo cargar si el flag global ON y (admin si admin-only) — evita query inútil.
       if (isFriendlyVisible(meProf)) {
         const { data: flb } = await supabase.from('leaderboard_friendly').select('*')
         if (flb) setFriendlyRankings(flb)
-        if (meProf?.friendly_joined) setUserJoinedFriendly(true)
+        // Tab visible si está apuntado O si deadline pasó y es pagado.
+        const deadlinePassed = new Date() >= new Date('2026-06-04T16:00:00Z')
+        const canSeeSpectator = deadlinePassed && meProf?.payment_confirmed
+        if (meProf?.friendly_joined || canSeeSpectator) setUserJoinedFriendly(true)
       }
     }
 

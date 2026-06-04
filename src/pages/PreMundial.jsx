@@ -222,30 +222,10 @@ export default function PreMundial({ session }) {
   const deadlinePassed = new Date() >= LIGUILLA_DEADLINE
 
   // ── Opt-in: pagado pero no apuntado todavía
-  if (!profile?.friendly_joined) {
-    if (deadlinePassed) {
-      return (
-        <PageWrap>
-          <BackBar navigate={navigate} />
-          <div style={{ maxWidth: '500px', margin: '40px auto', padding: '20px' }}>
-            <div style={{
-              background: 'var(--bg-secondary)', borderRadius: '14px', padding: '24px',
-              textAlign: 'center', border: '1px solid var(--border-light)'
-            }}>
-              <div style={{ fontSize: '13px', color: LIGUILLA.red, fontWeight: '800', letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Inscripción cerrada
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '10px', color: 'var(--text-primary)' }}>
-                La Liguilla ya está en marcha
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55' }}>
-                El plazo para apuntarse fue el jueves 4 de junio a las 18:00. Sigue la clasificación en la pestaña Pre-Mundial.
-              </div>
-            </div>
-          </div>
-        </PageWrap>
-      )
-    }
+  // Si NO pasó el deadline → muestra pantalla de inscripción.
+  // Si SÍ pasó el deadline → cae al render principal pero en MODO ESPECTADOR
+  //   (ve clasificación + resultados, sin selectores ni save bar).
+  if (!profile?.friendly_joined && !deadlinePassed) {
     return (
       <PageWrap>
         <BackBar navigate={navigate} />
@@ -253,6 +233,8 @@ export default function PreMundial({ session }) {
       </PageWrap>
     )
   }
+  // Spectator mode = pagado + no apuntado + deadline ya pasó.
+  const spectatorMode = !profile?.friendly_joined && deadlinePassed
 
   // ── Vista principal
   const now = new Date()
@@ -261,6 +243,19 @@ export default function PreMundial({ session }) {
       <BackBar navigate={navigate} />
 
       <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px' }}>
+        {/* Banner spectator mode */}
+        {spectatorMode && (
+          <div style={{
+            background: 'rgba(255,204,0,0.08)',
+            border: `1px solid rgba(255,204,0,0.3)`,
+            borderRadius: '10px', padding: '12px 14px', marginBottom: '14px',
+            fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5'
+          }}>
+            <strong style={{ color: LIGUILLA.gold }}>Modo espectador.</strong> No te apuntaste a La Liguilla,
+            pero puedes seguir la clasificación y los resultados de los 12 partidos en directo.
+          </div>
+        )}
+
         {/* Header */}
         <div style={{ marginBottom: '14px' }}>
           <div style={{
@@ -277,25 +272,29 @@ export default function PreMundial({ session }) {
             </span>
           </div>
           <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
-            Tus predicciones
+            {spectatorMode ? 'Partidos y resultados' : 'Tus predicciones'}
           </h2>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {filledCount}/{matches.length} guardadas · top 3 recuperan los 20 €
-          </div>
+          {!spectatorMode && (
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              {filledCount}/{matches.length} guardadas · top 3 recuperan los 20 €
+            </div>
+          )}
         </div>
 
-        {/* Progress bar — azul Liguilla */}
-        <div style={{
-          height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.05)',
-          overflow: 'hidden', marginBottom: '14px'
-        }}>
+        {/* Progress bar — solo si el user está inscrito */}
+        {!spectatorMode && (
           <div style={{
-            width: `${(filledCount / Math.max(matches.length, 1)) * 100}%`,
-            height: '100%',
-            background: `linear-gradient(90deg, ${LIGUILLA.primary}, ${LIGUILLA.gold})`,
-            transition: 'width 0.4s ease'
-          }} />
-        </div>
+            height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.05)',
+            overflow: 'hidden', marginBottom: '14px'
+          }}>
+            <div style={{
+              width: `${(filledCount / Math.max(matches.length, 1)) * 100}%`,
+              height: '100%',
+              background: `linear-gradient(90deg, ${LIGUILLA.primary}, ${LIGUILLA.gold})`,
+              transition: 'width 0.4s ease'
+            }} />
+          </div>
+        )}
 
         {/* Match cards */}
         {matches.map(m => {
@@ -322,7 +321,7 @@ export default function PreMundial({ session }) {
         })}
 
         {/* Sticky save bar */}
-        {unsavedCount > 0 && (
+        {unsavedCount > 0 && !spectatorMode && (
           <div style={{
             position: 'sticky', bottom: '12px', marginTop: '20px',
             background: LIGUILLA.primary, borderRadius: '12px',
