@@ -72,9 +72,11 @@ export default function Leaderboard({ demoMode }) {
   const [activeTab, setActiveTab] = useState(onlyFriendly ? 'friendly' : 'mundial')
   const [friendlyRankings, setFriendlyRankings] = useState([])
   const [userJoinedFriendly, setUserJoinedFriendly] = useState(false)
-  // Datos por user para vista SofaScore (PJ, exactos, signos, fallos, form)
-  const [friendlyDetail, setFriendlyDetail] = useState({}) // { userId: {pj, ex, si, mi, form: [3,1,0,...]} }
-  const [mundialDetail, setMundialDetail] = useState({})   // idem para partidos del Mundial real
+  // (Antes había friendlyDetail/mundialDetail computados client-side, pero el
+  // RLS en `predictions` bloqueaba ver picks ajenos → solo aparecía la fila
+  // propia con PJ correcto. Ahora usamos los agregados que ya devuelven las
+  // vistas leaderboard / leaderboard_friendly — esas corren como SECURITY
+  // DEFINER y sí ven todo.)
 
   useEffect(() => {
     fetchData()
@@ -144,75 +146,7 @@ export default function Leaderboard({ demoMode }) {
         const deadlinePassed = new Date() >= new Date('2026-06-04T18:50:00Z') // 20:50 hora España
         const canSeeSpectator = deadlinePassed && meProf?.payment_confirmed
         if (meProf?.friendly_joined || canSeeSpectator) setUserJoinedFriendly(true)
-
-        // Detalle SofaScore-style: PJ, ex, si, mi, FORM por user.
-        const { data: friendlyMatches } = await supabase
-          .from('matches')
-          .select('id, match_date, status')
-          .eq('stage', 'friendly')
-        if (friendlyMatches?.length) {
-          const matchIds = friendlyMatches.map(m => m.id)
-          const matchById = Object.fromEntries(friendlyMatches.map(m => [m.id, m]))
-          const { data: detailPreds } = await supabase
-            .from('predictions')
-            .select('user_id, match_id, predicted_home, predicted_away, points_earned')
-            .in('match_id', matchIds)
-          const byUser = {}
-          ;(detailPreds || []).forEach(p => {
-            if (!byUser[p.user_id]) byUser[p.user_id] = { pj: 0, ex: 0, si: 0, mi: 0, form: [] }
-            const u = byUser[p.user_id]
-            if (p.predicted_home != null) u.pj++
-            const m = matchById[p.match_id]
-            if (m?.status === 'finished' && p.predicted_home != null) {
-              const pts = p.points_earned || 0
-              if (pts === 3) u.ex++
-              else if (pts === 1) u.si++
-              else u.mi++
-              u.form.push({ pts, date: m.match_date })
-            }
-          })
-          Object.values(byUser).forEach(u => {
-            u.form.sort((a, b) => new Date(b.date) - new Date(a.date))
-            u.form = u.form.slice(0, 5).map(f => f.pts)
-          })
-          setFriendlyDetail(byUser)
-        }
       }
-    }
-
-    // Detalle Mundial: misma estructura que friendlyDetail pero excluyendo
-    // friendly/test. Pre-Mundial todo será 0/0/0; cuando empiece el 11 jun
-    // se llenará con los partidos terminados.
-    const { data: mundialMatches } = await supabase
-      .from('matches')
-      .select('id, match_date, status, stage')
-      .not('stage', 'in', '("friendly","test")')
-    if (mundialMatches?.length) {
-      const matchIds = mundialMatches.map(m => m.id)
-      const matchById = Object.fromEntries(mundialMatches.map(m => [m.id, m]))
-      const { data: detailPreds } = await supabase
-        .from('predictions')
-        .select('user_id, match_id, predicted_home, predicted_away, points_earned')
-        .in('match_id', matchIds)
-      const byUser = {}
-      ;(detailPreds || []).forEach(p => {
-        if (!byUser[p.user_id]) byUser[p.user_id] = { pj: 0, ex: 0, si: 0, mi: 0, form: [] }
-        const u = byUser[p.user_id]
-        if (p.predicted_home != null) u.pj++
-        const m = matchById[p.match_id]
-        if (m?.status === 'finished' && p.predicted_home != null) {
-          const pts = p.points_earned || 0
-          if (pts === 3) u.ex++
-          else if (pts === 1) u.si++
-          else u.mi++
-          u.form.push({ pts, date: m.match_date })
-        }
-      })
-      Object.values(byUser).forEach(u => {
-        u.form.sort((a, b) => new Date(b.date) - new Date(a.date))
-        u.form = u.form.slice(0, 5).map(f => f.pts)
-      })
-      setMundialDetail(byUser)
     }
 
     setLoading(false)
@@ -490,7 +424,6 @@ export default function Leaderboard({ demoMode }) {
         // mundialDetail) y los extras (payment dot + H2H click solo Mundial).
         renderSofaScore({
           fullRankings, currentRankings, getTiedRank,
-          detailByUser: activeTab === 'friendly' ? friendlyDetail : mundialDetail,
           userId, tabHasLive,
           theme: activeTab === 'friendly' ? 'friendly' : 'mundial',
           paymentConfirmed: activeTab === 'friendly' ? null : paymentConfirmed,
@@ -548,7 +481,7 @@ function compactName(name, maxLen = 18) {
 // Top 3 con medalla (oro/plata/bronce) · Últimos 3 con rank en rojo.
 // Mundial añade: payment dot "no pagado" + onClick → H2H modal.
 function renderSofaScore({
-  fullRankings, currentRankings, getTiedRank, detailByUser,
+  fullRankings, currentRankings, getTiedRank,
   userId, tabHasLive, theme = 'friendly',
   paymentConfirmed, onRowClick,
 }) {
@@ -604,7 +537,14 @@ function renderSofaScore({
           : isBottom3
             ? C.red
             : 'var(--text-muted)'
-        const d = (detailByUser && detailByUser[user.user_id]) || { pj: 0, ex: 0, si: 0, mi: 0 }
+        // PJ/ex/si vienen directos de la vista. La vista Mundial no expone
+        // predictions_made → derivar como exact + sign + misses (aciertos
+        // exactos + signos + fallos = todas las predicciones en finished).
+        const ex = user.exact_hits || 0
+        const si = user.sign_hits  || 0
+        const pj = isFriendly
+          ? (user.predictions_made || 0)
+          : (ex + si + (user.misses || 0))
         const pts = tabHasLive ? user.effective_points : user.total_points
         const isLast = idx === total - 1
         const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
@@ -646,9 +586,9 @@ function renderSofaScore({
                 />
               )}
             </span>
-            <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{d.pj}</span>
-            <span style={{ color: d.ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.ex}</span>
-            <span style={{ color: d.si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.si}</span>
+            <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{pj}</span>
+            <span style={{ color: ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{ex}</span>
+            <span style={{ color: si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{si}</span>
             <span
               className={user.provisional > 0 ? 'live-points' : ''}
               style={{
