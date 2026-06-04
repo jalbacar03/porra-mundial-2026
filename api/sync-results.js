@@ -94,16 +94,29 @@ export default async function handler(req, res) {
     const matchesResponse = await apiFetch(`/fixtures?league=${WORLD_CUP_ID}&season=${WORLD_CUP_SEASON}`)
     const apiMatches = matchesResponse.response || []
 
-    // 1b. Extra fixtures by ID — for matches outside the World Cup league
-    // (e.g. pre-tournament friendlies used to test the live flow end-to-end).
-    // Any DB row with api_football_fixture_id NOT NULL and status != 'finished'
-    // gets its fixture pulled individually so sync covers it too.
+    // 1b. Extra fixtures by ID — para amistosos fuera del Mundial (Liguilla).
+    // OPTIMIZACIÓN CRÍTICA DE CUOTA: solo hacemos fetch individual de cada
+    // fixture cuando es relevante. Antes traíamos los 12 friendlies en cada
+    // ejecución → 1440 crons/día × 12 calls = 17280 calls/día (sobre 7500 Pro).
+    // Ahora solo fetchamos fixtures que (a) están actualmente en vivo o
+    // (b) empiezan en las próximas 3h o (c) acabaron en la última hora.
+    // Resto del día: 0 calls extra → cron base de 1 call.
+    const now2 = new Date()
+    const threeHoursLater = new Date(now2.getTime() + 3 * 60 * 60 * 1000)
+    const oneHourAgo = new Date(now2.getTime() - 1 * 60 * 60 * 1000)
     const ourExtraMatches = await supaFetch(
-      `/rest/v1/matches?select=api_football_fixture_id&api_football_fixture_id=not.is.null&status=neq.finished`
+      `/rest/v1/matches?select=api_football_fixture_id,match_date,status` +
+      `&api_football_fixture_id=not.is.null` +
+      `&status=neq.finished` +
+      `&match_date=gte.${oneHourAgo.toISOString()}` +
+      `&match_date=lte.${threeHoursLater.toISOString()}`
     )
     const extraIds = (ourExtraMatches || [])
       .map(m => m.api_football_fixture_id)
       .filter(Boolean)
+    if (extraIds.length === 0) {
+      log.push(`   ⏭️ Sin fixtures extra en ventana ±3h — ahorrando cuota API`)
+    }
     for (const fid of extraIds) {
       try {
         const res = await apiFetch(`/fixtures?id=${fid}`)
