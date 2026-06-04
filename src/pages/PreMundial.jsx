@@ -260,27 +260,31 @@ export default function PreMundial({ session }) {
         <div style={{ marginBottom: '14px' }}>
           <div style={{
             fontSize: '12px', color: LIGUILLA.primary, fontWeight: '800',
-            letterSpacing: '1.4px', textTransform: 'uppercase', marginBottom: '4px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            letterSpacing: '1.2px', textTransform: 'uppercase', marginBottom: '8px',
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px'
           }}>
             <span>La Liguilla · 12 partidos · 4-9 jun</span>
             <span style={{
-              fontSize: '10px', color: deadlinePassed ? LIGUILLA.red : LIGUILLA.gold,
-              fontWeight: '700'
+              fontSize: '10px',
+              color: deadlinePassed ? LIGUILLA.red : LIGUILLA.gold,
+              fontWeight: '700',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              background: deadlinePassed ? 'rgba(231,76,60,0.12)' : 'rgba(255,204,0,0.12)'
             }}>
               {deadlinePassed ? 'Cerrada' : 'Cierra jue 20:30'}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
             <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
               {spectatorMode ? 'Partidos y resultados' : 'Tus predicciones'}
             </h2>
             <button
-              onClick={() => navigate('/clasificacion')}
+              onClick={() => navigate('/leaderboard')}
               style={{
-                background: 'transparent', border: `1px solid ${LIGUILLA.borderSoft}`,
-                color: LIGUILLA.primary, padding: '6px 10px', borderRadius: '6px',
-                fontSize: '11px', fontWeight: '700', cursor: 'pointer',
+                background: LIGUILLA.primaryDim, border: `1px solid ${LIGUILLA.borderSoft}`,
+                color: LIGUILLA.primary, padding: '8px 14px', borderRadius: '8px',
+                fontSize: '12px', fontWeight: '700', cursor: 'pointer',
                 whiteSpace: 'nowrap'
               }}
             >
