@@ -445,7 +445,7 @@ function formatDateShort(dateStr) {
         const hasPred = pred && pred.predicted_home !== null && pred.predicted_away !== null
         return (
           <div
-            onClick={() => navigate(`/match/${testMatch.id}`)}
+            onClick={() => navigate('/pre-mundial')}
             role="button" tabIndex={0}
             className="tap-scale"
             style={{

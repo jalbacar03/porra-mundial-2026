@@ -271,9 +271,22 @@ export default function PreMundial({ session }) {
               {deadlinePassed ? 'Cerrada' : 'Cierra jue 20:30'}
             </span>
           </div>
-          <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
-            {spectatorMode ? 'Partidos y resultados' : 'Tus predicciones'}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px' }}>
+            <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.4px' }}>
+              {spectatorMode ? 'Partidos y resultados' : 'Tus predicciones'}
+            </h2>
+            <button
+              onClick={() => navigate('/clasificacion')}
+              style={{
+                background: 'transparent', border: `1px solid ${LIGUILLA.borderSoft}`,
+                color: LIGUILLA.primary, padding: '6px 10px', borderRadius: '6px',
+                fontSize: '11px', fontWeight: '700', cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Clasificación →
+            </button>
+          </div>
           {!spectatorMode && (
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
               {filledCount}/{matches.length} guardadas · top 3 recuperan los 20 €
