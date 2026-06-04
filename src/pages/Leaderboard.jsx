@@ -596,10 +596,10 @@ function renderSofaScore({
             <span style={{ color: ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{ex}</span>
             <span style={{ color: si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{si}</span>
             <span
-              className={user.provisional > 0 ? 'live-points' : ''}
+              className={tabHasLive ? 'live-points' : ''}
               style={{
                 textAlign: 'right', fontWeight: 800,
-                color: user.provisional > 0 ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'),
+                color: tabHasLive ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'),
                 fontSize: '14px'
               }}
             >{pts}</span>
