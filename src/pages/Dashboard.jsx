@@ -26,7 +26,7 @@ export default function Dashboard({ session, demoMode }) {
   const [userPredictions, setUserPredictions] = useState({})
   const [totalUsers, setTotalUsers] = useState(0)
   const [totalParticipants, setTotalParticipants] = useState(0)
-  const [testMatch, setTestMatch] = useState(null) // Pre-Mundial dry-run match (stage='test')
+  const [testMatches, setTestMatches] = useState([]) // Partidos friendly live/próximos (puede haber varios a la vez)
   const [editingNickname, setEditingNickname] = useState(false)
   const [dailyInsight, setDailyInsight] = useState(null)
   const [dailyInsightLong, setDailyInsightLong] = useState(null)
@@ -238,7 +238,6 @@ export default function Dashboard({ session, demoMode }) {
     // and hasn't finished yet.
     // Próximo partido a destacar: el friendly más cercano (live > scheduled
     // ordenado por fecha). Si está live, el banner muestra score + minuto.
-    const nowIso = new Date().toISOString()
     const in3hIso = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
     const { data: testMatchData } = await supabase
       .from('matches')
@@ -247,11 +246,18 @@ export default function Dashboard({ session, demoMode }) {
       .neq('status', 'finished')
       .lte('match_date', in3hIso)  // solo si está en próximas 3h (o ya en juego)
       .order('match_date', { ascending: true })
-      .limit(1)
-      .maybeSingle()
-    if (testMatchData) {
-      const testPred = preds?.find(p => p.match_id === testMatchData.id)
-      setTestMatch({ ...testMatchData, userPrediction: testPred || null })
+      .limit(5)
+    if (testMatchData?.length) {
+      const live = testMatchData.filter(m => m.status === 'live')
+      // Si hay partidos en vivo, mostramos TODOS los live a la vez. Si no hay
+      // ninguno en vivo, mostramos solo el próximo (el primero por fecha).
+      const toShow = live.length > 0 ? live : testMatchData.slice(0, 1)
+      setTestMatches(toShow.map(m => ({
+        ...m,
+        userPrediction: preds?.find(p => p.match_id === m.id) || null
+      })))
+    } else {
+      setTestMatches([])
     }
 
     let rank = '-'
@@ -435,21 +441,25 @@ function formatDateShort(dateStr) {
       {/* PWA install prompt — only renders when applicable (not standalone, not dismissed) */}
       {!demoMode && <PWAInstallBanner />}
 
-      {/* === TEST MATCH BANNER (dry-run pre-Mundial) === */}
-      {testMatch && (() => {
-        const matchDate = new Date(testMatch.match_date)
-        const isLive = testMatch.status === 'live'
+      {/* === BANNERS PARTIDOS FRIENDLY (live / próximo) ===
+          Si hay varios en vivo a la vez, se muestra un banner por cada uno.
+          El CTA a La Liguilla solo se pone bajo el último para no repetir. */}
+      {testMatches.map((m, mi) => {
+        const matchDate = new Date(m.match_date)
+        const isLive = m.status === 'live'
         const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })
         const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-        const pred = testMatch.userPrediction
+        const pred = m.userPrediction
         const hasPred = pred && pred.predicted_home !== null && pred.predicted_away !== null
+        const isLastBanner = mi === testMatches.length - 1
         return (
           <div
+            key={m.id}
             onClick={() => navigate('/pre-mundial')}
             role="button" tabIndex={0}
             className="tap-scale"
             style={{
-              marginBottom: '14px',
+              marginBottom: isLastBanner ? '14px' : '8px',
               padding: '14px 16px',
               borderRadius: '14px',
               background: isLive
@@ -470,7 +480,7 @@ function formatDateShort(dateStr) {
                 letterSpacing: '1.4px', textTransform: 'uppercase'
               }}>
                 {isLive
-                  ? `🔴 EN DIRECTO${formatLiveMinute(testMatch) ? ` · ${formatLiveMinute(testMatch)}` : ''}`
+                  ? `🔴 EN DIRECTO${formatLiveMinute(m) ? ` · ${formatLiveMinute(m)}` : ''}`
                   : 'La Liguilla · próximo partido'}
               </span>
               {isLive && <span className="live-dot" />}
@@ -480,26 +490,26 @@ function formatDateShort(dateStr) {
               gap: '12px', marginBottom: '8px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                {testMatch.home_team?.flag_url && (
-                  <img src={testMatch.home_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />
+                {m.home_team?.flag_url && (
+                  <img src={m.home_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />
                 )}
                 <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>
-                  {testMatch.home_team?.name || '?'}
+                  {m.home_team?.name || '?'}
                 </span>
               </div>
               {isLive ? (
                 <span className="live-pulse" style={{ fontSize: '22px', fontWeight: '800', color: '#fff' }}>
-                  {testMatch.home_score ?? 0} - {testMatch.away_score ?? 0}
+                  {m.home_score ?? 0} - {m.away_score ?? 0}
                 </span>
               ) : (
                 <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>vs</span>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end' }}>
                 <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>
-                  {testMatch.away_team?.name || '?'}
+                  {m.away_team?.name || '?'}
                 </span>
-                {testMatch.away_team?.flag_url && (
-                  <img src={testMatch.away_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />
+                {m.away_team?.flag_url && (
+                  <img src={m.away_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px' }} />
                 )}
               </div>
             </div>
@@ -509,7 +519,7 @@ function formatDateShort(dateStr) {
             }}>
               <span>
                 {dateStr} · {timeStr}
-                {testMatch.city && ` · 📍 ${testMatch.city}`}
+                {m.city && ` · 📍 ${m.city}`}
               </span>
               {hasPred ? (
                 <span style={{
@@ -529,25 +539,27 @@ function formatDateShort(dateStr) {
                 </span>
               )}
             </div>
-            {/* CTA siempre visible: lleva al calendario de los 12 partidos */}
-            <div style={{
-              marginTop: '12px', paddingTop: '10px',
-              borderTop: '1px solid rgba(255,255,255,0.08)',
-              fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '600',
-              textAlign: 'center'
-            }}>
-              Ver los 12 partidos y clasificación de La Liguilla →
-            </div>
+            {/* CTA solo bajo el último banner */}
+            {isLastBanner && (
+              <div style={{
+                marginTop: '12px', paddingTop: '10px',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: '600',
+                textAlign: 'center'
+              }}>
+                Ver los 12 partidos y clasificación de La Liguilla →
+              </div>
+            )}
           </div>
         )
-      })()}
+      })}
 
       {/* === PRE-MUNDIAL CARD (genérico) ===
           Solo aparece cuando NO hay próximo partido friendly en ventana ±3h
           (es decir, no estamos mostrando el banner "próximo partido" arriba).
           Evita el doble widget azul cuando ya hay info concreta del partido.
        */}
-      {isFriendlyVisible(profile) && profile?.has_paid && !testMatch && (() => {
+      {isFriendlyVisible(profile) && profile?.has_paid && testMatches.length === 0 && (() => {
         const LIGUILLA_DEADLINE = new Date('2026-06-04T18:50:00Z') // 20:50 hora España
         const deadlinePassed = new Date() >= LIGUILLA_DEADLINE
         const inLiguilla = !!profile.friendly_joined

@@ -145,7 +145,12 @@ export default function Leaderboard({ demoMode }) {
       const friendly = {}
       const mundial = {}
       ;(provRows || []).forEach(r => {
-        (r.scope === 'friendly' ? friendly : mundial)[r.user_id] = r.provisional
+        const target = r.scope === 'friendly' ? friendly : mundial
+        target[r.user_id] = {
+          exact: r.prov_exact || 0,
+          sign: r.prov_sign || 0,
+          points: r.provisional || 0,
+        }
       })
       setLiveProvisional({ friendly, mundial })
     } else {
@@ -277,13 +282,23 @@ export default function Leaderboard({ demoMode }) {
   const allRankings = demoMode ? mockRankings :
     sourceRankings
       .filter(r => activeTab === 'friendly' ? true : (r.user_id === BOT365_ID || paidUsers.has(r.user_id)))
-      .map(r => ({
-        ...r,
-        full_name: profileNames[r.user_id] || r.full_name || 'Participante',
-        // Provisional según la tab activa — el cálculo ya separa friendly/mundial.
-        provisional: (activeTab === 'friendly' ? provisionalByStage.friendly : provisionalByStage.mundial)[r.user_id] || 0,
-        effective_points: (r.total_points || 0) + ((activeTab === 'friendly' ? provisionalByStage.friendly : provisionalByStage.mundial)[r.user_id] || 0)
-      }))
+      .map(r => {
+        // Provisional según la tab activa — objeto {exact, sign, points} que
+        // separa friendly/mundial. Vacío si el usuario no puntúa en vivo.
+        const prov = (activeTab === 'friendly' ? provisionalByStage.friendly : provisionalByStage.mundial)[r.user_id]
+          || { exact: 0, sign: 0, points: 0 }
+        return {
+          ...r,
+          full_name: profileNames[r.user_id] || r.full_name || 'Participante',
+          provisional: prov.points,
+          prov_exact: prov.exact,
+          prov_sign: prov.sign,
+          // ex/si mostrados = finished (vista) + provisional (live)
+          display_exact: (r.exact_hits || 0) + prov.exact,
+          display_sign:  (r.sign_hits  || 0) + prov.sign,
+          effective_points: (r.total_points || 0) + prov.points,
+        }
+      })
       // Always sort points desc, then exact hits desc (the tiebreaker), so the
       // visible order matches both the rules and the 🎯 exactos shown per row —
       // independent of whatever order the leaderboard view returns.
@@ -295,7 +310,7 @@ export default function Leaderboard({ demoMode }) {
   const tabHasLive = activeTab === 'friendly' ? hasLiveFriendly : hasLiveMundial
   if (tabHasLive && !demoMode) {
     allRankings.sort((a, b) =>
-      b.effective_points - a.effective_points || (b.exact_hits || 0) - (a.exact_hits || 0)
+      b.effective_points - a.effective_points || (b.display_exact || 0) - (a.display_exact || 0)
     )
   }
 
@@ -312,13 +327,15 @@ export default function Leaderboard({ demoMode }) {
 
   function getTiedRank(index) {
     const getPts = (r) => tabHasLive ? r.effective_points : r.total_points
+    // Desempate: en vivo usa exactos provisionales incluidos (display_exact).
+    const getEx  = (r) => tabHasLive ? (r.display_exact ?? r.exact_hits ?? 0) : (r.exact_hits || 0)
     const pts = getPts(currentRankings[index])
-    const exactHits = currentRankings[index].exact_hits || 0
+    const exactHits = getEx(currentRankings[index])
     // Walk back to the first row sharing this pts+exactHits → that's the rank.
     let firstWithSame = index
     while (firstWithSame > 0 &&
       getPts(currentRankings[firstWithSame - 1]) === pts &&
-      (currentRankings[firstWithSame - 1].exact_hits || 0) === exactHits) {
+      getEx(currentRankings[firstWithSame - 1]) === exactHits) {
       firstWithSame--
     }
     const rank = firstWithSame + 1
@@ -329,7 +346,7 @@ export default function Leaderboard({ demoMode }) {
     const tiedWithPrev = firstWithSame < index
     const tiedWithNext = index + 1 < currentRankings.length &&
       getPts(currentRankings[index + 1]) === pts &&
-      (currentRankings[index + 1].exact_hits || 0) === exactHits
+      getEx(currentRankings[index + 1]) === exactHits
     const tied = tiedWithPrev || tiedWithNext
     return { rank, tied }
   }
@@ -544,12 +561,10 @@ function renderSofaScore({
           : isBottom3
             ? C.red
             : 'var(--text-muted)'
-        // ex/si vienen directos de la vista (SECURITY DEFINER, ve todo — el
-        // RLS de predictions no aplica). PJ = partidos jugados, contador
-        // global del stage (igual para todas las filas): cuando empieza un
-        // partido sube a 1, no depende de cuántas predijo cada uno.
-        const ex = user.exact_hits || 0
-        const si = user.sign_hits  || 0
+        // En vivo: ex/si muestran finished + provisional (display_*). Sin live:
+        // solo los de la vista. PJ = partidos jugados (global del stage).
+        const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
+        const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
         const pj = playedCount
         const pts = tabHasLive ? user.effective_points : user.total_points
         const isLast = idx === total - 1
@@ -592,9 +607,18 @@ function renderSofaScore({
                 />
               )}
             </span>
-            <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{pj}</span>
-            <span style={{ color: ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{ex}</span>
-            <span style={{ color: si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{si}</span>
+            <span
+              className={tabHasLive ? 'live-points' : ''}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
+            >{pj}</span>
+            <span
+              className={tabHasLive ? 'live-points' : ''}
+              style={{ color: tabHasLive ? 'var(--red)' : (ex > 0 ? C.blue : 'var(--text-dim)'), textAlign: 'center', fontWeight: 700 }}
+            >{ex}</span>
+            <span
+              className={tabHasLive ? 'live-points' : ''}
+              style={{ color: tabHasLive ? 'var(--red)' : (si > 0 ? C.green : 'var(--text-dim)'), textAlign: 'center', fontWeight: 700 }}
+            >{si}</span>
             <span
               className={tabHasLive ? 'live-points' : ''}
               style={{
