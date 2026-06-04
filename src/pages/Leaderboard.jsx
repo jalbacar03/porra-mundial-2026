@@ -5,7 +5,6 @@ import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonLeaderboard } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
-import Avatar from '../components/Avatar'
 import { displayName } from '../utils/nickname'
 import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
@@ -75,6 +74,7 @@ export default function Leaderboard({ demoMode }) {
   const [userJoinedFriendly, setUserJoinedFriendly] = useState(false)
   // Datos por user para vista SofaScore (PJ, exactos, signos, fallos, form)
   const [friendlyDetail, setFriendlyDetail] = useState({}) // { userId: {pj, ex, si, mi, form: [3,1,0,...]} }
+  const [mundialDetail, setMundialDetail] = useState({})   // idem para partidos del Mundial real
 
   useEffect(() => {
     fetchData()
@@ -141,7 +141,7 @@ export default function Leaderboard({ demoMode }) {
       if (isFriendlyVisible(meProf)) {
         const { data: flb } = await supabase.from('leaderboard_friendly').select('*')
         if (flb) setFriendlyRankings(flb)
-        const deadlinePassed = new Date() >= new Date('2026-06-04T18:30:00Z') // 20:30 hora España
+        const deadlinePassed = new Date() >= new Date('2026-06-04T18:50:00Z') // 20:50 hora España
         const canSeeSpectator = deadlinePassed && meProf?.payment_confirmed
         if (meProf?.friendly_joined || canSeeSpectator) setUserJoinedFriendly(true)
 
@@ -178,6 +178,41 @@ export default function Leaderboard({ demoMode }) {
           setFriendlyDetail(byUser)
         }
       }
+    }
+
+    // Detalle Mundial: misma estructura que friendlyDetail pero excluyendo
+    // friendly/test. Pre-Mundial todo será 0/0/0; cuando empiece el 11 jun
+    // se llenará con los partidos terminados.
+    const { data: mundialMatches } = await supabase
+      .from('matches')
+      .select('id, match_date, status, stage')
+      .not('stage', 'in', '("friendly","test")')
+    if (mundialMatches?.length) {
+      const matchIds = mundialMatches.map(m => m.id)
+      const matchById = Object.fromEntries(mundialMatches.map(m => [m.id, m]))
+      const { data: detailPreds } = await supabase
+        .from('predictions')
+        .select('user_id, match_id, predicted_home, predicted_away, points_earned')
+        .in('match_id', matchIds)
+      const byUser = {}
+      ;(detailPreds || []).forEach(p => {
+        if (!byUser[p.user_id]) byUser[p.user_id] = { pj: 0, ex: 0, si: 0, mi: 0, form: [] }
+        const u = byUser[p.user_id]
+        if (p.predicted_home != null) u.pj++
+        const m = matchById[p.match_id]
+        if (m?.status === 'finished' && p.predicted_home != null) {
+          const pts = p.points_earned || 0
+          if (pts === 3) u.ex++
+          else if (pts === 1) u.si++
+          else u.mi++
+          u.form.push({ pts, date: m.match_date })
+        }
+      })
+      Object.values(byUser).forEach(u => {
+        u.form.sort((a, b) => new Date(b.date) - new Date(a.date))
+        u.form = u.form.slice(0, 5).map(f => f.pts)
+      })
+      setMundialDetail(byUser)
     }
 
     setLoading(false)
@@ -449,158 +484,20 @@ export default function Leaderboard({ demoMode }) {
           title="Sin clasificación aún"
           subtitle="Se rellenará cuando empiecen los partidos del Mundial."
         />
-      ) : activeTab === 'friendly' ? (
-        renderFriendlySofaScore({
-          fullRankings, currentRankings, getTiedRank, friendlyDetail,
-          userId, tabHasLive
-        })
       ) : (
-        // SofaScore/Flashscore-style: dense list, hairline separators between rows,
-        // no per-row card chrome. Card wraps the whole table.
-        <div style={{
-          background: 'var(--bg-secondary)',
-          borderRadius: '12px',
-          overflow: 'hidden'
-        }}>
-          {fullRankings.map((user, idx) => {
-            const isMe = user.user_id === userId
-            const isBot = user.isBot
-            // Compute tied rank within currentRankings (skip Bot for ranking)
-            let rankLabel, isTied, rankNum
-            if (isBot) {
-              rankLabel = ''
-              isTied = false
-              rankNum = null
-            } else {
-              const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
-              const { rank, tied } = getTiedRank(realIdx)
-              rankLabel = tied ? `T${rank}` : `${rank}`
-              isTied = tied
-              rankNum = rank
-            }
-            const delta = isBot ? 0 : (positionChanges[user.user_id] || 0)
-            const isLast = idx === fullRankings.length - 1
-
-            // Medal color for top 3 (only when not tied for cleaner visuals)
-            const medalColor = rankNum === 1 ? '#ffd700' : rankNum === 2 ? '#c0c0c0' : rankNum === 3 ? '#cd7f32' : null
-
-            return (
-              <div
-                key={user.user_id + idx}
-                className={!isMe && !isBot ? 'tap-scale' : ''}
-                onClick={() => !isMe && !isBot && setH2hRival({ id: user.user_id, name: user.full_name })}
-                style={{
-                  display: 'flex', alignItems: 'center',
-                  padding: '10px 12px',
-                  background: isMe ? 'rgba(0,122,69,0.10)' : 'transparent',
-                  borderBottom: isLast ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
-                  borderLeft: isMe ? '3px solid var(--green)' : '3px solid transparent',
-                  cursor: !isMe && !isBot ? 'pointer' : 'default',
-                  opacity: isBot ? 0.65 : 1,
-                  minHeight: '48px'
-                }}>
-
-                {/* Rank number — bold, no "º", small medal color for top 3 */}
-                <div style={{
-                  width: '24px', textAlign: 'center', flexShrink: 0,
-                  fontSize: '13px', fontWeight: '700',
-                  color: isBot ? 'var(--text-dim)'
-                    : medalColor && !isTied ? medalColor
-                    : isMe ? '#fff' : 'var(--text-muted)'
-                }}>
-                  {rankLabel}
-                </div>
-
-                {/* Avatar (initials only, smaller) */}
-                <Avatar
-                  name={isBot ? 'Bot365' : (profileFullNames[user.user_id] || user.full_name)}
-                  size={28}
-                  color={isMe ? 'rgba(0,144,81,0.25)' : 'rgba(255,255,255,0.05)'}
-                  border={isMe ? '1px solid rgba(0,144,81,0.4)' : '1px solid rgba(255,255,255,0.06)'}
-                  textColor={isBot ? 'var(--text-dim)' : isMe ? '#4ade80' : 'var(--text-muted)'}
-                  style={{ marginLeft: '8px', marginRight: '10px', flexShrink: 0 }}
-                />
-
-                {/* Name (1 line, truncated) + delta + tiny payment dot */}
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{
-                    fontSize: '14px',
-                    fontWeight: isMe ? '700' : '500',
-                    color: isBot ? 'var(--text-dim)' : 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    minWidth: 0, flex: 1
-                  }}>
-                    {isBot ? 'Bot365' : user.full_name}{isMe ? ' · Tú' : ''}
-                  </span>
-                  {/* Payment status — small dot + label, only when NOT paid */}
-                  {!isBot && !paymentConfirmed.has(user.user_id) && (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '4px',
-                      flexShrink: 0
-                    }}>
-                      <span style={{
-                        width: '6px', height: '6px', borderRadius: '50%',
-                        background: '#c2362b'
-                      }} />
-                      <span style={{
-                        fontSize: '10px', fontWeight: '600',
-                        color: '#c2362b', opacity: 0.9,
-                        letterSpacing: '0.2px'
-                      }}>
-                        No pagado
-                      </span>
-                    </span>
-                  )}
-                  {delta !== 0 && (
-                    <span style={{
-                      fontSize: '10px', fontWeight: '700',
-                      color: delta > 0 ? '#4ade80' : '#e74c3c',
-                      flexShrink: 0
-                    }}>
-                      {delta > 0 ? `▲${delta}` : `▼${Math.abs(delta)}`}
-                    </span>
-                  )}
-                </div>
-
-                {/* Points (bold, right-aligned, no "pts" label).
-                    Si hay partido en vivo de la tab actual: mostramos el
-                    running total (total_points + provisional) en rojo
-                    parpadeante, SIN signo "+". Cuando el partido acabe se
-                    consolida y deja de parpadear.
-                    Si no hay live: total_points normal en blanco/dorado. */}
-                <div style={{
-                  textAlign: 'right', flexShrink: 0,
-                  display: 'flex', alignItems: 'baseline', gap: '6px',
-                  marginLeft: '8px'
-                }}>
-                  <span
-                    className={tabHasLive ? 'live-points' : ''}
-                    style={{
-                      fontSize: '16px', fontWeight: '800',
-                      color: tabHasLive
-                        ? 'var(--red)'
-                        : isBot ? 'var(--text-dim)' : isMe ? 'var(--gold)' : 'var(--text-primary)',
-                      minWidth: '24px', textAlign: 'right'
-                    }}
-                  >
-                    {tabHasLive ? user.effective_points : user.total_points}
-                  </span>
-                  {/* Exactos count — tiny, only if > 0 to reduce clutter */}
-                  {!isBot && (user.exact_hits || 0) > 0 && (
-                    <span style={{
-                      fontSize: '10px', whiteSpace: 'nowrap',
-                      color: isTied ? 'var(--gold)' : 'var(--text-dim)',
-                      fontWeight: isTied ? '600' : '400',
-                      minWidth: '22px', textAlign: 'right'
-                    }}>
-                      🎯{user.exact_hits}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        // Mismo render compacto SofaScore para ambas tabs — solo cambia el
+        // theme (azul Liguilla / verde Mundial), el detail (friendlyDetail /
+        // mundialDetail) y los extras (payment dot + H2H click solo Mundial).
+        renderSofaScore({
+          fullRankings, currentRankings, getTiedRank,
+          detailByUser: activeTab === 'friendly' ? friendlyDetail : mundialDetail,
+          userId, tabHasLive,
+          theme: activeTab === 'friendly' ? 'friendly' : 'mundial',
+          paymentConfirmed: activeTab === 'friendly' ? null : paymentConfirmed,
+          onRowClick: activeTab === 'friendly'
+            ? null
+            : (user) => setH2hRival({ id: user.user_id, name: user.full_name }),
+        })
       )}
 
       {/* H2H Modal */}
@@ -645,15 +542,24 @@ function compactName(name, maxLen = 18) {
   return name.slice(0, maxLen - 1) + '…'
 }
 
-// ─── Vista SofaScore-style para La Liguilla ──────────────────────────────
+// ─── Vista SofaScore-style — unificada Mundial + Liguilla ────────────────
 // Tabla compacta: #, NICK, PJ, 3·(exactos), 1·(signos), PTS.
-// Sin × (derivable: PJ - 3· - 1·) y sin FORM para maximizar espacio al nombre.
-// Columnas numéricas comprimidas (22px). Paleta full azul Liguilla.
+// theme='friendly' → paleta azul · theme='mundial' → paleta verde.
 // Top 3 con medalla (oro/plata/bronce) · Últimos 3 con rank en rojo.
-function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, friendlyDetail, userId, tabHasLive }) {
+// Mundial añade: payment dot "no pagado" + onClick → H2H modal.
+function renderSofaScore({
+  fullRankings, currentRankings, getTiedRank, detailByUser,
+  userId, tabHasLive, theme = 'friendly',
+  paymentConfirmed, onRowClick,
+}) {
+  const isFriendly = theme === 'friendly'
+  // Paleta — accent cambia con el theme; 3·/1· mantienen siempre azul/verde
+  // (consistente con el código de color de los puntos: azul=exacto, verde=signo)
   const C = {
+    accent:      isFriendly ? '#2563eb' : '#16a34a',
+    accentLight: isFriendly ? '#60a5fa' : '#4ade80',
+    accentBgRGB: isFriendly ? '37,99,235' : '22,163,74',
     blue: '#2563eb',
-    blueLight: '#60a5fa',
     green: '#4ade80',
     gold: '#ffd700',
     silver: '#c0c0c0',
@@ -662,22 +568,22 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
   }
   const total = fullRankings.length
   const GRID = '20px 1fr 22px 22px 22px 36px'
+  const clickable = typeof onRowClick === 'function'
   return (
     <div style={{
       background: 'var(--bg-secondary)',
       borderRadius: '8px',
       overflow: 'hidden',
-      border: `1px solid rgba(37,99,235,0.18)`
+      border: `1px solid rgba(${C.accentBgRGB},0.18)`
     }}>
-      {/* Header con columnas */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: GRID,
         gap: '3px', padding: '6px 8px',
         fontSize: '9px', fontWeight: '800',
-        color: C.blueLight, textTransform: 'uppercase', letterSpacing: '0.6px',
-        background: 'rgba(37,99,235,0.10)',
-        borderBottom: '1px solid rgba(37,99,235,0.20)'
+        color: C.accentLight, textTransform: 'uppercase', letterSpacing: '0.6px',
+        background: `rgba(${C.accentBgRGB},0.10)`,
+        borderBottom: `1px solid rgba(${C.accentBgRGB},0.20)`
       }}>
         <span>#</span>
         <span>Participante</span>
@@ -698,27 +604,48 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
           : isBottom3
             ? C.red
             : 'var(--text-muted)'
-        const d = friendlyDetail[user.user_id] || { pj: 0, ex: 0, si: 0, mi: 0, form: [] }
+        const d = (detailByUser && detailByUser[user.user_id]) || { pj: 0, ex: 0, si: 0, mi: 0 }
         const pts = tabHasLive ? user.effective_points : user.total_points
         const isLast = idx === total - 1
+        const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
+        const rowClickable = clickable && !isMe
         return (
-          <div key={user.user_id} style={{
-            display: 'grid',
-            gridTemplateColumns: GRID,
-            gap: '3px', padding: '7px 8px',
-            alignItems: 'center', minHeight: '34px',
-            background: isMe ? 'rgba(37,99,235,0.12)' : 'transparent',
-            borderLeft: isMe ? `3px solid ${C.blue}` : '3px solid transparent',
-            borderBottom: isLast ? 'none' : '0.5px solid rgba(37,99,235,0.08)',
-            fontSize: '13px',
-            fontVariantNumeric: 'tabular-nums'
-          }}>
+          <div
+            key={user.user_id}
+            className={rowClickable ? 'tap-scale' : ''}
+            onClick={rowClickable ? () => onRowClick(user) : undefined}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: GRID,
+              gap: '3px', padding: '7px 8px',
+              alignItems: 'center', minHeight: '34px',
+              background: isMe ? `rgba(${C.accentBgRGB},0.12)` : 'transparent',
+              borderLeft: isMe ? `3px solid ${C.accent}` : '3px solid transparent',
+              borderBottom: isLast ? 'none' : `0.5px solid rgba(${C.accentBgRGB},0.08)`,
+              fontSize: '13px',
+              fontVariantNumeric: 'tabular-nums',
+              cursor: rowClickable ? 'pointer' : 'default'
+            }}>
             <span style={{ fontWeight: 800, color: rankColor, textAlign: 'center', fontSize: '12px' }}>{rankLabel}</span>
             <span style={{
-              color: isMe ? C.blueLight : 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: '6px',
               minWidth: 0
-            }}>{compactName(user.full_name)}</span>
+            }}>
+              <span style={{
+                color: isMe ? C.accentLight : 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                minWidth: 0
+              }}>{compactName(user.full_name)}</span>
+              {notPaid && (
+                <span
+                  title="No pagado"
+                  style={{
+                    width: '6px', height: '6px', borderRadius: '50%',
+                    background: '#c2362b', flexShrink: 0
+                  }}
+                />
+              )}
+            </span>
             <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{d.pj}</span>
             <span style={{ color: d.ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.ex}</span>
             <span style={{ color: d.si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.si}</span>
@@ -726,7 +653,7 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
               className={user.provisional > 0 ? 'live-points' : ''}
               style={{
                 textAlign: 'right', fontWeight: 800,
-                color: user.provisional > 0 ? 'var(--red)' : (isMe ? C.blueLight : 'var(--text-primary)'),
+                color: user.provisional > 0 ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'),
                 fontSize: '14px'
               }}
             >{pts}</span>

@@ -28,9 +28,9 @@ const LIGUILLA = {
   red:        '#ff6b6b',
 }
 
-// Deadline global de La Liguilla: jueves 4 jun 20:30 hora España = 18:30 UTC.
+// Deadline global de La Liguilla: jueves 4 jun 20:50 hora España = 18:50 UTC.
 // Después de esto: no se puede inscribir, no se puede predecir, no se puede editar.
-export const LIGUILLA_DEADLINE = new Date('2026-06-04T18:30:00Z') // 20:30 hora España, 30 min antes del kickoff
+export const LIGUILLA_DEADLINE = new Date('2026-06-04T18:50:00Z') // 20:50 hora España, 10 min antes del kickoff
 
 export default function PreMundial({ session }) {
   const navigate = useNavigate()
