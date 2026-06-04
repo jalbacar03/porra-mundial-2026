@@ -116,7 +116,7 @@ export default function Admin({ session }) {
   // partido. Celda = "X-Y" si predijo, "-" si no.
   async function exportLiguillaXLSX() {
     try {
-      const [profRes, matchRes, predRes, teamRes] = await Promise.all([
+      const [profRes, matchRes, teamRes] = await Promise.all([
         supabase.from('profiles')
           .select('id, full_name, nickname')
           .eq('friendly_joined', true)
@@ -125,14 +125,21 @@ export default function Admin({ session }) {
           .select('id, home_team_id, away_team_id, match_date, home_score, away_score, status')
           .eq('stage', 'friendly')
           .order('match_date'),
-        supabase.from('predictions')
-          .select('user_id, match_id, predicted_home, predicted_away'),
         supabase.from('teams').select('id, name')
       ])
       const liguillaProfiles = profRes.data || []
       const liguillaMatches  = matchRes.data  || []
-      const allPreds         = predRes.data   || []
       const teamMap = Object.fromEntries((teamRes.data || []).map(t => [t.id, t.name]))
+
+      // Filtrar predicciones SOLO por los 12 partidos friendly. Sin esto,
+      // select() sobre predictions trae las 2300+ filas y Supabase corta en
+      // 1000 → faltarían participantes. Filtrado = ~550 filas, todas caben.
+      const friendlyMatchIds = liguillaMatches.map(m => m.id)
+      const { data: predData } = await supabase
+        .from('predictions')
+        .select('user_id, match_id, predicted_home, predicted_away')
+        .in('match_id', friendlyMatchIds)
+      const allPreds = predData || []
 
       // Predicción por (user, match) → "X-Y"
       const predMap = {}
