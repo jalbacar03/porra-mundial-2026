@@ -13,14 +13,15 @@ export function escapeHtml(s) {
     .replace(/'/g, '&#039;')
 }
 
-export function buildSubject({ rankLabel, delta, posDelta, hasMatches, hasPredictions }) {
-  if (!hasMatches) return `📰 Porra Mundial 26 — Crónica del día`
+export function buildSubject({ mode = 'mundial', rankLabel, delta, posDelta, hasMatches, hasPredictions }) {
+  const tag = mode === 'friendly' ? 'La Liguilla' : 'Porra Mundial 26'
+  if (!hasMatches) return `📰 ${tag} — Crónica del día`
   if (delta > 0 && posDelta > 0) {
-    return `+${delta} pts · ▲${posDelta} posiciones · Estás ${rankLabel}º`
+    return `${tag} · +${delta} pts · ▲${posDelta} posiciones · Estás ${rankLabel}º`
   }
-  if (delta > 0) return `+${delta} pts · Estás ${rankLabel}º — Porra Mundial 26`
-  if (hasPredictions) return `Estás ${rankLabel}º · Resumen del día`
-  return `Estás ${rankLabel}º — Porra Mundial 26`
+  if (delta > 0) return `${tag} · +${delta} pts · Estás ${rankLabel}º`
+  if (hasPredictions) return `${tag} · Estás ${rankLabel}º · Resumen del día`
+  return `${tag} · Estás ${rankLabel}º`
 }
 
 /**
@@ -42,6 +43,7 @@ export function buildSubject({ rankLabel, delta, posDelta, hasMatches, hasPredic
  */
 export function buildEmailHTML(d) {
   const {
+    mode = 'mundial',
     userName, rankLabel, totalParticipants, points, exactHits,
     delta, posDelta, yourMatches, movements, yMatches,
     top10, rankInfo, insightText, appUrl,
@@ -51,17 +53,19 @@ export function buildEmailHTML(d) {
     weekday: 'long', day: 'numeric', month: 'long',
   })
 
+  const title = mode === 'friendly' ? 'La Liguilla — Resumen diario' : 'Porra Mundial 26 — Resumen diario'
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Porra Mundial 26 — Resumen diario</title>
+<title>${escapeHtml(title)}</title>
 </head>
 <body style="margin:0;padding:0;background:#0f1218;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff">
   <div style="max-width:560px;margin:0 auto;padding:24px 16px">
 
-    ${renderHeader(dateStr)}
+    ${renderHeader(dateStr, mode)}
     ${renderGreeting(userName)}
     ${renderHero({ rankLabel, totalParticipants, points, exactHits, delta, posDelta })}
     ${yourMatches?.length > 0 ? renderYourMatches(yourMatches) : ''}
@@ -78,11 +82,15 @@ export function buildEmailHTML(d) {
 </html>`
 }
 
-function renderHeader(dateStr) {
+function renderHeader(dateStr, mode = 'mundial') {
+  // Friendly: azul Liguilla. Mundial: dorado Mundial.
+  const headerHTML = mode === 'friendly'
+    ? `🏆 La Liguilla <span style="color:#2563eb">·</span> <span style="color:#2563eb">Pre-Mundial</span>`
+    : `Porra Mundial <span style="color:#ffcc00">26</span>`
   return `
     <div style="text-align:center;margin-bottom:24px">
       <div style="font-size:13px;color:#9b9eaa;text-transform:uppercase;letter-spacing:1.4px;font-weight:700;margin-bottom:4px">
-        Porra Mundial <span style="color:#ffcc00">26</span>
+        ${headerHTML}
       </div>
       <div style="font-size:13px;color:#6b6e78">${escapeHtml(dateStr)}</div>
     </div>`

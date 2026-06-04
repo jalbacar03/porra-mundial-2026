@@ -85,9 +85,26 @@ export default async function handler(req, res) {
   try {
     const log = []
     const now = new Date()
+    const force = req.query?.force === 'true' || req.url?.includes('force=true')
+
+    // ─── MODO ─────────────────────────────────────────────────────────────
+    // Antes del 11 jun (MUNDIAL_START) → modo 'friendly': digest de La Liguilla
+    //   - Audience: solo profiles con friendly_joined=true
+    //   - Leaderboard: vista leaderboard_friendly
+    //   - Partidos ayer: stage='friendly'
+    // A partir del 11 jun → modo 'mundial': digest del Mundial real
+    //   - Audience: profiles con has_paid=true
+    //   - Leaderboard: vista leaderboard
+    //   - Partidos ayer: stage='group' (no friendly)
+    // ?mode=friendly o ?mode=mundial fuerza el modo (testing).
+    const explicitMode = req.query?.mode || (req.url?.match(/[?&]mode=(\w+)/)?.[1])
+    const mode = explicitMode || (now < MUNDIAL_START ? 'friendly' : 'mundial')
+    log.push(`📨 Modo: ${mode}`)
+
+    const stageFilter = mode === 'friendly' ? "eq.friendly" : "eq.group"
+    const lbView = mode === 'friendly' ? 'leaderboard_friendly' : 'leaderboard'
 
     // Yesterday's window in Madrid time (UTC+2 in summer). Compute as UTC range.
-    // We want: matches that ended "yesterday" from a user's perspective.
     const yesterdayStart = new Date(now)
     yesterdayStart.setUTCHours(0, 0, 0, 0)
     yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1)
@@ -97,11 +114,12 @@ export default async function handler(req, res) {
     // 1. Fetch data in parallel
     log.push('📡 Fetching data…')
     const [lb, profiles, yMatches, insight] = await Promise.all([
-      supaFetch('/rest/v1/leaderboard?select=*'),
-      supaFetch('/rest/v1/profiles?select=id,full_name,nickname,has_paid'),
+      supaFetch(`/rest/v1/${lbView}?select=*`),
+      supaFetch('/rest/v1/profiles?select=id,full_name,nickname,has_paid,payment_confirmed,friendly_joined'),
       supaFetch(
         `/rest/v1/matches?select=id,home_score,away_score,match_date,stage,home_team:teams!matches_home_team_id_fkey(name,flag_url),away_team:teams!matches_away_team_id_fkey(name,flag_url)` +
           `&status=eq.finished` +
+          `&stage=${stageFilter}` +
           `&match_date=gte.${yesterdayStart.toISOString()}` +
           `&match_date=lt.${yesterdayEnd.toISOString()}` +
           `&order=match_date.asc`
@@ -124,27 +142,31 @@ export default async function handler(req, res) {
 
     log.push(`   Leaderboard ${lb.length} · Profiles ${profiles.length} · Yesterday matches ${yMatches.length}`)
 
-    // 2. Decide whether to send anything
-    // Pre-Mundial (antes del 11 jun): skip — no resultados que reportar.
-    // Durante Mundial sin partidos ayer: enviar igualmente (crónica + leaderboard).
-    // ?force=true override: bypass del skip para testing manual.
-    const force = req.query?.force === 'true' || req.url?.includes('force=true')
-    if (now < MUNDIAL_START && yMatches.length === 0 && !force) {
-      log.push('⏭️ Pre-Mundial sin partidos ayer — skip (usa ?force=true para forzar)')
-      return res.status(200).json({ sent: 0, reason: 'pre-mundial no matches', log })
+    // 2. Decide whether to send anything.
+    // En modo friendly sin partidos ayer: skip (los días dentro de La Liguilla
+    // sin amistosos no tienen sentido enviar). En modo mundial sin partidos
+    // ayer: enviar igual (crónica + leaderboard).
+    if (mode === 'friendly' && yMatches.length === 0 && !force) {
+      log.push('⏭️ La Liguilla sin partidos ayer — skip (usa ?force=true para forzar)')
+      return res.status(200).json({ sent: 0, reason: 'friendly no matches yesterday', log })
     }
-    if (force) log.push('⚠️ Force mode — skipping pre-mundial guard')
+    if (force) log.push('⚠️ Force mode')
 
-    // 3. Build leaderboard (real users only, sorted by points + tiebreaker)
-    const paidIds = new Set(profiles.filter(p => p.has_paid).map(p => p.id))
-    // Display: nickname preferred, full_name fallback (mientras la gente
-    // no haya migrado al nickname obligatorio).
+    // 3. Audience según el modo.
+    //   friendly → solo los que se apuntaron a La Liguilla.
+    //   mundial  → todos los pagados (has_paid).
+    const audienceIds = new Set(
+      profiles
+        .filter(p => p.id !== BOT365_ID)
+        .filter(p => mode === 'friendly' ? p.friendly_joined : p.has_paid)
+        .map(p => p.id)
+    )
     const nameById = Object.fromEntries(
       profiles.map(p => [p.id, p.nickname || p.full_name || 'Participante'])
     )
 
     const ranked = lb
-      .filter(r => r.user_id !== BOT365_ID && paidIds.has(r.user_id))
+      .filter(r => r.user_id !== BOT365_ID && audienceIds.has(r.user_id))
       .map(r => ({
         ...r,
         full_name: nameById[r.user_id] || r.full_name || 'Participante',
@@ -155,6 +177,8 @@ export default async function handler(req, res) {
           (b.total_points || 0) - (a.total_points || 0) ||
           (b.exact_hits || 0) - (a.exact_hits || 0)
       )
+
+    log.push(`   Audience: ${audienceIds.size} (${mode}) · ranked: ${ranked.length}`)
 
     // 4. Compute delta vs yesterday (points earned in yesterday's matches)
     // + per-user breakdown of yesterday's predictions (for "Tu jornada")
@@ -298,6 +322,7 @@ export default async function handler(req, res) {
       })
 
       const html = buildEmailHTML({
+        mode,
         userName: user.full_name,
         rankLabel: ri.label,
         totalParticipants: ranked.length,
@@ -317,6 +342,7 @@ export default async function handler(req, res) {
         from: RESEND_FROM_EMAIL,
         to: [user.email],
         subject: buildSubject({
+          mode,
           rankLabel: ri.label, delta, posDelta,
           hasMatches: yMatches.length > 0,
           hasPredictions: yourMatches.some(m => m.status !== 'nopred'),

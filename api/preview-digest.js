@@ -17,17 +17,19 @@ const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 export default async function handler(req, res) {
   const mock = req.query?.mock === 'true' || req.url?.includes('mock=true')
+  // Permite ?mode=friendly o ?mode=mundial para previsualizar cada uno.
+  const mode = req.query?.mode || (req.url?.match(/[?&]mode=(\w+)/)?.[1]) || 'mundial'
 
   let data
   if (mock || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    data = mockData()
+    data = mockData(mode)
   } else {
     try {
       data = await realData(req)
-      if (!data) data = mockData()
+      if (!data) data = mockData(mode)
     } catch (e) {
       console.error('preview-digest fallback to mock:', e)
-      data = mockData()
+      data = mockData(mode)
     }
   }
 
@@ -38,8 +40,9 @@ export default async function handler(req, res) {
 
 // ─── Mock data: jornada tipo del Mundial (3 partidos) ────────────────
 
-function mockData() {
+function mockData(mode = 'mundial') {
   return {
+    mode,
     userName: 'Javi Albácar',
     rankLabel: '8',
     totalParticipants: 100,
