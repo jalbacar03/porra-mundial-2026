@@ -45,18 +45,6 @@ function formatRealName(fullName) {
   return `${titleCase(real[0])} ${titleCase(real[1])}`
 }
 
-function calcProvisionalPoints(pred, match) {
-  // El partido está live: tratar scores null como 0. Esto garantiza que al
-  // kickoff (antes de que haya gol o el sync haya corrido), los que predijeron
-  // empates ya vean sus puntos provisionales (0-0 → quien predijo 0-0 = 3,
-  // quien predijo empate distinto = 1, resto = 0).
-  const home = match.home_score ?? 0
-  const away = match.away_score ?? 0
-  if (pred.predicted_home === home && pred.predicted_away === away) return 3
-  const predSign = Math.sign(pred.predicted_home - pred.predicted_away)
-  const realSign = Math.sign(home - away)
-  return predSign === realSign ? 1 : 0
-}
 
 export default function Leaderboard({ demoMode }) {
   const [rankings, setRankings] = useState([])
@@ -66,7 +54,10 @@ export default function Leaderboard({ demoMode }) {
   const [positionChanges, setPositionChanges] = useState({})
   const [h2hRival, setH2hRival] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
-  const [livePredictions, setLivePredictions] = useState([])
+  // Provisional por scope, calculado server-side (RPC SECURITY DEFINER) para
+  // que TODOS los usuarios vean el provisional de TODOS (el RLS de predictions
+  // impediría calcularlo en cliente para filas ajenas).
+  const [liveProvisional, setLiveProvisional] = useState({ friendly: {}, mundial: {} })
 
   const mockRankings = useMemo(() => {
     if (!demoMode || !userId) return []
@@ -146,14 +137,19 @@ export default function Leaderboard({ demoMode }) {
     })
     setPlayedCounts(pc)
 
+    // Provisional server-side: 1 RPC que ve todas las predicciones y devuelve
+    // el total provisional por usuario y scope (friendly/mundial). Sortea el
+    // RLS sin exponer picks individuales.
     if (liveData.length > 0) {
-      const { data: livePredsData } = await supabase
-        .from('predictions')
-        .select('user_id, match_id, predicted_home, predicted_away')
-        .in('match_id', liveData.map(m => m.id))
-      setLivePredictions(livePredsData || [])
+      const { data: provRows } = await supabase.rpc('live_provisional_points')
+      const friendly = {}
+      const mundial = {}
+      ;(provRows || []).forEach(r => {
+        (r.scope === 'friendly' ? friendly : mundial)[r.user_id] = r.provisional
+      })
+      setLiveProvisional({ friendly, mundial })
     } else {
-      setLivePredictions([])
+      setLiveProvisional({ friendly: {}, mundial: {} })
     }
 
     // Pre-Mundial leaderboard (feature-flagged + admin-only durante prueba)
@@ -233,25 +229,10 @@ export default function Leaderboard({ demoMode }) {
     setPositionChanges(changes)
   }
 
-  // Provisional points from live matches — SEPARADOS por stage. La tab
-  // Mundial usa solo matches stage != 'friendly'/'test'; la tab Liguilla
-  // usa solo matches stage='friendly'. Sin esto, durante España-Irak (un
-  // friendly) los puntos rojos contaminarían el leaderboard del Mundial Y
-  // la tab Liguilla mostraría 0 rojos.
-  const provisionalByStage = useMemo(() => {
-    const mundial = {}
-    const friendly = {}
-    if (liveMatches.length === 0) return { mundial, friendly }
-    livePredictions.forEach(pred => {
-      const match = liveMatches.find(m => m.id === pred.match_id)
-      if (!match) return
-      const pts = calcProvisionalPoints(pred, match)
-      if (pts <= 0) return
-      const target = match.stage === 'friendly' ? friendly : mundial
-      target[pred.user_id] = (target[pred.user_id] || 0) + pts
-    })
-    return { mundial, friendly }
-  }, [liveMatches, livePredictions])
+  // Provisional points SEPARADOS por stage — ya calculados server-side por la
+  // RPC live_provisional_points (ve todas las predicciones, sortea el RLS).
+  // La tab Mundial usa scope 'mundial'; la tab Liguilla usa scope 'friendly'.
+  const provisionalByStage = liveProvisional
 
   // Stages live separados — para que el badge "LIVE" en el header de cada tab
   // solo aparezca cuando hay un partido EN VIVO de esa tab concreta.
