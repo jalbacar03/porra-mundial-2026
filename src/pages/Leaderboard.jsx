@@ -10,6 +10,32 @@ import { displayName } from '../utils/nickname'
 import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
+// Formato "Nombre Apellido" — primera palabra real (no prep/inicial) + segunda
+// palabra real, ambas con Title Case. Ejemplos:
+//   "javi albácar"                       → "Javi Albácar"
+//   "Pedro J. Albácar"                   → "Pedro Albácar" (salta inicial)
+//   "Gonzalo de Parellada Menéndez"      → "Gonzalo Parellada" (salta "de" y 2º apellido)
+//   "Álvaro García-Valdecasas"           → "Álvaro García-Valdecasas" (1 apellido compuesto OK)
+//   "José Antonio Menéndez"              → "José Antonio" (compromiso: trata 2ª palabra como apellido)
+function formatRealName(fullName) {
+  if (!fullName) return ''
+  const PREPS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'da', 'do', 'di'])
+  const isInitial = (w) => /^[a-záéíóúñ]\.?$/i.test(w)
+  const titleCase = (w) => {
+    if (!w) return w
+    // Mantiene capitalización por segmento separado por guión: "García-Valdecasas"
+    return w.split('-').map(seg =>
+      seg ? seg[0].toUpperCase() + seg.slice(1).toLowerCase() : seg
+    ).join('-')
+  }
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return ''
+  const real = parts.filter(p => !PREPS.has(p.toLowerCase()) && !isInitial(p))
+  if (real.length === 0) return titleCase(parts[0])
+  if (real.length === 1) return titleCase(real[0])
+  return `${titleCase(real[0])} ${titleCase(real[1])}`
+}
+
 function calcProvisionalPoints(pred, match) {
   // El partido está live: tratar scores null como 0. Esto garantiza que al
   // kickoff (antes de que haya gol o el sync haya corrido), los que predijeron
@@ -59,9 +85,12 @@ export default function Leaderboard({ demoMode }) {
         const paid = new Set()
         const payConfirmed = new Set()
         data.forEach(p => {
-          // Nickname tiene preferencia para display público; full_name como fallback.
-          map[p.id] = displayName(p)
-          fullNames[p.id] = displayName(p)
+          // Probando "nombre real" en la clasificación — formato "Nombre Apellido"
+          // (1 nombre + 1 apellido, Title Case). Si full_name falta, fallback al
+          // displayName (nickname) para no romper la fila.
+          const real = formatRealName(p.full_name) || displayName(p)
+          map[p.id] = real
+          fullNames[p.id] = real
           if (p.has_paid) paid.add(p.id)
           if (p.payment_confirmed) payConfirmed.add(p.id)
         })
@@ -593,7 +622,7 @@ export default function Leaderboard({ demoMode }) {
 //  - "Gonzalo de Parellada" (3 palabras larga) → "Gonzalo Parellada" o inicial 2º apellido
 //  - "gonzalo.deparellada" (1 token largo) → recorta tras un punto si lo hay
 //  - Fallback: ellipsis al final.
-function compactName(name, maxLen = 16) {
+function compactName(name, maxLen = 18) {
   if (!name) return ''
   if (name.length <= maxLen) return name
   const parts = name.trim().split(/\s+/)
