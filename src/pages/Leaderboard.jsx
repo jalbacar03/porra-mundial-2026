@@ -574,9 +574,10 @@ export default function Leaderboard({ demoMode }) {
 }
 
 // ─── Vista SofaScore-style para La Liguilla ──────────────────────────────
-// Tabla compacta con columnas: #, NICK, PJ, 3·(exactos), 1·(signos), ×(fallos),
-// PTS y FORM (últimos 5 resultados como puntitos colorados).
-// Paleta: azul=3pts (exacto), verde=1pt (signo), gris=0pt, rojo parpadeo=live.
+// Tabla compacta: #, NICK, PJ, 3·(exactos), 1·(signos), PTS.
+// Sin × (derivable: PJ - 3· - 1·) y sin FORM para maximizar espacio al nombre.
+// Paleta: azul=3pts (exacto), verde=1pt (signo), rojo parpadeo=live.
+// Top 3 con medalla (oro/plata/bronce) · Últimos 3 con rank en rojo.
 function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, friendlyDetail, userId, tabHasLive }) {
   const C = {
     blue: '#2563eb',
@@ -584,21 +585,23 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
     gold: '#ffd700',
     silver: '#c0c0c0',
     bronze: '#cd7f32',
+    red: '#ef4444',
   }
+  const total = fullRankings.length
+  const GRID = '22px 1fr 26px 26px 26px 40px'
   return (
     <div style={{
       background: 'var(--bg-secondary)',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      border: '1px solid rgba(37,99,235,0.15)'
+      borderRadius: '8px',
+      overflow: 'hidden'
     }}>
       {/* Header con columnas */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '28px 1fr 28px 28px 28px 28px 32px 70px',
-        gap: '4px', padding: '8px 10px',
+        gridTemplateColumns: GRID,
+        gap: '4px', padding: '6px 8px',
         fontSize: '9px', fontWeight: '800',
-        color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.8px',
+        color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px',
         background: 'rgba(37,99,235,0.05)',
         borderBottom: '1px solid rgba(37,99,235,0.15)'
       }}>
@@ -607,39 +610,36 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
         <span title="Predichos" style={{ textAlign: 'center' }}>PJ</span>
         <span title="Exactos (3pt)" style={{ textAlign: 'center', color: C.blue }}>3·</span>
         <span title="Signos (1pt)" style={{ textAlign: 'center', color: C.green }}>1·</span>
-        <span title="Fallos" style={{ textAlign: 'center' }}>×</span>
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
-        <span title="Últimos 5" style={{ textAlign: 'center' }}>FORM</span>
       </div>
       {fullRankings.map((user, idx) => {
         const isMe = user.user_id === userId
         const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
         const { rank, tied } = getTiedRank(realIdx)
         const rankLabel = tied ? `T${rank}` : `${rank}`
-        const medalColor = rank === 1 ? C.gold : rank === 2 ? C.silver : rank === 3 ? C.bronze : 'var(--text-muted)'
+        const isTop3 = rank <= 3
+        const isBottom3 = idx >= total - 3 && total > 6
+        const rankColor = isTop3
+          ? (rank === 1 ? C.gold : rank === 2 ? C.silver : C.bronze)
+          : isBottom3
+            ? C.red
+            : 'var(--text-muted)'
         const d = friendlyDetail[user.user_id] || { pj: 0, ex: 0, si: 0, mi: 0, form: [] }
         const pts = tabHasLive ? user.effective_points : user.total_points
-        const isLast = idx === fullRankings.length - 1
-        const formDots = (d.form || []).map((p, i) => (
-          <span key={i} style={{
-            display: 'inline-block', width: '8px', height: '8px',
-            borderRadius: '50%', marginRight: '2px',
-            background: p === 3 ? C.blue : p === 1 ? C.green : 'rgba(255,255,255,0.18)'
-          }} />
-        ))
+        const isLast = idx === total - 1
         return (
           <div key={user.user_id} style={{
             display: 'grid',
-            gridTemplateColumns: '28px 1fr 28px 28px 28px 28px 32px 70px',
-            gap: '4px', padding: '8px 10px',
-            alignItems: 'center', minHeight: '36px',
+            gridTemplateColumns: GRID,
+            gap: '4px', padding: '7px 8px',
+            alignItems: 'center', minHeight: '34px',
             background: isMe ? 'rgba(37,99,235,0.10)' : 'transparent',
             borderLeft: isMe ? `3px solid ${C.blue}` : '3px solid transparent',
             borderBottom: isLast ? 'none' : '0.5px solid rgba(255,255,255,0.05)',
             fontSize: '13px',
             fontVariantNumeric: 'tabular-nums'
           }}>
-            <span style={{ fontWeight: 800, color: medalColor, textAlign: 'center' }}>{rankLabel}</span>
+            <span style={{ fontWeight: 800, color: rankColor, textAlign: 'center', fontSize: '12px' }}>{rankLabel}</span>
             <span style={{
               color: 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -648,7 +648,6 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
             <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '12px' }}>{d.pj}</span>
             <span style={{ color: d.ex > 0 ? C.blue : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.ex}</span>
             <span style={{ color: d.si > 0 ? C.green : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}>{d.si}</span>
-            <span style={{ color: 'var(--text-dim)', textAlign: 'center' }}>{d.mi}</span>
             <span
               className={user.provisional > 0 ? 'live-points' : ''}
               style={{
@@ -657,7 +656,6 @@ function renderFriendlySofaScore({ fullRankings, currentRankings, getTiedRank, f
                 fontSize: '14px'
               }}
             >{pts}</span>
-            <span style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{formDots}</span>
           </div>
         )
       })}
