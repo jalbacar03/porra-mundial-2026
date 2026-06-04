@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../supabase'
 import { useToast } from '../components/Toast'
 import { FootballSpinner } from '../components/Skeleton'
@@ -111,9 +112,9 @@ export default function Admin({ session }) {
     return t ? t.name : `Equipo ${teamId}`
   }
 
-  // Export CSV: 1 fila por participante inscrito a La Liguilla, 1 columna por
-  // partido. Celda = "X-Y" si predijo, "-" si no. Abre en Excel sin reformat.
-  async function exportLiguillaCSV() {
+  // Export XLSX: 1 fila por participante inscrito a La Liguilla, 1 columna por
+  // partido. Celda = "X-Y" si predijo, "-" si no.
+  async function exportLiguillaXLSX() {
     try {
       const [profRes, matchRes, predRes, teamRes] = await Promise.all([
         supabase.from('profiles')
@@ -142,39 +143,33 @@ export default function Admin({ session }) {
 
       const matchHeader = (m) => `${teamMap[m.home_team_id] || '?'} - ${teamMap[m.away_team_id] || '?'}`
       const matchResult = (m) =>
-        m.home_score != null && m.away_score != null ? `${m.home_score}-${m.away_score}` : ''
+        m.home_score != null && m.away_score != null ? `${m.home_score}-${m.away_score}` : '—'
 
-      // CSV con BOM para que Excel detecte UTF-8 (acentos OK)
-      const escape = (s) => {
-        const str = String(s ?? '')
-        return /[",;\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
-      }
-      const sep = ';' // Excel ES por defecto usa ; como separador
-
-      const headers = ['Participante', ...liguillaMatches.map(matchHeader)]
-      const lines = [headers.map(escape).join(sep)]
-      // Fila adicional con el resultado real (útil para comparar a ojo en Excel)
-      lines.push(['Resultado real', ...liguillaMatches.map(matchResult)].map(escape).join(sep))
+      // Array-of-arrays: header → resultado real → 1 fila/participante
+      const data = []
+      data.push(['Participante', ...liguillaMatches.map(matchHeader)])
+      data.push(['Resultado real', ...liguillaMatches.map(matchResult)])
       liguillaProfiles.forEach(p => {
         const row = [p.full_name || p.nickname || p.id]
         liguillaMatches.forEach(m => {
           row.push(predMap[`${p.id}__${m.id}`] || '-')
         })
-        lines.push(row.map(escape).join(sep))
+        data.push(row)
       })
 
-      const csv = '﻿' + lines.join('\n')
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
+      const ws = XLSX.utils.aoa_to_sheet(data)
+      // Anchos: nombre 26, partidos 18, score 7
+      ws['!cols'] = [{ wch: 26 }, ...liguillaMatches.map(() => ({ wch: 18 }))]
+      // Congelar fila 1 (cabecera) y columna A (nombres) para scroll cómodo
+      ws['!freeze'] = { xSplit: 1, ySplit: 1 }
+      ws['!views'] = [{ xSplit: 1, ySplit: 1, state: 'frozen' }]
+
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Liguilla')
       const today = new Date().toISOString().slice(0, 10)
-      a.download = `liguilla-predicciones-${today}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast?.success(`Exportadas ${liguillaProfiles.length} filas × ${liguillaMatches.length} partidos`)
+      XLSX.writeFile(wb, `liguilla-predicciones-${today}.xlsx`)
+
+      toast?.success(`Excel exportado: ${liguillaProfiles.length} participantes × ${liguillaMatches.length} partidos`)
     } catch (e) {
       console.error('Export Liguilla failed', e)
       toast?.error('No se pudo exportar — revisa consola')
@@ -1215,7 +1210,7 @@ export default function Admin({ session }) {
 
         return (
           <>
-            {/* Export Liguilla CSV — disponible cualquier momento (post-deadline
+            {/* Export Liguilla XLSX — disponible cualquier momento (post-deadline
                 muestra picks congelados; pre-deadline muestra estado vivo). */}
             <div style={{
               marginBottom: '12px', padding: '10px 12px',
@@ -1232,14 +1227,14 @@ export default function Admin({ session }) {
                 </div>
               </div>
               <button
-                onClick={exportLiguillaCSV}
+                onClick={exportLiguillaXLSX}
                 style={{
                   padding: '8px 14px', borderRadius: '8px', border: 'none',
                   background: '#2563eb', color: '#fff',
                   fontSize: '12px', fontWeight: 700, cursor: 'pointer',
                   whiteSpace: 'nowrap', flexShrink: 0
                 }}
-              >Descargar CSV</button>
+              >Descargar .xlsx</button>
             </div>
 
             {/* Sub-tab switcher */}
