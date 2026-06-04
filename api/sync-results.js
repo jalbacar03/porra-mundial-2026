@@ -103,19 +103,22 @@ export default async function handler(req, res) {
     // Resto del día: 0 calls extra → cron base de 1 call.
     const now2 = new Date()
     const threeHoursLater = new Date(now2.getTime() + 3 * 60 * 60 * 1000)
-    const oneHourAgo = new Date(now2.getTime() - 1 * 60 * 60 * 1000)
+    // Ventana inferior amplia: un partido sigue en juego hasta ~4h tras el
+    // kickoff (90' + descanso + posible prórroga + penaltis + buffer). Con 1h
+    // se caía de la ventana al llegar al descanso y dejaba de actualizarse.
+    const fourHoursAgo = new Date(now2.getTime() - 4 * 60 * 60 * 1000)
     const ourExtraMatches = await supaFetch(
       `/rest/v1/matches?select=api_football_fixture_id,match_date,status` +
       `&api_football_fixture_id=not.is.null` +
       `&status=neq.finished` +
-      `&match_date=gte.${oneHourAgo.toISOString()}` +
+      `&match_date=gte.${fourHoursAgo.toISOString()}` +
       `&match_date=lte.${threeHoursLater.toISOString()}`
     )
     const extraIds = (ourExtraMatches || [])
       .map(m => m.api_football_fixture_id)
       .filter(Boolean)
     if (extraIds.length === 0) {
-      log.push(`   ⏭️ Sin fixtures extra en ventana ±3h — ahorrando cuota API`)
+      log.push(`   ⏭️ Sin fixtures extra en ventana (-4h/+3h) — ahorrando cuota API`)
     }
     for (const fid of extraIds) {
       try {
