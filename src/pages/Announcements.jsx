@@ -3,10 +3,14 @@ import { supabase } from '../supabase'
 import { useToast } from '../components/Toast'
 import { FootballSpinner } from '../components/Skeleton'
 
+// UID de Javi (super-admin). SOLO él publica/borra comunicados — ni Miro ni
+// Nacho, aunque sean admin. La RLS de `announcements` lo refuerza server-side.
+const OWNER_ID = 'e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'
+
 // Comunicados oficiales (etiqueta "Avisos" en la barra).
-// Feed de solo lectura para usuarios. Solo los admins publican / borran
-// (la RLS de la tabla `announcements` lo refuerza server-side).
-export default function Announcements({ session, isAdmin }) {
+// Feed de solo lectura para todos; el editor solo aparece para el owner.
+export default function Announcements({ session }) {
+  const canManage = session?.user?.id === OWNER_ID
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [title, setTitle] = useState('')
@@ -84,7 +88,7 @@ export default function Announcements({ session, isAdmin }) {
       </div>
 
       {/* Composer — solo admins */}
-      {isAdmin && (
+      {canManage && (
         <div style={{
           background: 'var(--bg-secondary)', borderRadius: '12px',
           padding: '14px', marginBottom: '16px',
@@ -162,7 +166,7 @@ export default function Announcements({ session, isAdmin }) {
                 }}>
                   {a.title}
                 </h3>
-                {isAdmin && (
+                {canManage && (
                   <button
                     onClick={() => remove(a.id)}
                     aria-label="Borrar"

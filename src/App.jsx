@@ -448,8 +448,8 @@ function BottomNavbar({ isAdmin }) {
   // Normas sigue en el footer discreto (MobileFooterLinks).
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
-    { to: '/predictions', label: 'Predicciones', icon: IconPredictions },
-    { to: '/leaderboard', label: 'Clasificación', icon: IconRanking },
+    { to: '/predictions', label: 'Predic.', icon: IconPredictions },
+    { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
     { to: '/announcements', label: 'Avisos', icon: IconMegaphone },
@@ -647,7 +647,7 @@ function AppLayout({ session }) {
                 <Route path="/stats" element={<Stats demoMode={demoMode} />} />
                 <Route path="/matchday" element={<MatchDayLive session={session} />} />
                 <Route path="/news" element={<News />} />
-                <Route path="/announcements" element={<Announcements session={session} isAdmin={isAdmin} />} />
+                <Route path="/announcements" element={<Announcements session={session} />} />
                 <Route path="/forum" element={<Forum session={session} />} />
                 <Route path="/rules" element={<Rules />} />
                 {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
