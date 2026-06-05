@@ -17,6 +17,7 @@ const Stats = lazy(() => import('./pages/Stats'))
 const Rules = lazy(() => import('./pages/Rules'))
 const News = lazy(() => import('./pages/News'))
 const Forum = lazy(() => import('./pages/Forum'))
+const Announcements = lazy(() => import('./pages/Announcements'))
 const MatchDayLive = lazy(() => import('./pages/MatchDayLive'))
 const MatchDetail = lazy(() => import('./pages/MatchDetail'))
 const PreMundial = lazy(() => import('./pages/PreMundial'))
@@ -277,6 +278,14 @@ function IconLive({ size = 22 }) {
     </svg>
   )
 }
+function IconMegaphone({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l18-5v12L3 14v-3z" />
+      <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+    </svg>
+  )
+}
 function IconAdmin({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -408,6 +417,7 @@ function TopNavbar({ isAdmin, demoMode }) {
         <StyledNavLink to="/leaderboard">Clasificación</StyledNavLink>
         <StyledNavLink to="/stats">Estadísticas</StyledNavLink>
         <StyledNavLink to="/news">Noticias</StyledNavLink>
+        <StyledNavLink to="/announcements">Avisos</StyledNavLink>
         <StyledNavLink to="/rules">Normas</StyledNavLink>
         {isAdmin && <StyledNavLink to="/admin">Admin</StyledNavLink>}
         <button
@@ -432,16 +442,17 @@ function TopNavbar({ isAdmin, demoMode }) {
 function BottomNavbar({ isAdmin }) {
   const location = useLocation()
 
+  // Barra idéntica para TODOS (incl. admin). Etiquetas cortas para que entren
+  // 6 ítems en una línea en móviles pequeños. El acceso a Admin ya NO está
+  // aquí: vive como engranaje en la cabecera de Inicio (solo admins).
+  // Normas sigue en el footer discreto (MobileFooterLinks).
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
-    { to: '/predictions', label: 'Predicciones', icon: IconPredictions },
-    { to: '/leaderboard', label: 'Clasificación', icon: IconRanking },
-    { to: '/stats', label: 'Estadísticas', icon: IconStats },
+    { to: '/predictions', label: 'Predic.', icon: IconPredictions },
+    { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
+    { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
-    // Foro hidden (route + code kept; re-add this item to bring it back).
-    // Normas also lives outside the bar now — it's reachable from the
-    // discreet footer link (MobileFooterLinks). Logout is in the footer too.
-    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: IconAdmin }] : [])
+    { to: '/announcements', label: 'Avisos', icon: IconMegaphone },
   ]
 
   return (
@@ -633,6 +644,7 @@ function AppLayout({ session }) {
                 <Route path="/stats" element={<Stats demoMode={demoMode} />} />
                 <Route path="/matchday" element={<MatchDayLive session={session} />} />
                 <Route path="/news" element={<News />} />
+                <Route path="/announcements" element={<Announcements session={session} isAdmin={isAdmin} />} />
                 <Route path="/forum" element={<Forum session={session} />} />
                 <Route path="/rules" element={<Rules />} />
                 {isAdmin && <Route path="/admin" element={<Admin session={session} />} />}
