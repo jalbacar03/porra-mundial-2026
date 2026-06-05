@@ -1,22 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-import { useToast } from '../components/Toast'
 import { FootballSpinner } from '../components/Skeleton'
 
-// UID de Javi (super-admin). SOLO él publica/borra comunicados — ni Miro ni
-// Nacho, aunque sean admin. La RLS de `announcements` lo refuerza server-side.
-const OWNER_ID = 'e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'
-
 // Comunicados oficiales (etiqueta "Avisos" en la barra).
-// Feed de solo lectura para todos; el editor solo aparece para el owner.
-export default function Announcements({ session }) {
-  const canManage = session?.user?.id === OWNER_ID
+// Feed de SOLO LECTURA para todos. No hay editor en la app: los comunicados
+// se publican fuera de banda (vía SQL/Claude). La RLS solo permite escritura
+// al owner de todos modos.
+export default function Announcements() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  const [title, setTitle] = useState('')
-  const [body, setBody] = useState('')
-  const [posting, setPosting] = useState(false)
-  const toast = useToast()
 
   async function load() {
     const { data } = await supabase
@@ -36,35 +28,6 @@ export default function Announcements({ session }) {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [])
-
-  async function publish() {
-    if (!title.trim() || !body.trim()) {
-      toast?.error('Pon título y mensaje')
-      return
-    }
-    setPosting(true)
-    const { error } = await supabase.from('announcements').insert({
-      title: title.trim(),
-      body: body.trim(),
-      author_id: session?.user?.id || null,
-    })
-    setPosting(false)
-    if (error) {
-      toast?.error('No se pudo publicar')
-      return
-    }
-    setTitle('')
-    setBody('')
-    toast?.success('Comunicado publicado')
-    load()
-  }
-
-  async function remove(id) {
-    if (!window.confirm('¿Borrar este comunicado?')) return
-    const { error } = await supabase.from('announcements').delete().eq('id', id)
-    if (error) { toast?.error('No se pudo borrar'); return }
-    load()
-  }
 
   function fmtDate(iso) {
     const d = new Date(iso)
@@ -87,60 +50,6 @@ export default function Announcements({ session }) {
         </div>
       </div>
 
-      {/* Composer — solo admins */}
-      {canManage && (
-        <div style={{
-          background: 'var(--bg-secondary)', borderRadius: '12px',
-          padding: '14px', marginBottom: '16px',
-          border: '1px solid rgba(255,204,0,0.25)'
-        }}>
-          <div style={{
-            fontSize: '11px', fontWeight: '800', color: 'var(--gold)',
-            textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px'
-          }}>
-            ✍️ Nuevo comunicado
-          </div>
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Título"
-            maxLength={120}
-            style={{
-              width: '100%', padding: '10px 12px', marginBottom: '8px',
-              borderRadius: '8px', border: '0.5px solid var(--border)',
-              background: 'var(--bg-input)', color: 'var(--text-primary)',
-              fontSize: '14px', fontWeight: 700, outline: 'none', boxSizing: 'border-box'
-            }}
-          />
-          <textarea
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            placeholder="Mensaje…"
-            rows={4}
-            style={{
-              width: '100%', padding: '10px 12px', marginBottom: '10px',
-              borderRadius: '8px', border: '0.5px solid var(--border)',
-              background: 'var(--bg-input)', color: 'var(--text-primary)',
-              fontSize: '14px', lineHeight: '1.5', outline: 'none',
-              resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit'
-            }}
-          />
-          <button
-            onClick={publish}
-            disabled={posting}
-            style={{
-              width: '100%', padding: '12px', borderRadius: '8px', border: 'none',
-              background: posting ? 'var(--bg-input)' : 'var(--green)',
-              color: posting ? 'var(--text-muted)' : '#fff',
-              fontSize: '13px', fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer',
-              letterSpacing: '0.4px'
-            }}
-          >
-            {posting ? 'Publicando…' : '📢 Publicar comunicado'}
-          </button>
-        </div>
-      )}
-
       {/* Feed */}
       {loading ? (
         <FootballSpinner text="Cargando comunicados…" />
@@ -159,27 +68,12 @@ export default function Announcements({ session }) {
               padding: '14px 16px', border: '0.5px solid var(--border)',
               borderLeft: '3px solid var(--gold)'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                <h3 style={{
-                  fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)',
-                  margin: 0, lineHeight: '1.3'
-                }}>
-                  {a.title}
-                </h3>
-                {canManage && (
-                  <button
-                    onClick={() => remove(a.id)}
-                    aria-label="Borrar"
-                    title="Borrar"
-                    style={{
-                      background: 'transparent', border: 'none', cursor: 'pointer',
-                      color: 'var(--text-dim)', fontSize: '16px', lineHeight: 1, padding: '2px 4px', flexShrink: 0
-                    }}
-                  >
-                    🗑️
-                  </button>
-                )}
-              </div>
+              <h3 style={{
+                fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)',
+                margin: 0, lineHeight: '1.3'
+              }}>
+                {a.title}
+              </h3>
               <div style={{
                 fontSize: '14px', color: 'var(--text-secondary, #c8ccd4)',
                 lineHeight: '1.55', marginTop: '8px', whiteSpace: 'pre-wrap'
