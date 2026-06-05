@@ -448,8 +448,8 @@ function BottomNavbar({ isAdmin }) {
   // Normas sigue en el footer discreto (MobileFooterLinks).
   const navItems = [
     { to: '/', label: 'Inicio', icon: IconHome, end: true },
-    { to: '/predictions', label: 'Predic.', icon: IconPredictions },
-    { to: '/leaderboard', label: 'Clasif.', icon: IconRanking },
+    { to: '/predictions', label: 'Predicciones', icon: IconPredictions },
+    { to: '/leaderboard', label: 'Clasificación', icon: IconRanking },
     { to: '/stats', label: 'Stats', icon: IconStats },
     { to: '/news', label: 'Noticias', icon: IconNews },
     { to: '/announcements', label: 'Avisos', icon: IconMegaphone },
@@ -499,10 +499,13 @@ function BottomNavbar({ isAdmin }) {
               fontWeight: isActive ? '600' : '400',
               letterSpacing: '0.1px',
               textAlign: 'center',
-              lineHeight: '1.15',
-              // Full names wrap to 2 lines instead of overflowing. Two lines
-              // is the max any current label needs ("Mis predicciones").
-              maxWidth: '100%'
+              lineHeight: '1.1',
+              // Palabras largas de una sola pieza ("Clasificación",
+              // "Predicciones") parten a 2 líneas en vez de desbordar.
+              maxWidth: '100%',
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
+              hyphens: 'auto'
             }}>
               {item.label}
             </span>
