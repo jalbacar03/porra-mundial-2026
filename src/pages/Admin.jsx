@@ -281,13 +281,16 @@ export default function Admin({ session }) {
     try { localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(next)) } catch {}
   }
 
-  async function runDigest(force) {
+  async function runDigest(force, testEmail) {
     setSendingDigest(true)
     setDigestLog(null)
     try {
       const { data: { session: s } } = await supabase.auth.getSession()
       const headers = s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}
-      const url = '/api/send-daily-digest' + (force ? '?force=true' : '')
+      const params = new URLSearchParams()
+      if (force) params.set('force', 'true')
+      if (testEmail) params.set('test', testEmail)
+      const url = '/api/send-daily-digest' + (params.toString() ? `?${params}` : '')
       const res = await fetch(url, { headers })
       const data = await res.json()
       setDigestLog(data)
@@ -1124,21 +1127,38 @@ export default function Admin({ session }) {
               06:00 UTC (08:00 hora España). Pulsa para enviar ahora — fuerza el envío
               aunque no haya partidos ayer.
             </div>
-            <button
-              onClick={() => runDigest(true)}
-              disabled={sendingDigest}
-              style={{
-                width: '100%', padding: '14px', borderRadius: '10px',
-                border: 'none', cursor: sendingDigest ? 'not-allowed' : 'pointer',
-                fontSize: '13px', fontWeight: 700,
-                background: sendingDigest ? 'var(--bg-input)' : 'var(--green)',
-                color: sendingDigest ? 'var(--text-muted)' : '#fff',
-                letterSpacing: '0.6px', textTransform: 'uppercase',
-                transition: 'background 0.15s ease'
-              }}
-            >
-              {sendingDigest ? 'Enviando…' : '📨 Enviar digest ahora'}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => runDigest(true, session?.user?.email)}
+                disabled={sendingDigest || !session?.user?.email}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: '10px',
+                  border: '1px solid var(--border)', cursor: sendingDigest ? 'not-allowed' : 'pointer',
+                  fontSize: '12px', fontWeight: 700,
+                  background: 'var(--bg-input)',
+                  color: sendingDigest ? 'var(--text-muted)' : 'var(--text-primary)',
+                  letterSpacing: '0.4px',
+                  transition: 'background 0.15s ease'
+                }}
+              >
+                🧪 Probar (solo a mí)
+              </button>
+              <button
+                onClick={() => runDigest(true)}
+                disabled={sendingDigest}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: '10px',
+                  border: 'none', cursor: sendingDigest ? 'not-allowed' : 'pointer',
+                  fontSize: '12px', fontWeight: 700,
+                  background: sendingDigest ? 'var(--bg-input)' : 'var(--green)',
+                  color: sendingDigest ? 'var(--text-muted)' : '#fff',
+                  letterSpacing: '0.4px',
+                  transition: 'background 0.15s ease'
+                }}
+              >
+                {sendingDigest ? 'Enviando…' : '📨 Enviar a todos'}
+              </button>
+            </div>
 
             {sendingDigest && !digestLog && (
               <div style={{ marginTop: '14px' }}>
