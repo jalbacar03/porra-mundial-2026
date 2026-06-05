@@ -351,19 +351,32 @@ export default async function handler(req, res) {
       })
     }
 
-    if (emails.length === 0) {
+    // ?test=email@x → enviar SOLO a esa dirección (debug sin spamear a todos).
+    // Si la dirección coincide con un participante, manda su email real; si no,
+    // reusa el del primer participante pero al destinatario de test.
+    const testEmail = req.query?.test || (req.url?.match(/[?&]test=([^&]+)/)?.[1] && decodeURIComponent(req.url.match(/[?&]test=([^&]+)/)[1]))
+    let outEmails = emails
+    if (testEmail) {
+      const mine = emails.find(e => e.to[0] === testEmail)
+      const base = mine || emails[0]
+      outEmails = base ? [{ ...base, to: [testEmail] }] : []
+      log.push(`🧪 Test mode → solo a ${testEmail} (${mine ? 'su email' : 'contenido del 1º'})`)
+    }
+
+    if (outEmails.length === 0) {
       log.push('⚠️ No emails to send (no users with email)')
       return res.status(200).json({ sent: 0, reason: 'no recipients', log })
     }
 
-    log.push(`   ${emails.length} emails ready`)
+    const emails_ = outEmails
+    log.push(`   ${emails_.length} emails ready`)
 
     // 7. Send via Resend batch API (max 100 per batch). For 100 users = 1 call.
     log.push('📨 Sending via Resend…')
     let sent = 0
     let failed = 0
-    for (let i = 0; i < emails.length; i += 100) {
-      const batch = emails.slice(i, i + 100)
+    for (let i = 0; i < emails_.length; i += 100) {
+      const batch = emails_.slice(i, i + 100)
       const r = await fetch('https://api.resend.com/emails/batch', {
         method: 'POST',
         headers: {
@@ -385,7 +398,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       sent,
       failed,
-      totalRecipients: emails.length,
+      totalRecipients: emails_.length,
       yesterdayMatches: yMatches.length,
       log,
     })
