@@ -50,6 +50,26 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  // ?diag=1 → diagnóstico de config (sin auth, sin enviar nada, sin exponer
+  // claves). Consulta a Resend qué dominios están verificados — la causa más
+  // común de "no llega el email" es el dominio del remitente sin verificar.
+  if (req.query?.diag === '1' || req.url?.includes('diag=1')) {
+    let domains = null
+    try {
+      const dr = await fetch('https://api.resend.com/domains', {
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
+      })
+      domains = dr.ok ? await dr.json() : { status: dr.status, body: await dr.text().catch(() => '') }
+    } catch (e) { domains = { error: String(e) } }
+    return res.status(200).json({
+      RESEND_API_KEY_set: !!RESEND_API_KEY,
+      RESEND_FROM_EMAIL,
+      APP_URL,
+      CRON_SECRET_set: !!process.env.CRON_SECRET,
+      resend_domains: domains,
+    })
+  }
+
   if (!RESEND_API_KEY) {
     return res.status(500).json({ error: 'RESEND_API_KEY not set' })
   }
