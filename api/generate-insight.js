@@ -10,6 +10,28 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
 
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500' // kept for data filtering only
 
+// Nombre real formateado (espejo de src/utils/nickname.js → formatRealName).
+// Replicado aquí porque las funciones serverless no comparten el bundle de src.
+const NAME_OVERRIDES = {
+  'José Antonio Menéndez': 'José Menéndez',
+  'Gonzalo de Parellada Menéndez': 'Gonzalo de Parellada',
+  'Jose Maria Guitart': 'Jose María Guitart',
+  'Álvaro García Magro': 'Álvaro García M.',
+}
+function formatRealNameServer(fullName) {
+  if (!fullName) return ''
+  if (NAME_OVERRIDES[fullName]) return NAME_OVERRIDES[fullName]
+  const PREPS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'da', 'do', 'di'])
+  const isInitial = (w) => /^[a-záéíóúñ]\.?$/i.test(w)
+  const tc = (w) => w ? w.split('-').map(s => s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s).join('-') : w
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return ''
+  const real = parts.filter(p => !PREPS.has(p.toLowerCase()) && !isInitial(p))
+  if (!real.length) return tc(parts[0])
+  if (real.length === 1) return tc(real[0])
+  return `${tc(real[0])} ${tc(real[1])}`
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST')
@@ -99,13 +121,16 @@ async function supaFetch(path) {
 async function gatherData() {
   const leaderboard = await supaFetch('leaderboard?select=*&order=total_points.desc&limit=20') || []
   const profiles = await supaFetch('profiles?select=id,full_name,nickname,has_paid') || []
+  // Solo partidos del MUNDIAL (excluye friendly/test). Sin esto, al terminar
+  // los amistosos de La Liguilla la crónica creía que el Mundial ya empezó y
+  // sacaba un "líder" con 0 puntos (mateosanllehi, primero de la lista).
   const matches = await supaFetch(
-    'matches?status=eq.finished&select=id,home_score,away_score,match_date,group_name,home_team:teams!matches_home_team_id_fkey(name),away_team:teams!matches_away_team_id_fkey(name)&order=match_date.desc&limit=10'
+    'matches?status=eq.finished&stage=not.in.(friendly,test)&select=id,home_score,away_score,match_date,group_name,home_team:teams!matches_home_team_id_fkey(name),away_team:teams!matches_away_team_id_fkey(name)&order=match_date.desc&limit=10'
   ) || []
 
-  // Filter out Bot365 + use nicknames where available
+  // Filter out Bot365 + nombre REAL (consistente con el resto de la app).
   const nameById = {}
-  profiles.forEach(p => { nameById[p.id] = p.nickname || p.full_name })
+  profiles.forEach(p => { nameById[p.id] = formatRealNameServer(p.full_name) || p.full_name })
   const filteredLeaderboard = leaderboard
     .filter(r => r.user_id !== BOT365_ID)
     .map(r => ({ ...r, full_name: nameById[r.user_id] || r.full_name }))

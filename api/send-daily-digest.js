@@ -29,6 +29,27 @@ const APP_URL = process.env.APP_URL || 'https://porramundial2026.app'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 const MUNDIAL_START = new Date('2026-06-11T00:00:00Z')
 
+// Nombre real formateado (espejo de src/utils/nickname.js → formatRealName).
+const NAME_OVERRIDES = {
+  'José Antonio Menéndez': 'José Menéndez',
+  'Gonzalo de Parellada Menéndez': 'Gonzalo de Parellada',
+  'Jose Maria Guitart': 'Jose María Guitart',
+  'Álvaro García Magro': 'Álvaro García M.',
+}
+function formatRealNameServer(fullName) {
+  if (!fullName) return ''
+  if (NAME_OVERRIDES[fullName]) return NAME_OVERRIDES[fullName]
+  const PREPS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'da', 'do', 'di'])
+  const isInitial = (w) => /^[a-záéíóúñ]\.?$/i.test(w)
+  const tc = (w) => w ? w.split('-').map(s => s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s).join('-') : w
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return ''
+  const real = parts.filter(p => !PREPS.has(p.toLowerCase()) && !isInitial(p))
+  if (!real.length) return tc(parts[0])
+  if (real.length === 1) return tc(real[0])
+  return `${tc(real[0])} ${tc(real[1])}`
+}
+
 async function supaFetch(path, options = {}) {
   const res = await fetch(`${SUPABASE_URL}${path}`, {
     ...options,
@@ -162,7 +183,7 @@ export default async function handler(req, res) {
         .map(p => p.id)
     )
     const nameById = Object.fromEntries(
-      profiles.map(p => [p.id, p.nickname || p.full_name || 'Participante'])
+      profiles.map(p => [p.id, formatRealNameServer(p.full_name) || p.nickname || 'Participante'])
     )
 
     const ranked = lb

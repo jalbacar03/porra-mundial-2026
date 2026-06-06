@@ -163,10 +163,19 @@ export default function Dashboard({ session, demoMode }) {
       .select('*')
       .eq('user_id', session.user.id)
 
-    const completed = preds?.length || 0
-    const points = preds?.reduce((sum, p) => sum + (p.points_earned || 0), 0) || 0
-    const exactHits = preds?.filter(p => p.points_earned === 3).length || 0
-    const signHits = preds?.filter(p => p.points_earned === 1).length || 0
+    // El widget "Tu posición" es SOLO del Mundial. Excluimos friendly/test del
+    // cálculo de puntos/exactos/signos — si no, los amistosos de La Liguilla
+    // contaminan el widget (mostraba "1 punto · LIVE" antes de empezar el Mundial).
+    const mundialMatchIds = new Set(
+      (allMatchesData || [])
+        .filter(m => m.stage !== 'friendly' && m.stage !== 'test')
+        .map(m => m.id)
+    )
+    const mundialPreds = (preds || []).filter(p => mundialMatchIds.has(p.match_id))
+    const completed = mundialPreds.length
+    const points = mundialPreds.reduce((sum, p) => sum + (p.points_earned || 0), 0)
+    const exactHits = mundialPreds.filter(p => p.points_earned === 3).length
+    const signHits = mundialPreds.filter(p => p.points_earned === 1).length
 
     // Build predictions map
     const predsMap = {}
@@ -199,7 +208,9 @@ export default function Dashboard({ session, demoMode }) {
 
     // Live matches (status='live') and next upcoming
     const now = new Date()
-    const live = (allMatchesData || []).filter(m => m.status === 'live')
+    // Solo Mundial en el hero/overlay del Dashboard — los friendly tienen su
+    // propio banner. Sin esto, un amistoso en vivo ponía "LIVE" en el hero.
+    const live = (allMatchesData || []).filter(m => m.status === 'live' && m.stage !== 'friendly' && m.stage !== 'test')
     setLiveMatches(live)
     const upcoming = allMatches?.filter(m => m.status !== 'finished' && m.status !== 'live' && new Date(m.match_date) > now).slice(0, 3) || []
     setNextMatches(upcoming)
@@ -290,8 +301,9 @@ export default function Dashboard({ session, demoMode }) {
 
     setStats({ total: totalMatches, completed, points, exactHits, signHits, rank })
 
-    // Post-match report: find the most recent completed match day
-    const finishedAll = (allMatchesData || []).filter(m => m.status === 'finished' && m.home_score !== null)
+    // Post-match report: find the most recent completed match day.
+    // Solo Mundial (excluye friendly/test) — el "vs ayer" del hero sale de aquí.
+    const finishedAll = (allMatchesData || []).filter(m => m.status === 'finished' && m.home_score !== null && m.stage !== 'friendly' && m.stage !== 'test')
     if (finishedAll.length > 0 && preds?.length > 0) {
       // Group finished matches by date
       const matchesByDay = {}

@@ -9,43 +9,6 @@ import { displayName } from '../utils/nickname'
 import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
-// Formato "Nombre Apellido" — primera palabra real (no prep/inicial) + segunda
-// palabra real, ambas con Title Case. Ejemplos:
-//   "javi albácar"                       → "Javi Albácar"
-//   "Pedro J. Albácar"                   → "Pedro Albácar" (salta inicial)
-//   "Gonzalo de Parellada Menéndez"      → "Gonzalo Parellada" (salta "de" y 2º apellido)
-//   "Álvaro García-Valdecasas"           → "Álvaro García-Valdecasas" (1 apellido compuesto OK)
-//   "José Antonio Menéndez"              → "José Antonio" (compromiso: trata 2ª palabra como apellido)
-// Overrides manuales para nombres que el algoritmo no resuelve bien
-// (nombres compuestos, preposiciones que SÍ van, etc). Key = full_name exacto.
-const NAME_OVERRIDES = {
-  'José Antonio Menéndez': 'José Menéndez',
-  'Gonzalo de Parellada Menéndez': 'Gonzalo de Parellada',
-  'Jose Maria Guitart': 'Jose María Guitart',
-  'Álvaro García Magro': 'Álvaro García M.',
-}
-
-function formatRealName(fullName) {
-  if (!fullName) return ''
-  if (NAME_OVERRIDES[fullName]) return NAME_OVERRIDES[fullName]
-  const PREPS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'da', 'do', 'di'])
-  const isInitial = (w) => /^[a-záéíóúñ]\.?$/i.test(w)
-  const titleCase = (w) => {
-    if (!w) return w
-    // Mantiene capitalización por segmento separado por guión: "García-Valdecasas"
-    return w.split('-').map(seg =>
-      seg ? seg[0].toUpperCase() + seg.slice(1).toLowerCase() : seg
-    ).join('-')
-  }
-  const parts = fullName.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return ''
-  const real = parts.filter(p => !PREPS.has(p.toLowerCase()) && !isInitial(p))
-  if (real.length === 0) return titleCase(parts[0])
-  if (real.length === 1) return titleCase(real[0])
-  return `${titleCase(real[0])} ${titleCase(real[1])}`
-}
-
-
 export default function Leaderboard({ demoMode }) {
   const [rankings, setRankings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -92,11 +55,10 @@ export default function Leaderboard({ demoMode }) {
         const payConfirmed = new Set()
         data.forEach(p => {
           // Probando "nombre real" en la clasificación — formato "Nombre Apellido"
-          // (1 nombre + 1 apellido, Title Case). Si full_name falta, fallback al
-          // displayName (nickname) para no romper la fila.
-          const real = formatRealName(p.full_name) || displayName(p)
-          map[p.id] = real
-          fullNames[p.id] = real
+          // Nombre según el modo global (displayName del util). Hoy = real.
+          const shown = displayName(p)
+          map[p.id] = shown
+          fullNames[p.id] = shown
           if (p.has_paid) paid.add(p.id)
           if (p.payment_confirmed) payConfirmed.add(p.id)
         })
@@ -524,7 +486,8 @@ function renderSofaScore({
     red: '#ef4444',
   }
   const total = fullRankings.length
-  const GRID = '20px 1fr 22px 22px 22px 36px'
+  // Col # algo más ancha + gap mayor → "T29" no se pega al nombre.
+  const GRID = '30px 1fr 24px 26px 32px 38px'
   const clickable = typeof onRowClick === 'function'
   return (
     <div style={{
@@ -544,9 +507,9 @@ function renderSofaScore({
       }}>
         <span>#</span>
         <span>Participante</span>
-        <span title="Partidos jugados" style={{ textAlign: 'center', color: 'var(--text-dim)' }}>PJ</span>
-        <span title="Exactos (3pt)" style={{ textAlign: 'center', color: C.blue }}>3·</span>
-        <span title="Signos (1pt)" style={{ textAlign: 'center', color: C.green }}>1·</span>
+        <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
+        <span title="Resultado exacto · 3 pts" style={{ textAlign: 'center' }}>RE</span>
+        <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
       </div>
       {fullRankings.map((user, idx) => {
