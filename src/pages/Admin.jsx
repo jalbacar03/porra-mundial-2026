@@ -22,6 +22,8 @@ export default function Admin({ session }) {
   const [syncHistory, setSyncHistory] = useState([])
   const [sendingDigest, setSendingDigest] = useState(false)
   const [digestLog, setDigestLog] = useState(null)
+  const [seedingBot, setSeedingBot] = useState(false)
+  const [seedLog, setSeedLog] = useState(null)
 
   // Results tab — search filter
   const [matchSearch, setMatchSearch] = useState('')
@@ -279,6 +281,20 @@ export default function Admin({ session }) {
     const next = [entry, ...syncHistory].slice(0, 3)
     setSyncHistory(next)
     try { localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(next)) } catch {}
+  }
+
+  async function runSeedBot365(dry) {
+    setSeedingBot(true)
+    setSeedLog(null)
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const headers = s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}
+      const res = await fetch(`/api/seed-bot365${dry ? '?dry=1' : ''}`, { headers })
+      setSeedLog(await res.json())
+    } catch (err) {
+      setSeedLog({ error: err.message })
+    }
+    setSeedingBot(false)
   }
 
   async function runDigest(force, testEmail) {
@@ -1202,6 +1218,62 @@ export default function Admin({ session }) {
                         }}>{digestLog.log.join('\n')}</pre>
                       </details>
                     )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* === RE-SEED BOT365 (cuotas) === */}
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: '12px',
+            padding: '18px', marginBottom: '14px',
+            border: '0.5px solid var(--border)'
+          }}>
+            <div style={sectionHeader}>🤖 Bot365 — predicciones por cuotas</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.55', marginBottom: '14px' }}>
+              Rellena las predicciones de partidos de Bot365 con el favorito según
+              las cuotas 1X2 de API-Football. "Previsualizar" no escribe nada (solo
+              muestra el plan y la cobertura de cuotas).
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => runSeedBot365(true)}
+                disabled={seedingBot}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', cursor: seedingBot ? 'not-allowed' : 'pointer',
+                  fontSize: '12px', fontWeight: 700, background: 'var(--bg-input)',
+                  color: seedingBot ? 'var(--text-muted)' : 'var(--text-primary)'
+                }}
+              >🔍 Previsualizar</button>
+              <button
+                onClick={() => runSeedBot365(false)}
+                disabled={seedingBot}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: '8px', border: 'none',
+                  cursor: seedingBot ? 'not-allowed' : 'pointer',
+                  fontSize: '12px', fontWeight: 700,
+                  background: seedingBot ? 'var(--bg-input)' : 'var(--green)',
+                  color: seedingBot ? 'var(--text-muted)' : '#fff'
+                }}
+              >{seedingBot ? 'Procesando…' : '🤖 Aplicar'}</button>
+            </div>
+            {seedLog && !seedingBot && (
+              <div style={{
+                marginTop: '14px', padding: '12px', background: 'var(--bg-input)',
+                borderRadius: '8px', fontSize: '12px', color: 'var(--text-muted)'
+              }}>
+                {seedLog.error ? (
+                  <div style={{ color: '#e74c3c' }}><strong>Error:</strong> {seedLog.error}</div>
+                ) : (
+                  <>
+                    <div style={{ color: 'var(--text-primary)', fontWeight: 700, marginBottom: '6px' }}>
+                      {seedLog.dry ? 'Previsualización' : 'Aplicado'} · {seedLog.summary?.filled || 0} con cuota
+                    </div>
+                    <div style={{ fontSize: '11px' }}>
+                      Sin fixture: {seedLog.summary?.noFixture ?? 0} · Sin cuota: {seedLog.summary?.noOdds ?? 0} · Total grupos: {seedLog.summary?.groupMatches ?? 0}
+                    </div>
                   </>
                 )}
               </div>
