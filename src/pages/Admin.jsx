@@ -24,6 +24,12 @@ export default function Admin({ session }) {
   const [digestLog, setDigestLog] = useState(null)
   const [seedingBot, setSeedingBot] = useState(false)
   const [seedLog, setSeedLog] = useState(null)
+  // Editor de predicciones de Bot365 (tab "🤖 Bot365")
+  const [bot365Scores, setBot365Scores] = useState({}) // { match_id: { home:'', away:'' } }
+  const [bot365Loaded, setBot365Loaded] = useState(false)
+  const [bot365Saving, setBot365Saving] = useState(false)
+  const [bot365Msg, setBot365Msg] = useState(null)
+  const [bot365Group, setBot365Group] = useState('A')
 
   // Results tab — search filter
   const [matchSearch, setMatchSearch] = useState('')
@@ -51,6 +57,11 @@ export default function Admin({ session }) {
       if (raw) setSyncHistory(JSON.parse(raw))
     } catch {}
   }, [])
+
+  // Carga las predicciones de Bot365 la primera vez que se abre su tab.
+  useEffect(() => {
+    if (activeTab === 'bot365' && !bot365Loaded) loadBot365Preds()
+  }, [activeTab, bot365Loaded])
 
   async function checkAdmin() {
     const { data } = await supabase
@@ -281,6 +292,47 @@ export default function Admin({ session }) {
     const next = [entry, ...syncHistory].slice(0, 3)
     setSyncHistory(next)
     try { localStorage.setItem(SYNC_HISTORY_KEY, JSON.stringify(next)) } catch {}
+  }
+
+  const BOT365_UID = 'b0365b03-65b0-365b-0365-b0365b036500'
+  async function loadBot365Preds() {
+    const { data } = await supabase
+      .from('predictions')
+      .select('match_id, predicted_home, predicted_away')
+      .eq('user_id', BOT365_UID)
+    const map = {}
+    ;(data || []).forEach(p => {
+      map[p.match_id] = {
+        home: p.predicted_home != null ? String(p.predicted_home) : '',
+        away: p.predicted_away != null ? String(p.predicted_away) : '',
+      }
+    })
+    setBot365Scores(map)
+    setBot365Loaded(true)
+  }
+
+  async function saveBot365() {
+    setBot365Saving(true)
+    setBot365Msg(null)
+    const preds = Object.entries(bot365Scores)
+      .filter(([, v]) => v.home !== '' && v.away !== '')
+      .map(([match_id, v]) => ({ match_id: Number(match_id), home: Number(v.home), away: Number(v.away) }))
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin-bot365', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}),
+        },
+        body: JSON.stringify({ preds }),
+      })
+      const out = await res.json()
+      setBot365Msg(out.error ? `Error: ${out.error}` : `✅ Guardadas ${out.saved} predicciones${out.skipped ? ` (${out.skipped} ignoradas)` : ''}`)
+    } catch (err) {
+      setBot365Msg(`Error: ${err.message}`)
+    }
+    setBot365Saving(false)
   }
 
   async function runSeedBot365(dry) {
@@ -530,6 +582,9 @@ export default function Admin({ session }) {
         </button>
         <button onClick={() => setActiveTab('bets')} style={pillStyle(activeTab === 'bets')}>
           Predicciones
+        </button>
+        <button onClick={() => setActiveTab('bot365')} style={pillStyle(activeTab === 'bot365')}>
+          🤖 Bot365
         </button>
       </div>
 
@@ -1607,6 +1662,96 @@ export default function Admin({ session }) {
                 ))}
               </>
             )}
+          </>
+        )
+      })()}
+
+      {/* ========== BOT365 EDITOR TAB ========== */}
+      {activeTab === 'bot365' && (() => {
+        const groupMatches = matches
+          .filter(m => m.stage === 'group' && m.group_name === bot365Group)
+          .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
+        const setScore = (mid, side, val) => {
+          const v = val.replace(/[^0-9]/g, '').slice(0, 2)
+          setBot365Scores(prev => ({ ...prev, [mid]: { ...prev[mid], [side]: v } }))
+        }
+        const filledCount = Object.values(bot365Scores).filter(v => v.home !== '' && v.away !== '').length
+        return (
+          <>
+            <div style={{
+              background: 'rgba(255,204,0,0.06)', border: '1px solid rgba(255,204,0,0.25)',
+              borderRadius: '10px', padding: '12px 14px', marginBottom: '14px',
+              fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5'
+            }}>
+              Editas las predicciones de <strong style={{ color: 'var(--gold)' }}>Bot365</strong> (la referencia
+              "casas de apuestas"). Ajusta los marcadores a lo que diga bet365 y guarda.
+              Total con predicción: <strong style={{ color: 'var(--text-primary)' }}>{filledCount}/72</strong>.
+              {' '}(El cuadro y el pre-torneo se editan aparte.)
+            </div>
+
+            {/* Selector de grupo */}
+            <div className="group-tabs" style={{ marginBottom: '12px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {groups.map(g => (
+                <button key={g} onClick={() => setBot365Group(g)} style={pillStyle(bot365Group === g)}>{g}</button>
+              ))}
+            </div>
+
+            {!bot365Loaded ? (
+              <FootballSpinner text="Cargando predicciones de Bot365…" />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {groupMatches.map(m => {
+                  const sc = bot365Scores[m.id] || { home: '', away: '' }
+                  return (
+                    <div key={m.id} style={{
+                      display: 'grid', gridTemplateColumns: '1fr 38px 14px 38px 1fr',
+                      alignItems: 'center', gap: '6px',
+                      background: 'var(--bg-secondary)', borderRadius: '8px',
+                      padding: '8px 10px', border: '0.5px solid var(--border)'
+                    }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-primary)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {m.home_team?.name || '?'}
+                      </span>
+                      <input
+                        inputMode="numeric" value={sc.home}
+                        onChange={e => setScore(m.id, 'home', e.target.value)}
+                        style={{ width: '38px', padding: '7px 0', textAlign: 'center', borderRadius: '6px', border: '0.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700 }}
+                      />
+                      <span style={{ textAlign: 'center', color: 'var(--text-dim)' }}>-</span>
+                      <input
+                        inputMode="numeric" value={sc.away}
+                        onChange={e => setScore(m.id, 'away', e.target.value)}
+                        style={{ width: '38px', padding: '7px 0', textAlign: 'center', borderRadius: '6px', border: '0.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '14px', fontWeight: 700 }}
+                      />
+                      <span style={{ fontSize: '12px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {m.away_team?.name || '?'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Guardar (sticky-ish) */}
+            <div style={{ marginTop: '16px' }}>
+              {bot365Msg && (
+                <div style={{ marginBottom: '10px', fontSize: '12px', color: bot365Msg.startsWith('Error') ? '#e74c3c' : 'var(--green)', fontWeight: 600 }}>
+                  {bot365Msg}
+                </div>
+              )}
+              <button
+                onClick={saveBot365}
+                disabled={bot365Saving}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: '10px', border: 'none',
+                  cursor: bot365Saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700,
+                  background: bot365Saving ? 'var(--bg-input)' : 'var(--green)',
+                  color: bot365Saving ? 'var(--text-muted)' : '#fff', letterSpacing: '0.5px'
+                }}
+              >
+                {bot365Saving ? 'Guardando…' : '💾 Guardar predicciones de Bot365'}
+              </button>
+            </div>
           </>
         )
       })()}
