@@ -209,12 +209,10 @@ export default async function handler(req, res) {
     }
     log.push(`📊 Updated ${updatedCount} match scores`)
 
-    // 3b. Web Push: notify users who predicted matches that just finished
+    // 3b. Push por-partido DESACTIVADO (demasiado ruido). Ahora se envía un
+    // único resumen diario desde /api/daily-push. sendMatchFinishedPushes se
+    // mantiene por si se quiere reactivar.
     let pushed = 0
-    if (newlyFinished.length > 0) {
-      pushed = await sendMatchFinishedPushes(newlyFinished, ourTeams, log)
-      log.push(`📲 Sent ${pushed} push notifications`)
-    }
 
     // 3a. Update live match scores (intermediate, status='live')
     let liveUpdated = 0

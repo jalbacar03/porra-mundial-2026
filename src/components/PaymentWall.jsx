@@ -16,6 +16,20 @@ export default function PaymentWall({ session, profile }) {
         .update({ access_requested_at: new Date().toISOString() })
         .eq('id', session.user.id)
         .then(({ error }) => { if (error) console.warn('access request save failed', error) })
+      // Avisar al admin (push). Fire-and-forget: si falla, no bloquea la solicitud.
+      try {
+        const token = session?.access_token
+        fetch('/api/notify-access', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            name: profile?.full_name || session.user.email || 'Alguien',
+          }),
+        }).catch(() => {})
+      } catch {}
     }
     setRequesting(false)
   }
