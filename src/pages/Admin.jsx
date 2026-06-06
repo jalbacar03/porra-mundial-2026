@@ -31,7 +31,12 @@ export default function Admin({ session }) {
   const [bot365Saving, setBot365Saving] = useState(false)
   const [bot365Msg, setBot365Msg] = useState(null)
   const [bot365Group, setBot365Group] = useState('A')
-  const [bot365SubTab, setBot365SubTab] = useState('matches') // 'matches' | 'bracket'
+  const [bot365SubTab, setBot365SubTab] = useState('matches') // 'matches' | 'bracket' | 'specials'
+  const [bot365Bets, setBot365Bets] = useState([])
+  const [bot365Teams, setBot365Teams] = useState([])
+  const [bot365Entries, setBot365Entries] = useState({}) // { bet_id: value }
+  const [bot365SpecialsSaving, setBot365SpecialsSaving] = useState(false)
+  const [bot365SpecialsMsg, setBot365SpecialsMsg] = useState(null)
 
   // Results tab — search filter
   const [matchSearch, setMatchSearch] = useState('')
@@ -331,7 +336,45 @@ export default function Admin({ session }) {
       }
     })
     setBot365Scores(map)
+
+    // Especiales: bets activas + equipos + entries actuales de Bot365.
+    const [betsRes, teamsRes, entriesRes] = await Promise.all([
+      supabase.from('pre_tournament_bets').select('*').eq('is_active', true).order('sort_order'),
+      supabase.from('teams').select('id, name').order('name'),
+      supabase.from('pre_tournament_entries').select('bet_id, value').eq('user_id', BOT365_UID),
+    ])
+    setBot365Bets(betsRes.data || [])
+    setBot365Teams(teamsRes.data || [])
+    const em = {}
+    ;(entriesRes.data || []).forEach(e => { em[e.bet_id] = e.value })
+    setBot365Entries(em)
+
     setBot365Loaded(true)
+  }
+
+  function setBot365Entry(betId, value) {
+    setBot365Entries(prev => ({ ...prev, [betId]: value }))
+  }
+
+  async function saveBot365Specials() {
+    setBot365SpecialsSaving(true)
+    setBot365SpecialsMsg(null)
+    const pre = Object.entries(bot365Entries)
+      .filter(([, v]) => v != null)
+      .map(([bet_id, value]) => ({ bet_id: Number(bet_id), value }))
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin-bot365', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}) },
+        body: JSON.stringify({ pre }),
+      })
+      const out = await res.json()
+      setBot365SpecialsMsg(out.error ? `Error: ${out.error}` : `✅ Guardadas ${out.preSaved} especiales`)
+    } catch (err) {
+      setBot365SpecialsMsg(`Error: ${err.message}`)
+    }
+    setBot365SpecialsSaving(false)
   }
 
   async function saveBot365() {
@@ -1712,14 +1755,79 @@ export default function Admin({ session }) {
               {' '}(El pre-torneo se edita aparte.)
             </div>
 
-            {/* Sub-tabs: Partidos / Cuadro */}
+            {/* Sub-tabs: Partidos / Cuadro / Especiales */}
             <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
               <button onClick={() => setBot365SubTab('matches')} style={pillStyle(bot365SubTab === 'matches')}>Partidos</button>
               <button onClick={() => setBot365SubTab('bracket')} style={pillStyle(bot365SubTab === 'bracket')}>Cuadro</button>
+              <button onClick={() => setBot365SubTab('specials')} style={pillStyle(bot365SubTab === 'specials')}>Especiales</button>
             </div>
 
             {bot365SubTab === 'bracket' ? (
               <BracketView session={session} targetUserId={BOT365_UID} persist={bot365BracketPersist} />
+            ) : bot365SubTab === 'specials' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {bot365Bets.map(bet => {
+                  const val = bot365Entries[bet.id]
+                  // Opciones de equipo según config (excluded_teams / only_teams)
+                  let teamOpts = bot365Teams
+                  if (bet.config?.excluded_teams?.length) teamOpts = bot365Teams.filter(t => !bet.config.excluded_teams.includes(t.name))
+                  if (bet.config?.only_teams?.length) teamOpts = bot365Teams.filter(t => bet.config.only_teams.includes(t.name))
+                  return (
+                    <div key={bet.id} style={{
+                      background: 'var(--bg-secondary)', borderRadius: '8px',
+                      padding: '12px 14px', border: '0.5px solid var(--border)'
+                    }}>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                        {bet.name} <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 500 }}>· {bet.max_points} pts</span>
+                      </div>
+                      {bet.input_type === 'single_player' && (
+                        <input
+                          value={val?.player_name || ''}
+                          onChange={e => setBot365Entry(bet.id, { player_name: e.target.value })}
+                          placeholder="Nombre del jugador…"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '0.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '14px', boxSizing: 'border-box' }}
+                        />
+                      )}
+                      {bet.input_type === 'single_team' && (
+                        <select
+                          value={val?.team_id || ''}
+                          onChange={e => setBot365Entry(bet.id, e.target.value ? { team_id: Number(e.target.value) } : null)}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '0.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '14px', appearance: 'auto', boxSizing: 'border-box' }}
+                        >
+                          <option value="">— elegir —</option>
+                          {teamOpts.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                      )}
+                      {bet.input_type === 'yes_no' && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {[{ k: 'yes', l: 'Sí' }, { k: 'no', l: 'No' }].map(o => (
+                            <button key={o.k}
+                              onClick={() => setBot365Entry(bet.id, { answer: o.k })}
+                              style={{
+                                flex: 1, padding: '9px', borderRadius: '6px', cursor: 'pointer',
+                                border: '1px solid var(--border)', fontSize: '13px', fontWeight: 700,
+                                background: val?.answer === o.k ? 'var(--green)' : 'var(--bg-input)',
+                                color: val?.answer === o.k ? '#fff' : 'var(--text-muted)',
+                              }}
+                            >{o.l}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                <div style={{ marginTop: '6px' }}>
+                  {bot365SpecialsMsg && (
+                    <div style={{ marginBottom: '10px', fontSize: '12px', fontWeight: 600, color: bot365SpecialsMsg.startsWith('Error') ? '#e74c3c' : 'var(--green)' }}>
+                      {bot365SpecialsMsg}
+                    </div>
+                  )}
+                  <button onClick={saveBot365Specials} disabled={bot365SpecialsSaving}
+                    style={{ width: '100%', padding: '14px', borderRadius: '10px', border: 'none', cursor: bot365SpecialsSaving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, background: bot365SpecialsSaving ? 'var(--bg-input)' : 'var(--green)', color: bot365SpecialsSaving ? 'var(--text-muted)' : '#fff' }}>
+                    {bot365SpecialsSaving ? 'Guardando…' : '💾 Guardar especiales de Bot365'}
+                  </button>
+                </div>
+              </div>
             ) : (<>
 
             {/* Selector de grupo */}

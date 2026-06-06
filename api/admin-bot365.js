@@ -101,6 +101,30 @@ export default async function handler(req, res) {
     }
   }
 
-  if (preds.length === 0 && !bracket) return res.status(400).json({ error: 'Nada que guardar' })
-  return res.status(200).json({ saved, skipped, bracketUpserted, bracketCleared })
+  // ── Pre-torneo (especiales) ────────────────────────────────────────────
+  let preSaved = 0
+  const pre = Array.isArray(body.pre) ? body.pre : []
+  if (pre.length) {
+    const rows = pre
+      .filter(e => e && e.bet_id != null && e.value != null)
+      .map(e => ({
+        user_id: BOT365_ID,
+        bet_id: e.bet_id,
+        value: e.value,
+        is_resolved: false,
+        points_awarded: 0,
+        updated_at: new Date().toISOString(),
+      }))
+    if (rows.length) {
+      await supaFetch('/rest/v1/pre_tournament_entries?on_conflict=user_id,bet_id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(rows),
+      })
+      preSaved = rows.length
+    }
+  }
+
+  if (preds.length === 0 && !bracket && pre.length === 0) return res.status(400).json({ error: 'Nada que guardar' })
+  return res.status(200).json({ saved, skipped, bracketUpserted, bracketCleared, preSaved })
 }
