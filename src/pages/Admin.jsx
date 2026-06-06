@@ -4,6 +4,7 @@ import { supabase } from '../supabase'
 import { useToast } from '../components/Toast'
 import { FootballSpinner } from '../components/Skeleton'
 import Avatar from '../components/Avatar'
+import BracketView from '../components/bracket/BracketView'
 
 const SYNC_HISTORY_KEY = 'admin_sync_history_v1'
 
@@ -30,6 +31,7 @@ export default function Admin({ session }) {
   const [bot365Saving, setBot365Saving] = useState(false)
   const [bot365Msg, setBot365Msg] = useState(null)
   const [bot365Group, setBot365Group] = useState('A')
+  const [bot365SubTab, setBot365SubTab] = useState('matches') // 'matches' | 'bracket'
 
   // Results tab — search filter
   const [matchSearch, setMatchSearch] = useState('')
@@ -295,6 +297,27 @@ export default function Admin({ session }) {
   }
 
   const BOT365_UID = 'b0365b03-65b0-365b-0365-b0365b036500'
+  // Adaptador para que BracketView guarde el cuadro de Bot365 vía servidor.
+  const bot365BracketPersist = {
+    upsert: async (rows) => {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin-bot365', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}) },
+        body: JSON.stringify({ bracket: { upsert: rows } }),
+      })
+      return res.ok ? {} : { error: 'save failed' }
+    },
+    clear: async (matchNumbers) => {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin-bot365', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(s?.access_token ? { Authorization: `Bearer ${s.access_token}` } : {}) },
+        body: JSON.stringify({ bracket: { clear: matchNumbers } }),
+      })
+      return res.ok ? {} : { error: 'save failed' }
+    },
+  }
   async function loadBot365Preds() {
     const { data } = await supabase
       .from('predictions')
@@ -1686,8 +1709,18 @@ export default function Admin({ session }) {
               Editas las predicciones de <strong style={{ color: 'var(--gold)' }}>Bot365</strong> (la referencia
               "casas de apuestas"). Ajusta los marcadores a lo que diga bet365 y guarda.
               Total con predicción: <strong style={{ color: 'var(--text-primary)' }}>{filledCount}/72</strong>.
-              {' '}(El cuadro y el pre-torneo se editan aparte.)
+              {' '}(El pre-torneo se edita aparte.)
             </div>
+
+            {/* Sub-tabs: Partidos / Cuadro */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
+              <button onClick={() => setBot365SubTab('matches')} style={pillStyle(bot365SubTab === 'matches')}>Partidos</button>
+              <button onClick={() => setBot365SubTab('bracket')} style={pillStyle(bot365SubTab === 'bracket')}>Cuadro</button>
+            </div>
+
+            {bot365SubTab === 'bracket' ? (
+              <BracketView session={session} targetUserId={BOT365_UID} persist={bot365BracketPersist} />
+            ) : (<>
 
             {/* Selector de grupo */}
             <div className="group-tabs" style={{ marginBottom: '12px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -1752,6 +1785,7 @@ export default function Admin({ session }) {
                 {bot365Saving ? 'Guardando…' : '💾 Guardar predicciones de Bot365'}
               </button>
             </div>
+            </>)}
           </>
         )
       })()}

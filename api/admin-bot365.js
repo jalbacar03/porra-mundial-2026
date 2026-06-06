@@ -50,8 +50,9 @@ export default async function handler(req, res) {
   let body
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {}) } catch { body = {} }
   const preds = Array.isArray(body.preds) ? body.preds : []
-  if (preds.length === 0) return res.status(400).json({ error: 'Sin predicciones' })
+  const bracket = body.bracket || null
 
+  // ── Predicciones de partidos ───────────────────────────────────────────
   let saved = 0, skipped = 0
   for (const p of preds) {
     const h = Number(p.home), a = Number(p.away)
@@ -69,5 +70,37 @@ export default async function handler(req, res) {
     saved++
   }
 
-  return res.status(200).json({ saved, skipped })
+  // ── Cuadro (bracket_picks) ─────────────────────────────────────────────
+  let bracketUpserted = 0, bracketCleared = 0
+  if (bracket) {
+    const upsert = Array.isArray(bracket.upsert) ? bracket.upsert : []
+    const clear = Array.isArray(bracket.clear) ? bracket.clear : []
+    if (upsert.length) {
+      const rows = upsert.map(p => ({
+        user_id: BOT365_ID,
+        match_number: p.match_number,
+        round: p.round,
+        predicted_winner_id: p.predicted_winner_id ?? null,
+        home_team_id: p.home_team_id ?? null,
+        away_team_id: p.away_team_id ?? null,
+        updated_at: new Date().toISOString(),
+      }))
+      await supaFetch('/rest/v1/bracket_picks?on_conflict=user_id,match_number', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(rows),
+      })
+      bracketUpserted = rows.length
+    }
+    if (clear.length) {
+      await supaFetch(
+        `/rest/v1/bracket_picks?user_id=eq.${BOT365_ID}&match_number=in.(${clear.join(',')})`,
+        { method: 'PATCH', body: JSON.stringify({ predicted_winner_id: null, updated_at: new Date().toISOString() }) }
+      )
+      bracketCleared = clear.length
+    }
+  }
+
+  if (preds.length === 0 && !bracket) return res.status(400).json({ error: 'Nada que guardar' })
+  return res.status(200).json({ saved, skipped, bracketUpserted, bracketCleared })
 }

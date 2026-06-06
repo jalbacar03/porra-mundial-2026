@@ -7,7 +7,10 @@ import {
 } from '../../utils/bracketStructure'
 import { FootballSpinner } from '../Skeleton'
 
-export default function BracketView({ session }) {
+export default function BracketView({ session, targetUserId, persist }) {
+  // Usuario destino: por defecto el propio; en modo admin-Bot365 se pasa su UID
+  // y un adaptador `persist` que escribe vía servidor (el cliente no puede por RLS).
+  const uid = targetUserId || session.user.id
   const [matches, setMatches] = useState([])
   const [predictions, setPredictions] = useState({})
   const [picks, setPicks] = useState({}) // { matchNumber: { predicted_winner_id, home_team_id, away_team_id } }
@@ -26,6 +29,23 @@ export default function BracketView({ session }) {
     }
   }, [])
 
+  // Adaptadores de guardado: si hay `persist` (modo Bot365) escribe por servidor;
+  // si no, escribe directo en Supabase como el propio usuario.
+  async function persistUpsert(rows) {
+    if (persist) return persist.upsert(rows)
+    return supabase.from('bracket_picks').upsert(
+      rows.map(p => ({ ...p, user_id: uid, updated_at: new Date().toISOString() })),
+      { onConflict: 'user_id,match_number' }
+    )
+  }
+  async function persistClear(matchNumbers) {
+    if (persist) return persist.clear(matchNumbers)
+    return supabase.from('bracket_picks')
+      .update({ predicted_winner_id: null, updated_at: new Date().toISOString() })
+      .eq('user_id', uid)
+      .in('match_number', matchNumbers)
+  }
+
   async function fetchData() {
     const [matchesRes, predsRes, picksRes, teamsRes, knockoutRes] = await Promise.all([
       supabase
@@ -36,11 +56,11 @@ export default function BracketView({ session }) {
       supabase
         .from('predictions')
         .select('*')
-        .eq('user_id', session.user.id),
+        .eq('user_id', uid),
       supabase
         .from('bracket_picks')
         .select('*')
-        .eq('user_id', session.user.id),
+        .eq('user_id', uid),
       supabase
         .from('teams')
         .select('id, name, code, flag_url'),
@@ -204,17 +224,10 @@ export default function BracketView({ session }) {
 
     // Persist
     if (toUpsert.length) {
-      supabase.from('bracket_picks').upsert(
-        toUpsert.map(p => ({ ...p, user_id: session.user.id, updated_at: new Date().toISOString() })),
-        { onConflict: 'user_id,match_number' }
-      ).then(({ error }) => { if (error) console.error('Auto-fill bracket save error:', error) })
+      persistUpsert(toUpsert).then((r) => { if (r?.error) console.error('Auto-fill bracket save error:', r.error) })
     }
     if (toClear.length) {
-      supabase.from('bracket_picks')
-        .update({ predicted_winner_id: null, updated_at: new Date().toISOString() })
-        .eq('user_id', session.user.id)
-        .in('match_number', toClear)
-        .then(({ error }) => { if (error) console.error('Cascade-clear bracket error:', error) })
+      persistClear(toClear).then((r) => { if (r?.error) console.error('Cascade-clear bracket error:', r.error) })
     }
   }, [loading, r32Matchups, r16Matchups, qfMatchups, sfMatchups, finalMatchups]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -251,19 +264,14 @@ export default function BracketView({ session }) {
     }
 
     debounceTimers.current[matchNumber] = setTimeout(async () => {
-      const { error } = await supabase
-        .from('bracket_picks')
-        .upsert({
-          user_id: session.user.id,
-          match_number: matchNumber,
-          round,
-          predicted_winner_id: teamId,
-          home_team_id: matchup.home?.id,
-          away_team_id: matchup.away?.id,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,match_number' })
-
-      if (error) console.error('Error saving bracket pick:', error)
+      const r = await persistUpsert([{
+        match_number: matchNumber,
+        round,
+        predicted_winner_id: teamId,
+        home_team_id: matchup.home?.id,
+        away_team_id: matchup.away?.id,
+      }])
+      if (r?.error) console.error('Error saving bracket pick:', r.error)
     }, 400)
   }
 
