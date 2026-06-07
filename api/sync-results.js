@@ -106,26 +106,22 @@ export default async function handler(req, res) {
     // Ventana inferior amplia: un partido sigue en juego hasta ~4h tras el
     // kickoff (90' + descanso + posible prórroga + penaltis + buffer). Con 1h
     // se caía de la ventana al llegar al descanso y dejaba de actualizarse.
-    const fourHoursAgo = new Date(now2.getTime() - 4 * 60 * 60 * 1000)
+    // Fixtures extra (amistosos/Liguilla) a re-consultar: TODOS los no
+    // terminados cuyo inicio ya pasó O empiece en las próximas 3h. Sin límite
+    // inferior: si un partido no llegó a marcarse 'live' o se quedó atascado,
+    // se sigue consultando hasta que API-Football lo dé por FINISHED (entonces
+    // sale del set). Son pocos (12), así que el coste de cuota es mínimo.
+    // Casos que esto cubre: Brasil-Egipto atascado en 'live', Argentina-Honduras
+    // que nunca llegó a 'live' y se quedó 'scheduled'.
     const ourExtraMatches = await supaFetch(
       `/rest/v1/matches?select=api_football_fixture_id,match_date,status` +
       `&api_football_fixture_id=not.is.null` +
       `&status=neq.finished` +
-      `&match_date=gte.${fourHoursAgo.toISOString()}` +
       `&match_date=lte.${threeHoursLater.toISOString()}`
     )
-    // ADEMÁS: cualquier partido que esté 'live' en nuestra DB, sin importar la
-    // fecha. Si un partido se queda atascado en 'live' (salió de la ventana
-    // antes de que el sync pillara el FT), hay que seguir consultándolo hasta
-    // que API-Football lo dé por terminado. Si no, se queda "EN DIRECTO" para
-    // siempre (caso Brasil-Egipto).
-    const stuckLive = await supaFetch(
-      `/rest/v1/matches?select=api_football_fixture_id&api_football_fixture_id=not.is.null&status=eq.live`
-    )
-    const extraIds = [...new Set([
-      ...(ourExtraMatches || []).map(m => m.api_football_fixture_id),
-      ...(stuckLive || []).map(m => m.api_football_fixture_id),
-    ].filter(Boolean))]
+    const extraIds = [...new Set((ourExtraMatches || [])
+      .map(m => m.api_football_fixture_id)
+      .filter(Boolean))]
     if (extraIds.length === 0) {
       log.push(`   ⏭️ Sin fixtures extra en ventana (-4h/+3h) — ahorrando cuota API`)
     }
