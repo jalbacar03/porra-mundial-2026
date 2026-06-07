@@ -114,9 +114,18 @@ export default async function handler(req, res) {
       `&match_date=gte.${fourHoursAgo.toISOString()}` +
       `&match_date=lte.${threeHoursLater.toISOString()}`
     )
-    const extraIds = (ourExtraMatches || [])
-      .map(m => m.api_football_fixture_id)
-      .filter(Boolean)
+    // ADEMÁS: cualquier partido que esté 'live' en nuestra DB, sin importar la
+    // fecha. Si un partido se queda atascado en 'live' (salió de la ventana
+    // antes de que el sync pillara el FT), hay que seguir consultándolo hasta
+    // que API-Football lo dé por terminado. Si no, se queda "EN DIRECTO" para
+    // siempre (caso Brasil-Egipto).
+    const stuckLive = await supaFetch(
+      `/rest/v1/matches?select=api_football_fixture_id&api_football_fixture_id=not.is.null&status=eq.live`
+    )
+    const extraIds = [...new Set([
+      ...(ourExtraMatches || []).map(m => m.api_football_fixture_id),
+      ...(stuckLive || []).map(m => m.api_football_fixture_id),
+    ].filter(Boolean))]
     if (extraIds.length === 0) {
       log.push(`   ⏭️ Sin fixtures extra en ventana (-4h/+3h) — ahorrando cuota API`)
     }
