@@ -36,6 +36,7 @@ export default function Leaderboard({ demoMode }) {
   const [activeTab, setActiveTab] = useState(onlyFriendly ? 'friendly' : 'mundial')
   const [friendlyRankings, setFriendlyRankings] = useState([])
   const [userJoinedFriendly, setUserJoinedFriendly] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   // PJ = partidos JUGADOS (empezados o terminados), contador global por stage.
   // No es "predichos": cuando arranque España-Irak, friendly pasa a 1.
   const [playedCounts, setPlayedCounts] = useState({ friendly: 0, mundial: 0 })
@@ -128,6 +129,7 @@ export default function Leaderboard({ demoMode }) {
       const meProf = user
         ? (await supabase.from('profiles').select('friendly_joined, payment_confirmed, is_admin').eq('id', user.id).single()).data
         : null
+      setIsAdmin(!!meProf?.is_admin)
       if (isFriendlyVisible(meProf)) {
         const { data: flb } = await supabase.from('leaderboard_friendly').select('*')
         if (flb) setFriendlyRankings(flb)
@@ -328,6 +330,39 @@ export default function Leaderboard({ demoMode }) {
   const maxPts = Math.max(...fullRankings.map(u => tabHasLive ? u.effective_points : u.total_points), 1)
   const firstLetter = (name) => ((name || '?')[0] || '?').toUpperCase()
 
+  // Export PDF de la clasificación de la pestaña activa (Mundial / Liguilla).
+  // Carga diferida de jsPDF para no engordar el bundle a los demás. Solo nombres
+  // y puntos — sin importes (coherente con la política de no mostrar dinero).
+  async function exportPDF() {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import('jspdf'), import('jspdf-autotable'),
+    ])
+    const isFriendly = activeTab === 'friendly'
+    const played = isFriendly ? playedCounts.friendly : playedCounts.mundial
+    const doc = new jsPDF()
+    const title = isFriendly ? 'La Liguilla · Clasificación' : 'Porra Mundial 2026 · Clasificación'
+    doc.setFontSize(16); doc.setTextColor(20)
+    doc.text(title, 14, 18)
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text(`Generado ${new Date().toLocaleString('es-ES')} · ${currentRankings.length} participantes`, 14, 24)
+    const body = currentRankings.map((u, i) => {
+      const { rank, tied } = getTiedRank(i)
+      const ex = tabHasLive ? (u.display_exact ?? u.exact_hits ?? 0) : (u.exact_hits || 0)
+      const si = tabHasLive ? (u.display_sign ?? u.sign_hits ?? 0) : (u.sign_hits || 0)
+      const pts = tabHasLive ? u.effective_points : u.total_points
+      return [tied ? `T${rank}` : `${rank}`, u.full_name, played, ex, si, pts]
+    })
+    autoTable(doc, {
+      head: [['#', 'Participante', 'PJ', 'RE', '1X2', 'PTS']],
+      body, startY: 30,
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: isFriendly ? [37, 99, 235] : [22, 163, 74], textColor: 255 },
+      columnStyles: { 0: { cellWidth: 14 }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'right', fontStyle: 'bold' } },
+    })
+    const today = new Date().toISOString().slice(0, 10)
+    doc.save(`clasificacion-${isFriendly ? 'liguilla' : 'mundial'}-${today}.pdf`)
+  }
+
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
 
@@ -352,6 +387,18 @@ export default function Leaderboard({ demoMode }) {
             }}>
               <span className="live-dot" /> LIVE
             </span>
+          )}
+          {isAdmin && !isEmpty && (
+            <button
+              onClick={exportPDF}
+              title="Descargar clasificación en PDF"
+              style={{
+                marginLeft: 'auto', padding: '6px 12px', borderRadius: '8px',
+                border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+                color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap'
+              }}
+            >📄 PDF</button>
           )}
         </div>
         {activeTab === 'friendly' && (
