@@ -782,6 +782,8 @@ function formatDateShort(dateStr) {
         const first  = Math.round(bote * 0.625)
         const second = Math.round(bote * 0.25)
         const third  = bote - first - second  // resto (asegura que suma exacta = bote)
+        // Separador de miles manual (determinista, no depende de Intl/ICU): 1248 → 1.248
+        const miles = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
         return (
           <div style={{
             flex: '1 1 220px',
@@ -815,7 +817,7 @@ function formatDateShort(dateStr) {
                 fontSize: '30px', fontWeight: '800', color: 'var(--gold)',
                 lineHeight: 1, letterSpacing: '-1px'
               }}>
-                {bote.toLocaleString('es-ES')} €
+                {miles(bote)} €
               </div>
             </div>
 
@@ -834,9 +836,9 @@ function formatDateShort(dateStr) {
               }}>
                 Reparto
               </div>
-              <div><span style={{ color: '#ffd700', fontWeight: 700 }}>1º</span> · {first.toLocaleString('es-ES')}€</div>
-              <div><span style={{ color: '#c0c0c0', fontWeight: 700 }}>2º</span> · {second.toLocaleString('es-ES')}€</div>
-              <div><span style={{ color: '#cd7f32', fontWeight: 700 }}>3º</span> · {third.toLocaleString('es-ES')}€</div>
+              <div><span style={{ color: '#ffd700', fontWeight: 700 }}>1º</span> · {miles(first)}€</div>
+              <div><span style={{ color: '#c0c0c0', fontWeight: 700 }}>2º</span> · {miles(second)}€</div>
+              <div><span style={{ color: '#cd7f32', fontWeight: 700 }}>3º</span> · {miles(third)}€</div>
             </div>
           </div>
         )
