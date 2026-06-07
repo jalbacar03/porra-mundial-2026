@@ -375,48 +375,15 @@ export default function Leaderboard({ demoMode }) {
     doc.text(dateStr, W - M, 30, { align: 'right' })
     doc.text(`${total} participantes`, W - M, 37, { align: 'right' })
 
-    // ── Podio top 3 (cards escalonadas: 2º · 1º · 3º) ──
-    const top3 = rows.slice(0, 3)
-    const MEDAL = { gold: GOLD, silver: SILVER, bronze: BRONZE }
-    const TINT = { gold: [252, 247, 230], silver: [243, 244, 246], bronze: [248, 240, 232] }
-    let tableStartY = 56
-    if (top3.length === 3 && top3.every(r => r.rank <= 3)) {
-      const gap = 6
-      const cardW = (usableW - 2 * gap) / 3
-      const cols = [ { r: top3[1], x: M }, { r: top3[0], x: M + cardW + gap }, { r: top3[2], x: M + 2 * (cardW + gap) } ]
-      const baseY = 116 // línea de base de las cards
-      const hByMedal = { gold: 56, silver: 48, bronze: 44 }
-      cols.forEach(({ r, x }) => {
-        const med = r.medal
-        const h = hByMedal[med]
-        const y = baseY - h
-        // card
-        doc.setFillColor(...TINT[med]); doc.setDrawColor(...MEDAL[med]); doc.setLineWidth(0.8)
-        doc.roundedRect(x, y, cardW, h, 3, 3, 'FD')
-        // franja superior con la medalla
-        doc.setFillColor(...MEDAL[med]); doc.roundedRect(x, y, cardW, 9, 3, 3, 'F'); doc.rect(x, y + 5, cardW, 4, 'F')
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(med === 'gold' ? 70 : 255)
-        doc.text(`${r.rank}º`, x + cardW / 2, y + 6, { align: 'center' })
-        // nombre
-        doc.setTextColor(...INK); doc.setFontSize(11)
-        let nm = r.name
-        while (doc.getTextWidth(nm) > cardW - 8 && nm.length > 3) nm = nm.slice(0, -1)
-        if (nm !== r.name) nm = nm.slice(0, -1) + '…'
-        doc.text(nm, x + cardW / 2, y + 22, { align: 'center' })
-        // puntos
-        doc.setTextColor(...ACCENT); doc.setFontSize(20)
-        doc.text(String(r.pts), x + cardW / 2, y + h - 14, { align: 'center' })
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...MUT)
-        doc.text('PUNTOS', x + cardW / 2, y + h - 7, { align: 'center' })
-      })
-      tableStartY = baseY + 10
-    }
+    // Medallas (texto # ) y tintes de fila (toda la fila resaltada).
+    const MEDAL = { gold: GOLD, silver: [120, 122, 128], bronze: BRONZE }
+    const ROW_TINT = { gold: [250, 244, 214], silver: [236, 238, 241], bronze: [246, 236, 224] }
 
     // ── Tabla completa ──
     const body = rows.map(r => [r.rankLabel, r.name, r.played, r.ex, r.si, r.pts])
     autoTable(doc, {
       head: [['#', 'Participante', 'PJ', 'RE', '1X2', 'PTS']],
-      body, startY: tableStartY, theme: 'striped',
+      body, startY: 52, theme: 'striped',
       styles: { fontSize: 9.5, cellPadding: 2.5, textColor: INK, lineColor: [232, 234, 238], lineWidth: 0.1 },
       alternateRowStyles: { fillColor: [248, 249, 251] },
       headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', halign: 'center' },
@@ -431,13 +398,17 @@ export default function Leaderboard({ demoMode }) {
       didParseCell: (data) => {
         if (data.section !== 'body') return
         const r = rows[data.row.index]; if (!r) return
-        if (r.medal && data.column.index === 0) {
-          data.cell.styles.fillColor = MEDAL[r.medal]
-          data.cell.styles.textColor = r.medal === 'gold' ? 70 : 255
+        // Top 3 → toda la fila tintada oro/plata/bronce, # con el color medalla.
+        if (r.medal) {
+          data.cell.styles.fillColor = ROW_TINT[r.medal]
+          if (data.column.index === 0) { data.cell.styles.textColor = MEDAL[r.medal] }
+          if (data.column.index === 5) { data.cell.styles.textColor = ACCENT }
         }
+        // Descenso → toda la fila en rojo tenue, # en rojo fuerte.
         if (r.bottom) {
           data.cell.styles.fillColor = [252, 232, 232]
           if (data.column.index === 0) { data.cell.styles.textColor = [200, 35, 35] }
+          if (data.column.index === 5) { data.cell.styles.textColor = ACCENT }
         }
       },
       didDrawPage: () => {
