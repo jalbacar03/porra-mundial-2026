@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import { FootballSpinner } from '../components/Skeleton'
 import Avatar from '../components/Avatar'
 import BracketView from '../components/bracket/BracketView'
+import PlayerSelector from '../components/bets/PlayerSelector'
 
 const SYNC_HISTORY_KEY = 'admin_sync_history_v1'
 
@@ -1781,11 +1782,10 @@ export default function Admin({ session }) {
                         {bet.name} <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontWeight: 500 }}>· {bet.max_points} pts</span>
                       </div>
                       {bet.input_type === 'single_player' && (
-                        <input
-                          value={val?.player_name || ''}
-                          onChange={e => setBot365Entry(bet.id, { player_name: e.target.value })}
-                          placeholder="Nombre del jugador…"
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '0.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '14px', boxSizing: 'border-box' }}
+                        <PlayerSelector
+                          value={val}
+                          onChange={v => setBot365Entry(bet.id, v)}
+                          config={bet.config || {}}
                         />
                       )}
                       {bet.input_type === 'single_team' && (
