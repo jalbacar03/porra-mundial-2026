@@ -345,19 +345,44 @@ export default function Leaderboard({ demoMode }) {
     doc.text(title, 14, 18)
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text(`Generado ${new Date().toLocaleString('es-ES')} · ${currentRankings.length} participantes`, 14, 24)
+    const total = currentRankings.length
+    const meta = [] // por fila: { medal, bottom }
     const body = currentRankings.map((u, i) => {
       const { rank, tied } = getTiedRank(i)
       const ex = tabHasLive ? (u.display_exact ?? u.exact_hits ?? 0) : (u.exact_hits || 0)
       const si = tabHasLive ? (u.display_sign ?? u.sign_hits ?? 0) : (u.sign_hits || 0)
       const pts = tabHasLive ? u.effective_points : u.total_points
+      const medal = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null
+      const bottom = total > 6 && i >= total - 3 && !medal
+      meta.push({ medal, bottom })
       return [tied ? `T${rank}` : `${rank}`, u.full_name, played, ex, si, pts]
     })
+    const MEDAL = { gold: [255, 215, 0], silver: [200, 200, 200], bronze: [205, 127, 50] }
     autoTable(doc, {
       head: [['#', 'Participante', 'PJ', 'RE', '1X2', 'PTS']],
       body, startY: 30,
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: isFriendly ? [37, 99, 235] : [22, 163, 74], textColor: 255 },
       columnStyles: { 0: { cellWidth: 14 }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'right', fontStyle: 'bold' } },
+      didParseCell: (data) => {
+        if (data.section !== 'body') return
+        const m = meta[data.row.index]
+        if (!m) return
+        // Medalla → fondo en la celda "#" (top 3)
+        if (m.medal && data.column.index === 0) {
+          data.cell.styles.fillColor = MEDAL[m.medal]
+          data.cell.styles.textColor = m.medal === 'silver' ? 30 : (m.medal === 'gold' ? 60 : 255)
+          data.cell.styles.fontStyle = 'bold'
+        }
+        // Descenso → fila tenue en rojo + "#" en rojo fuerte
+        if (m.bottom) {
+          data.cell.styles.fillColor = [252, 232, 232]
+          if (data.column.index === 0) {
+            data.cell.styles.textColor = [200, 35, 35]
+            data.cell.styles.fontStyle = 'bold'
+          }
+        }
+      },
     })
     const today = new Date().toISOString().slice(0, 10)
     doc.save(`clasificacion-${isFriendly ? 'liguilla' : 'mundial'}-${today}.pdf`)
