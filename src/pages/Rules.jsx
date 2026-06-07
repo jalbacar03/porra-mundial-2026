@@ -60,7 +60,7 @@ export default function Rules() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {[
             { label: '1. Fase de grupos', detail: '72 partidos', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'antes' },
-            { label: '2. Cuadro ciego', detail: 'Quién avanza cada ronda', pts: 'Hasta +20 pts (cadena campeón)', phase: 'antes' },
+            { label: '2. Cuadro ciego', detail: 'Quién avanza cada ronda', pts: 'Hasta +16 pts (cadena campeón)', phase: 'antes' },
             { label: '3. Predicciones especiales', detail: '14 apuestas en 3 bloques', pts: 'Hasta +29 pts', phase: 'antes' },
             { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'durante' }
           ].map((row, i) => (
@@ -110,18 +110,18 @@ export default function Rules() {
       {/* ===== 2. CUADRO CIEGO ===== */}
       <Section icon="🏆" title="2. Cuadro ciego" badge="Pre-torneo">
         <P>Antes del Mundial, montas tu cuadro eliminatorio completo: desde dieciseisavos hasta el campeón.</P>
-        <P>Los dieciseisavos se auto-rellenan desde tus predicciones de grupo (1º y 2º de cada grupo + 8 mejores terceros). A partir de ahí, eliges quién gana cada eliminatoria.</P>
-        <P last>Aquí no predices marcadores, solo quién pasa de ronda.</P>
+        <P>Los dieciseisavos se forman desde tus predicciones de grupo (1º y 2º de cada grupo + 8 mejores terceros). A partir de ahí, eliges quién gana cada eliminatoria.</P>
+        <P last>Aquí no predices marcadores, solo quién gana cada cruce (es decir, quién pasa de ronda). Estar en una ronda no puntúa; puntúa ganar el partido de esa ronda.</P>
         <ItemTable items={[
-          { label: 'Dieciseisavos (R32)', value: '0 pts (auto)', color: 'var(--text-dim)' },
-          { label: 'Octavos de final (×8)', value: '+1 pt por acierto', color: '#4ade80' },
-          { label: 'Cuartos de final (×4)', value: '+2 pts por acierto', color: '#4ade80' },
-          { label: 'Semifinales (×2)', value: '+4 pts por acierto', color: '#4ade80' },
-          { label: 'Final (×1)', value: '+5 pts por acierto', color: '#4ade80' },
-          { label: 'Campeón', value: '+8 pts', color: '#4ade80' }
+          { label: 'Llegar a 16avos (desde grupos)', value: '0 pts', color: 'var(--text-dim)' },
+          { label: 'Ganar en 16avos → octavos (×16)', value: '+1 pt', color: '#4ade80' },
+          { label: 'Ganar en octavos → cuartos (×8)', value: '+1 pt', color: '#4ade80' },
+          { label: 'Ganar en cuartos → semis (×4)', value: '+2 pts', color: '#4ade80' },
+          { label: 'Ganar en semis → final (×2)', value: '+4 pts', color: '#4ade80' },
+          { label: 'Ganar la final (campeón) (×1)', value: '+8 pts', color: '#4ade80' }
         ]} />
         <Highlight>
-          Si aciertas toda la cadena de tu campeón (desde octavos hasta ganar la final), sumas hasta 20 puntos.
+          Si clavas toda la cadena de tu campeón (gana en 16avos, octavos, cuartos, semis y final), sumas 1+1+2+4+8 = 16 puntos. Máximo del cuadro: 48 pts.
         </Highlight>
       </Section>
 

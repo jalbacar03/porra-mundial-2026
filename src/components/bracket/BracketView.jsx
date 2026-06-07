@@ -345,8 +345,9 @@ export default function BracketView({ session, targetUserId, persist }) {
   // Total picks needed: 8 R16 + 4 QF + 2 SF + 1 Final = 15
   const totalNeeded = 15
   const totalDone = totalR16Picked + totalQFPicked + totalSFPicked + totalFinalPicked
-  // Potential points: sum of round.pointsPerWin × matches in round + champion bonus if final picked
-  const potentialPts = (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 5) + (totalFinalPicked * 8)
+  // Potential points: 16avos 1 · Octavos 1 · Cuartos 2 · Semis 4 · Final 8.
+  // Ganar la final ya vale 8 (sin bonus aparte). Cadena campeón = 16.
+  const potentialPts = (totalR32Picked * 1) + (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 8)
 
   // Bracket layout: every column is a flex column of MATCH wrappers. Each
   // wrapper holds the two team slots (home + away) for that match and is
@@ -367,11 +368,11 @@ export default function BracketView({ session, targetUserId, persist }) {
   ]).filter(Boolean)
 
   const COLUMNS = [
-    { key: 'r32',   label: '16avos',  pts: 0, matches: R32_MATCHES_ORDERED, flex: 2 },
+    { key: 'r32',   label: '16avos',  pts: 1, matches: R32_MATCHES_ORDERED, flex: 2 },
     { key: 'r16',   label: 'Octavos', pts: 1, matches: R16_MATCHES,         flex: 4 },
     { key: 'qf',    label: 'Cuartos', pts: 2, matches: QF_MATCHES,          flex: 8 },
     { key: 'sf',    label: 'Semi',    pts: 4, matches: SF_MATCHES,          flex: 16 },
-    { key: 'final', label: 'Final',   pts: 5, matches: FINAL_MATCH,         flex: 32 }
+    { key: 'final', label: 'Final',   pts: 8, matches: FINAL_MATCH,         flex: 32 }
   ]
 
   return (
@@ -627,15 +628,14 @@ export default function BracketView({ session, targetUserId, persist }) {
                 {renderSlot('away')}
               </div>
 
-              {/* Points hint per match (skip R32, which is 0 pts) */}
+              {/* Points hint per match (todas las rondas dan puntos ya) */}
               {col.pts > 0 && (
                 <div style={{
                   marginTop: '6px',
                   fontSize: '10px', color: 'var(--text-dim)',
                   textAlign: 'right'
                 }}>
-                  Acertar el ganador: <span style={{ color: 'var(--gold)', fontWeight: '700' }}>+{col.pts} pts</span>
-                  {isFinal && <span style={{ color: 'var(--gold)' }}> · +8 pts campeón</span>}
+                  Acertar el ganador: <span style={{ color: 'var(--gold)', fontWeight: '700' }}>+{col.pts} pts{isFinal ? ' (campeón)' : ''}</span>
                 </div>
               )}
             </div>
@@ -719,7 +719,10 @@ export default function BracketView({ session, targetUserId, persist }) {
             Cadena campeón
           </div>
           <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--gold)', marginTop: '2px' }}>
-            hasta +20
+            hasta +16
+          </div>
+          <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px' }}>
+            1 + 1 + 2 + 4 + 8
           </div>
         </div>
       </div>

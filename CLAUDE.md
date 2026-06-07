@@ -50,14 +50,15 @@ App web de predicciones para el Mundial de Fútbol 2026 entre amigos. Los partic
 - 1 pt: signo correcto (1X2)
 - 0 pts: fallo
 
-### Cuadro de eliminatorias (1-2-4-5-8)
-- Dieciseisavos (R32): 0 pts (auto-rellenado desde predicciones de grupo)
-- Octavos: 1 pt por acierto (máx 16 pts)
-- Cuartos: 2 pts por acierto (máx 16 pts)
-- Semifinales: 4 pts por acierto (máx 16 pts)
-- Final: 5 pts por acierto (máx 10 pts)
-- Campeón: 8 pts
-- **Acertar toda la cadena del campeón = 20 pts** (1+2+4+5+8)
+### Cuadro de eliminatorias (1-1-2-4-8) — actualizado 2026-06-07
+Se puntúa por ACERTAR QUIÉN GANA cada cruce (= avanza de ronda). Estar en una ronda no puntúa; puntúa ganar el partido de esa ronda.
+- Ganar en 16avos → octavos (R32, ×16): 1 pt (máx 16) — los 16avos se forman desde grupos; ganar el cruce sí puntúa
+- Ganar en octavos → cuartos (R16, ×8): 1 pt (máx 8)
+- Ganar en cuartos → semis (QF, ×4): 2 pts (máx 8)
+- Ganar en semis → final (SF, ×2): 4 pts (máx 8)
+- Ganar la final = campeón (×1): 8 pts (máx 8) — **sin bonus aparte**, ganar la final ya vale 8
+- **Cadena del campeón = 16 pts** (1+1+2+4+8). Máximo del cuadro = 48 pts
+- Código: `scoreBracketPicks` en `api/sync-results.js`, `ROUND_POINTS = { r32:1, r16:1, qf:2, sf:4, final:8 }`
 
 ### Predicciones especiales (rediseño 2026-05-17: 3 bloques, 14 apuestas, 29 pts máx)
 **Bloque Jugadores (4):**
@@ -264,7 +265,7 @@ vercel.json               # Cron config (sync diario 9AM UTC)
 - ✅ Durante el Mundial: Cuadro Real (bracket en vivo) + Órdagos
 - ✅ Ver predicciones de otros: tab en Stats con predicciones de cada participante
 - ✅ H2H comparador: modal + tab dedicado en Stats
-- ✅ Bracket scoring automático: R16=1, QF=2, SF=4, Final=5, Campeón=+8 bonus
+- ✅ Bracket scoring automático (actualizado 2026-06-07): R32=1, R16=1, QF=2, SF=4, Final=8 (sin bonus aparte). Cadena campeón=16, máx cuadro=48
 - ✅ Leaderboard incluye: partidos + pre-torneo + órdagos + bracket
 - ✅ Stats premium: hero cards, OddsBar bet365-style, gradient-text, animaciones
 - ✅ Tabs pill (borderRadius 20px) unificados en toda la app

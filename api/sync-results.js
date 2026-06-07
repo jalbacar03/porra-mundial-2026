@@ -811,13 +811,13 @@ async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, 
 
 /**
  * Score bracket picks — award points for correct winner predictions in knockout rounds.
- * Points: R32=0, R16=1, QF=2, SF=4, Final=5, Champion=8
+ * Se puntúa por ACERTAR QUIÉN GANA cada cruce (= avanza de ronda):
+ *   16avos→1, Octavos→1, Cuartos→2, Semis→4, Final(campeón)→8.
+ *   Cadena del campeón = 1+1+2+4+8 = 16. Máximo del cuadro = 48.
+ *   Sin bonus aparte: ganar la final ya vale 8.
  */
 async function scoreBracketPicks(log) {
-  // Point values per round
-  const ROUND_POINTS = { r32: 0, r16: 1, qf: 2, sf: 4, final: 5 }
-  // Champion bonus: 8 pts for correctly predicting the tournament winner (final winner)
-  const CHAMPION_BONUS = 8
+  const ROUND_POINTS = { r32: 1, r16: 1, qf: 2, sf: 4, final: 8 }
 
   // Get all finished knockout matches with a winner
   const knockoutMatches = await supaFetch(
@@ -843,10 +843,6 @@ async function scoreBracketPicks(log) {
     }
   })
 
-  // Determine the final match winner for champion bonus
-  // Final is match_number 104
-  const finalWinner = winnerByMatchNumber[104] || null
-
   let scored = 0
   for (const pick of unscoredPicks) {
     const actualWinner = winnerByMatchNumber[pick.match_number]
@@ -855,13 +851,7 @@ async function scoreBracketPicks(log) {
     const roundKey = pick.round // 'r32', 'r16', 'qf', 'sf', 'final'
     const basePoints = ROUND_POINTS[roundKey] || 0
     const isCorrect = pick.predicted_winner_id === actualWinner
-
-    let pointsAwarded = isCorrect ? basePoints : 0
-
-    // Champion bonus: if this is the final and the user predicted the winner
-    if (roundKey === 'final' && isCorrect && finalWinner) {
-      pointsAwarded += CHAMPION_BONUS
-    }
+    const pointsAwarded = isCorrect ? basePoints : 0
 
     await supaFetch(`/rest/v1/bracket_picks?id=eq.${pick.id}`, {
       method: 'PATCH',
