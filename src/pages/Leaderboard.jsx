@@ -330,60 +330,123 @@ export default function Leaderboard({ demoMode }) {
   const maxPts = Math.max(...fullRankings.map(u => tabHasLive ? u.effective_points : u.total_points), 1)
   const firstLetter = (name) => ((name || '?')[0] || '?').toUpperCase()
 
-  // Export PDF de la clasificación de la pestaña activa (Mundial / Liguilla).
-  // Carga diferida de jsPDF para no engordar el bundle a los demás. Solo nombres
-  // y puntos — sin importes (coherente con la política de no mostrar dinero).
+  // Export PDF de la clasificación — diseño con cabecera de marca, podio del
+  // top 3 y tabla con estilo. Carga diferida de jsPDF. Sin importes.
   async function exportPDF() {
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
       import('jspdf'), import('jspdf-autotable'),
     ])
     const isFriendly = activeTab === 'friendly'
     const played = isFriendly ? playedCounts.friendly : playedCounts.mundial
+    const ACCENT = isFriendly ? [37, 99, 235] : [22, 163, 74]
+    const DARK = isFriendly ? [15, 23, 42] : [13, 27, 21]
+    const GOLD = [212, 175, 55], SILVER = [150, 152, 158], BRONZE = [176, 118, 64]
+    const INK = [28, 31, 40], MUT = [120, 125, 135]
+
     const doc = new jsPDF()
-    const title = isFriendly ? 'La Liguilla · Clasificación' : 'Porra Mundial 2026 · Clasificación'
-    doc.setFontSize(16); doc.setTextColor(20)
-    doc.text(title, 14, 18)
-    doc.setFontSize(9); doc.setTextColor(120)
-    doc.text(`Generado ${new Date().toLocaleString('es-ES')} · ${currentRankings.length} participantes`, 14, 24)
+    const W = doc.internal.pageSize.getWidth()
+    const H = doc.internal.pageSize.getHeight()
+    const M = 14
+    const usableW = W - 2 * M
     const total = currentRankings.length
-    const meta = [] // por fila: { medal, bottom }
-    const body = currentRankings.map((u, i) => {
+
+    const rows = currentRankings.map((u, i) => {
       const { rank, tied } = getTiedRank(i)
       const ex = tabHasLive ? (u.display_exact ?? u.exact_hits ?? 0) : (u.exact_hits || 0)
       const si = tabHasLive ? (u.display_sign ?? u.sign_hits ?? 0) : (u.sign_hits || 0)
       const pts = tabHasLive ? u.effective_points : u.total_points
       const medal = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null
       const bottom = total > 6 && i >= total - 3 && !medal
-      meta.push({ medal, bottom })
-      return [tied ? `T${rank}` : `${rank}`, u.full_name, played, ex, si, pts]
+      return { rankLabel: tied ? `T${rank}` : `${rank}`, rank, name: u.full_name, played, ex, si, pts, medal, bottom }
     })
-    const MEDAL = { gold: [255, 215, 0], silver: [200, 200, 200], bronze: [205, 127, 50] }
+
+    // ── Cabecera de marca ──
+    doc.setFillColor(...DARK); doc.rect(0, 0, W, 42, 'F')
+    doc.setFillColor(...ACCENT); doc.rect(0, 42, W, 1.5, 'F')
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(235)
+    doc.text('PORRA MUNDIAL ', M, 14)
+    doc.setTextColor(...GOLD); doc.text('26', M + doc.getTextWidth('PORRA MUNDIAL '), 14)
+    doc.setTextColor(255); doc.setFontSize(22)
+    doc.text(isFriendly ? 'La Liguilla' : 'Clasificación', M, 30)
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(185)
+    doc.text(isFriendly ? 'Amistosos previos al Mundial' : 'Mundial 2026 · USA · México · Canadá', M, 37)
+    doc.setFontSize(9); doc.setTextColor(205)
+    const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    doc.text(dateStr, W - M, 30, { align: 'right' })
+    doc.text(`${total} participantes`, W - M, 37, { align: 'right' })
+
+    // ── Podio top 3 (cards escalonadas: 2º · 1º · 3º) ──
+    const top3 = rows.slice(0, 3)
+    const MEDAL = { gold: GOLD, silver: SILVER, bronze: BRONZE }
+    const TINT = { gold: [252, 247, 230], silver: [243, 244, 246], bronze: [248, 240, 232] }
+    let tableStartY = 56
+    if (top3.length === 3 && top3.every(r => r.rank <= 3)) {
+      const gap = 6
+      const cardW = (usableW - 2 * gap) / 3
+      const cols = [ { r: top3[1], x: M }, { r: top3[0], x: M + cardW + gap }, { r: top3[2], x: M + 2 * (cardW + gap) } ]
+      const baseY = 116 // línea de base de las cards
+      const hByMedal = { gold: 56, silver: 48, bronze: 44 }
+      cols.forEach(({ r, x }) => {
+        const med = r.medal
+        const h = hByMedal[med]
+        const y = baseY - h
+        // card
+        doc.setFillColor(...TINT[med]); doc.setDrawColor(...MEDAL[med]); doc.setLineWidth(0.8)
+        doc.roundedRect(x, y, cardW, h, 3, 3, 'FD')
+        // franja superior con la medalla
+        doc.setFillColor(...MEDAL[med]); doc.roundedRect(x, y, cardW, 9, 3, 3, 'F'); doc.rect(x, y + 5, cardW, 4, 'F')
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(med === 'gold' ? 70 : 255)
+        doc.text(`${r.rank}º`, x + cardW / 2, y + 6, { align: 'center' })
+        // nombre
+        doc.setTextColor(...INK); doc.setFontSize(11)
+        let nm = r.name
+        while (doc.getTextWidth(nm) > cardW - 8 && nm.length > 3) nm = nm.slice(0, -1)
+        if (nm !== r.name) nm = nm.slice(0, -1) + '…'
+        doc.text(nm, x + cardW / 2, y + 22, { align: 'center' })
+        // puntos
+        doc.setTextColor(...ACCENT); doc.setFontSize(20)
+        doc.text(String(r.pts), x + cardW / 2, y + h - 14, { align: 'center' })
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...MUT)
+        doc.text('PUNTOS', x + cardW / 2, y + h - 7, { align: 'center' })
+      })
+      tableStartY = baseY + 10
+    }
+
+    // ── Tabla completa ──
+    const body = rows.map(r => [r.rankLabel, r.name, r.played, r.ex, r.si, r.pts])
     autoTable(doc, {
       head: [['#', 'Participante', 'PJ', 'RE', '1X2', 'PTS']],
-      body, startY: 30,
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: isFriendly ? [37, 99, 235] : [22, 163, 74], textColor: 255 },
-      columnStyles: { 0: { cellWidth: 14 }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'right', fontStyle: 'bold' } },
+      body, startY: tableStartY, theme: 'striped',
+      styles: { fontSize: 9.5, cellPadding: 2.5, textColor: INK, lineColor: [232, 234, 238], lineWidth: 0.1 },
+      alternateRowStyles: { fillColor: [248, 249, 251] },
+      headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+        1: { fontStyle: 'bold' },
+        2: { cellWidth: 16, halign: 'center', textColor: MUT },
+        3: { cellWidth: 16, halign: 'center' },
+        4: { cellWidth: 16, halign: 'center' },
+        5: { cellWidth: 20, halign: 'right', fontStyle: 'bold', textColor: ACCENT },
+      },
       didParseCell: (data) => {
         if (data.section !== 'body') return
-        const m = meta[data.row.index]
-        if (!m) return
-        // Medalla → fondo en la celda "#" (top 3)
-        if (m.medal && data.column.index === 0) {
-          data.cell.styles.fillColor = MEDAL[m.medal]
-          data.cell.styles.textColor = m.medal === 'silver' ? 30 : (m.medal === 'gold' ? 60 : 255)
-          data.cell.styles.fontStyle = 'bold'
+        const r = rows[data.row.index]; if (!r) return
+        if (r.medal && data.column.index === 0) {
+          data.cell.styles.fillColor = MEDAL[r.medal]
+          data.cell.styles.textColor = r.medal === 'gold' ? 70 : 255
         }
-        // Descenso → fila tenue en rojo + "#" en rojo fuerte
-        if (m.bottom) {
+        if (r.bottom) {
           data.cell.styles.fillColor = [252, 232, 232]
-          if (data.column.index === 0) {
-            data.cell.styles.textColor = [200, 35, 35]
-            data.cell.styles.fontStyle = 'bold'
-          }
+          if (data.column.index === 0) { data.cell.styles.textColor = [200, 35, 35] }
         }
       },
+      didDrawPage: () => {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...MUT)
+        doc.text('porra-mundial-2026', M, H - 8)
+        doc.text(`Generado ${new Date().toLocaleString('es-ES')}`, W - M, H - 8, { align: 'right' })
+      },
     })
+
     const today = new Date().toISOString().slice(0, 10)
     doc.save(`clasificacion-${isFriendly ? 'liguilla' : 'mundial'}-${today}.pdf`)
   }
