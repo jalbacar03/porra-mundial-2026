@@ -8,29 +8,68 @@ const POSITION_BADGES = {
   Attacker: { label: 'DEL', color: '#ffcc00' }
 }
 
+// Normaliza para búsqueda insensible a acentos ("Vinicius" casa con "Vinícius")
+function normalize(str) {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
+// Cache a nivel de módulo: cargamos todos los jugadores una sola vez por sesión
+// y filtramos en cliente para poder ignorar acentos (ilike de Postgres no los ignora)
+let playersPromise = null
+function loadAllPlayers() {
+  if (!playersPromise) {
+    playersPromise = (async () => {
+      const all = []
+      const pageSize = 1000
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from('players')
+          .select('id, name, position, team:teams(name, flag_url)')
+          .order('name')
+          .range(from, from + pageSize - 1)
+        if (error) { playersPromise = null; throw error }
+        all.push(...(data || []))
+        if (!data || data.length < pageSize) break
+      }
+      return all.map(p => ({ ...p, _search: normalize(p.name) }))
+    })()
+  }
+  return playersPromise
+}
+
 export default function PlayerSelector({ value, onChange, disabled, config = {} }) {
   const [search, setSearch] = useState('')
   const [results, setResults] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [searching, setSearching] = useState(false)
   const [hasPlayers, setHasPlayers] = useState(true) // assume yes until proven otherwise
-  const debounceRef = useRef(null)
+  const [loaded, setLoaded] = useState(false)
+  const allPlayersRef = useRef(null)
+  const searchRef = useRef('')
 
-  // Check if players table has data on mount
+  // Carga todos los jugadores una vez (cacheado a nivel de módulo)
   useEffect(() => {
-    async function checkPlayers() {
-      const { count } = await supabase
-        .from('players')
-        .select('*', { count: 'exact', head: true })
-      if (count === 0) setHasPlayers(false)
-    }
-    checkPlayers()
+    loadAllPlayers()
+      .then(players => {
+        allPlayersRef.current = players
+        if (players.length === 0) setHasPlayers(false)
+        setLoaded(true)
+      })
+      .catch(() => setHasPlayers(false))
   }, [])
+
+  // Si el usuario tecleó antes de terminar la carga, re-ejecuta el filtro
+  useEffect(() => {
+    if (loaded && searchRef.current.length >= 2) handleSearch(searchRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded])
 
   function handleSearch(text) {
     setSearch(text)
-
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+    searchRef.current = text
 
     if (text.length < 2) {
       setResults([])
@@ -39,27 +78,33 @@ export default function PlayerSelector({ value, onChange, disabled, config = {} 
     }
 
     setShowDropdown(true)
-    setSearching(true)
 
-    debounceRef.current = setTimeout(async () => {
-      let query = supabase
-        .from('players')
-        .select('id, name, position, team:teams(name, flag_url)')
-        .ilike('name', `%${text}%`)
-        .limit(20)
+    const players = allPlayersRef.current
+    if (!players) {
+      // aún cargando
+      setSearching(true)
+      setResults([])
+      return
+    }
+    setSearching(false)
 
-      // Filter by position if config specifies it
-      if (config.position === 'goalkeeper') {
-        query = query.eq('position', 'Goalkeeper')
-      }
+    const q = normalize(text)
+    let matches = players.filter(p => p._search.includes(q))
 
-      const { data, error } = await query
+    // Filter by position if config specifies it
+    if (config.position === 'goalkeeper') {
+      matches = matches.filter(p => p.position === 'Goalkeeper')
+    }
 
-      if (!error && data) {
-        setResults(data)
-      }
-      setSearching(false)
-    }, 300)
+    // Prioriza coincidencias que empiezan por el texto, luego alfabético
+    matches.sort((a, b) => {
+      const aStarts = a._search.startsWith(q) ? 0 : 1
+      const bStarts = b._search.startsWith(q) ? 0 : 1
+      if (aStarts !== bStarts) return aStarts - bStarts
+      return a.name.localeCompare(b.name)
+    })
+
+    setResults(matches.slice(0, 20))
   }
 
   function selectPlayer(player) {
