@@ -13,7 +13,9 @@ export default function PaymentWall({ session, profile }) {
     if (session?.user?.id) {
       await supabase
         .from('profiles')
-        .update({ access_requested_at: new Date().toISOString() })
+        // admission_dismissed=false → si el admin lo había ocultado, reaparece
+        // en Admisiones al volver a solicitar acceso.
+        .update({ access_requested_at: new Date().toISOString(), admission_dismissed: false })
         .eq('id', session.user.id)
         .then(({ error }) => { if (error) console.warn('access request save failed', error) })
       // Avisar al admin (push). Fire-and-forget: si falla, no bloquea la solicitud.

@@ -106,7 +106,7 @@ export default function Admin({ session }) {
   async function fetchProfiles() {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, has_paid, payment_confirmed, created_at, access_requested_at, avatar_url')
+      .select('id, full_name, nickname, has_paid, payment_confirmed, created_at, access_requested_at, avatar_url, admission_dismissed')
       .order('created_at', { ascending: true })
 
     if (!error && data) setProfiles(data)
@@ -264,6 +264,24 @@ export default function Admin({ session }) {
       setProfiles(prev => prev.map(p =>
         p.id === userId ? { ...p, payment_confirmed: !currentStatus } : p
       ))
+    }
+  }
+
+  // Ocultar de Admisiones sin borrar la cuenta. Limpia la solicitud → si
+  // vuelve a pulsar "Solicitar acceso" reaparece (PaymentWall pone dismissed=false).
+  async function dismissAdmission(userId, name) {
+    if (!window.confirm(`¿Ocultar a ${name} de Admisiones? Si vuelve a solicitar acceso, reaparecerá.`)) return
+    const { error } = await supabase
+      .from('profiles')
+      .update({ admission_dismissed: true, access_requested_at: null })
+      .eq('id', userId)
+    if (!error) {
+      setProfiles(prev => prev.map(p =>
+        p.id === userId ? { ...p, admission_dismissed: true, access_requested_at: null } : p
+      ))
+      toast?.success(`${name} oculto de Admisiones`)
+    } else {
+      toast?.error('No se pudo ocultar')
     }
   }
 
@@ -485,8 +503,10 @@ export default function Admin({ session }) {
   const totalMatches = matches.length
   const finishedMatches = matches.filter(m => m.status === 'finished').length
   const liveMatches = matches.filter(m => m.status === 'live').length
-  const totalUsers = realProfilesStats.length
-  const admittedUsers = realProfilesStats.filter(p => p.has_paid).length
+  // Los "ocultos" (admission_dismissed) no cuentan ni se muestran en Admisiones.
+  const visibleProfilesStats = realProfilesStats.filter(p => !p.admission_dismissed)
+  const totalUsers = visibleProfilesStats.length
+  const admittedUsers = visibleProfilesStats.filter(p => p.has_paid).length
   const pendingUsers = totalUsers - admittedUsers
 
   // Group matches with optional search filter
@@ -546,7 +566,8 @@ export default function Admin({ session }) {
   // Filter & sort profiles for the Admisiones tab.
   // Bot365 oculto siempre (no es un participante real).
   const filteredProfiles = (() => {
-    let arr = profiles.filter(p => p.id !== BOT365_ID_STATS)
+    // Bot365 y los ocultos (admission_dismissed) nunca aparecen.
+    let arr = profiles.filter(p => p.id !== BOT365_ID_STATS && !p.admission_dismissed)
     if (admissionsFilter === 'pending') arr = arr.filter(p => !p.has_paid)
     else if (admissionsFilter === 'admitted') arr = arr.filter(p => p.has_paid)
 
@@ -1021,17 +1042,31 @@ export default function Admin({ session }) {
 
                 {/* Fila 2: botones a ancho completo (sin solape) */}
                 {!profile.has_paid ? (
-                  <button
-                    onClick={() => togglePayment(profile.id, profile.has_paid)}
-                    style={{
-                      width: '100%', padding: '9px 14px', borderRadius: '8px', cursor: 'pointer',
-                      fontSize: '12px', fontWeight: 700, border: 'none',
-                      background: 'var(--green)', color: '#fff',
-                      letterSpacing: '0.5px', textTransform: 'uppercase'
-                    }}
-                  >
-                    Admitir
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => togglePayment(profile.id, profile.has_paid)}
+                      style={{
+                        flex: 2, padding: '9px 14px', borderRadius: '8px', cursor: 'pointer',
+                        fontSize: '12px', fontWeight: 700, border: 'none',
+                        background: 'var(--green)', color: '#fff',
+                        letterSpacing: '0.5px', textTransform: 'uppercase'
+                      }}
+                    >
+                      Admitir
+                    </button>
+                    <button
+                      onClick={() => dismissAdmission(profile.id, name)}
+                      title="Ocultar de Admisiones (tendría que volver a solicitar)"
+                      style={{
+                        flex: 1, padding: '9px 8px', borderRadius: '8px', cursor: 'pointer',
+                        fontSize: '11px', fontWeight: 600, border: '0.5px solid var(--border)',
+                        background: 'var(--bg-input)', color: 'var(--text-muted)',
+                        letterSpacing: '0.4px', textTransform: 'uppercase'
+                      }}
+                    >
+                      Ocultar
+                    </button>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
