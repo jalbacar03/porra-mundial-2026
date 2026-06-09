@@ -90,7 +90,7 @@ export default function Rules() {
       </div>
 
       {/* ===== PHASE DIVIDER: ANTES ===== */}
-      <PhaseDivider label="ANTES DEL MUNDIAL" subtitle="Deadline: 9 de junio de 2026, 23:59h" color="#ff8a8a" />
+      <PhaseDivider label="ANTES DEL MUNDIAL" subtitle="Deadline: 10 de junio de 2026, 23:59h" color="#ff8a8a" />
 
       {/* ===== 1. FASE DE GRUPOS ===== */}
       <Section icon="⚽" title="1. Fase de grupos" badge="72 partidos">
@@ -209,7 +209,7 @@ export default function Rules() {
       {/* ===== FECHAS CLAVE ===== */}
       <Section icon="📅" title="Fechas clave">
         <ItemTable items={[
-          { label: 'Deadline predicciones pre-torneo', value: '9 de junio, 23:59h', color: '#ff8a8a' },
+          { label: 'Deadline predicciones pre-torneo', value: '10 de junio, 23:59h', color: '#ff8a8a' },
           { label: 'Inicio del Mundial', value: '11 de junio de 2026', color: 'var(--text-primary)' },
           { label: 'Final del Mundial', value: '19 de julio de 2026', color: '#4ade80' }
         ]} />

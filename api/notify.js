@@ -21,7 +21,7 @@ const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:noreply@porra-mundial-2026.app'
 
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
-const PREDICTIONS_DEADLINE = new Date('2026-06-09T21:59:00Z') // 23:59 hora España
+const PREDICTIONS_DEADLINE = new Date('2026-06-10T21:59:00Z') // 23:59 hora España
 const MUNDIAL_START = new Date('2026-06-11T00:00:00Z')
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {

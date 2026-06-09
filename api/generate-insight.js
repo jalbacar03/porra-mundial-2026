@@ -196,8 +196,8 @@ async function gatherData() {
     // News fetch failed — continue without
   }
 
-  // Days remaining until predictions deadline (9 jun 2026, 17:00 UTC)
-  const DEADLINE = new Date('2026-06-09T17:00:00Z')
+  // Days remaining until predictions deadline (10 jun 2026, 17:00 UTC)
+  const DEADLINE = new Date('2026-06-10T17:00:00Z')
   const daysToDeadline = Math.max(0, Math.ceil((DEADLINE - new Date()) / 86400000))
 
   return {
