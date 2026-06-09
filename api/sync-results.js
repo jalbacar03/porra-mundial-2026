@@ -414,6 +414,16 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
   // Get knockout results
   const finishedKnockout = ourMatches.filter(m => m.stage !== 'group' && m.home_score !== null)
 
+  // Partido de la final (stage 'Final' o match_number 104) y si el torneo
+  // terminó. OJO: usar `=== 'finished'` (no `?.home_score !== null`, que daba
+  // TRUE cuando finalMatch era undefined → resolvía apuestas antes de tiempo).
+  const finalMatch = ourMatches.find(m => m.stage === 'Final' || m.match_number === 104)
+  const tournamentOver = finalMatch?.status === 'finished'
+
+  // Solo fixtures del MUNDIAL (excluye amistosos/Liguilla, que están en otra
+  // liga). Sin esto, una goleada o hat-trick en un amistoso resolvía la apuesta.
+  const mundialApiMatches = apiMatches.filter(m => m.league?.id === WORLD_CUP_ID)
+
   for (const bet of bets) {
     if (!bet.is_active) continue
 
@@ -426,9 +436,8 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
     switch (bet.slug) {
       // === GOLEADOR ===
       case 'top_scorer': {
-        // Only resolve when tournament is over
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
-        if (finalMatch?.home_score !== null && topScorers.length > 0) {
+        // Solo cuando el torneo ha terminado de verdad.
+        if (tournamentOver && topScorers.length > 0) {
           correctAnswer = topScorers[0]?.player?.name
           canResolve = true
         }
@@ -437,8 +446,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
       // === ASISTENCIAS ===
       case 'top_assists': {
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
-        if (finalMatch?.home_score !== null && topAssists.length > 0) {
+        if (tournamentOver && topAssists.length > 0) {
           correctAnswer = topAssists[0]?.player?.name
           canResolve = true
         }
@@ -516,7 +524,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       case 'any_hat_trick': {
         // Optimization: first check if any player in top scorers has 3+ goals in a single match
         // by checking matches where a team scored 3+ (hat-trick only possible if team scores 3+)
-        const hatTrickCandidates = apiMatches.filter(m =>
+        const hatTrickCandidates = mundialApiMatches.filter(m =>
           (m.fixture.status.short === 'FT' || m.fixture.status.short === 'AET') &&
           (m.goals?.home >= 3 || m.goals?.away >= 3)
         )
@@ -534,9 +542,8 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
             break
           }
         }
-        // Only resolve 'no' when tournament is fully over
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
-        if (finalMatch?.home_score !== null && !correctAnswer) {
+        // Solo resolver 'no' cuando el torneo ha terminado del todo.
+        if (tournamentOver && !correctAnswer) {
           correctAnswer = 'no'
           canResolve = true
         }
@@ -545,8 +552,8 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
       // === GOLEADA POR 5+ GOLES DE DIFERENCIA ===
       case 'any_5_goal_thrashing': {
-        // Resolve 'yes' as soon as any finished match has |home-away| >= 5
-        const thrashing = apiMatches.find(m => {
+        // 'yes' en cuanto un partido DEL MUNDIAL tenga |home-away| >= 5.
+        const thrashing = mundialApiMatches.find(m => {
           const h = m.goals?.home ?? 0
           const a = m.goals?.away ?? 0
           const finishedStatus = ['FT', 'AET', 'PEN'].includes(m.fixture.status.short)
@@ -556,9 +563,8 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
           correctAnswer = 'yes'
           canResolve = true
         }
-        // Resolve 'no' only when tournament is fully over
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
-        if (finalMatch?.home_score !== null && !correctAnswer) {
+        // 'no' solo cuando el torneo ha terminado del todo.
+        if (tournamentOver && !correctAnswer) {
           correctAnswer = 'no'
           canResolve = true
         }
@@ -567,11 +573,9 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
       // === FINAL DECIDIDA EN PENALTIS ===
       case 'final_penalties': {
-        // The final match in our DB
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
         if (!finalMatch || finalMatch.home_score === null) break
         // Find the corresponding API fixture for the final
-        const finalApiFixture = apiMatches.find(m => {
+        const finalApiFixture = mundialApiMatches.find(m => {
           const homeApi = m.teams?.home?.id
           const awayApi = m.teams?.away?.id
           return teamByApiId[homeApi] === finalMatch.home_team_id &&
@@ -588,7 +592,6 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
       // === CAMPEÓN ES EUROPEO ===
       case 'champion_european': {
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
         if (!finalMatch || !finalMatch.winner_team_id) break
         const championTeamId = finalMatch.winner_team_id
         const championTeam = ourTeams.find(t => t.id === championTeamId)
@@ -604,7 +607,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       case 'both_red_cards_match': {
         // Cheap pre-filter: skip matches with too few cards already shown. We need to
         // fetch events to detect reds per team. Only check finished matches.
-        const candidates = apiMatches.filter(m =>
+        const candidates = mundialApiMatches.filter(m =>
           ['FT', 'AET', 'PEN'].includes(m.fixture.status.short)
         )
         for (const apiMatch of candidates) {
@@ -619,8 +622,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
             break
           }
         }
-        const finalMatch = ourMatches.find(m => m.stage === 'final')
-        if (finalMatch?.home_score !== null && !correctAnswer) {
+        if (tournamentOver && !correctAnswer) {
           correctAnswer = 'no'
           canResolve = true
         }
