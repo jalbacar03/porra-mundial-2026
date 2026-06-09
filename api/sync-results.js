@@ -411,6 +411,11 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
   const totalGroupMatches = ourMatches.filter(m => m.stage === 'group').length
   const groupStageComplete = finishedGroups.length === totalGroupMatches && totalGroupMatches > 0
 
+  // R32 completion (needed for decepción resolution)
+  const finishedR32 = ourMatches.filter(m => m.stage === 'r32' && m.home_score !== null)
+  const totalR32Matches = ourMatches.filter(m => m.stage === 'r32').length
+  const r32StageComplete = finishedR32.length === totalR32Matches && totalR32Matches > 0
+
   // Get knockout results
   const finishedKnockout = ourMatches.filter(m => m.stage !== 'group' && m.home_score !== null)
 
@@ -511,18 +516,18 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
         break
       }
 
-      // === DECEPCIÓN (cae en grupos) ===
+      // === DECEPCIÓN (no pasa de 16avos) ===
+      // Válido si el equipo no aparece en ningún partido de R16 (octavos).
+      // Cubre tanto caer en grupos como caer en 16avos.
       case 'disappointment': {
-        if (groupStageComplete) {
-          // Teams eliminated in groups = all teams NOT in knockout
-          const knockoutTeamIds = new Set()
-          ourMatches.filter(m => m.stage !== 'group').forEach(m => {
-            knockoutTeamIds.add(m.home_team_id)
-            knockoutTeamIds.add(m.away_team_id)
+        if (r32StageComplete) {
+          const r16TeamIds = new Set()
+          ourMatches.filter(m => m.stage === 'r16').forEach(m => {
+            if (m.home_team_id) r16TeamIds.add(m.home_team_id)
+            if (m.away_team_id) r16TeamIds.add(m.away_team_id)
           })
           const allTeamIds = new Set(ourTeams.map(t => t.id))
-          const eliminatedInGroups = [...allTeamIds].filter(id => !knockoutTeamIds.has(id))
-          correctAnswer = eliminatedInGroups
+          correctAnswer = [...allTeamIds].filter(id => !r16TeamIds.has(id))
           canResolve = true
         }
         break
