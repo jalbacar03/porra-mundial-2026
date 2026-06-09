@@ -424,6 +424,14 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
   // liga). Sin esto, una goleada o hat-trick en un amistoso resolvía la apuesta.
   const mundialApiMatches = apiMatches.filter(m => m.league?.id === WORLD_CUP_ID)
 
+  // GUARD GLOBAL anti-prematuro: no se resuelve NINGUNA apuesta pre-torneo hasta
+  // que el Mundial haya empezado de verdad (al menos un partido de grupo
+  // terminado). Blindaje definitivo contra cualquier resolución antes de tiempo.
+  if (finishedGroups.length === 0) {
+    log.push('   ⏭️ Pre-torneo: el Mundial no ha empezado — no se resuelve nada')
+    return 0
+  }
+
   for (const bet of bets) {
     if (!bet.is_active) continue
 
@@ -642,7 +650,13 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
     if (canResolve && correctAnswer !== null) {
       for (const entry of betEntries) {
         let points = 0
-        const answer = entry.answer
+        // La respuesta del usuario vive en `value` (jsonb), NO en una columna
+        // `answer` (que no existe). Antes leía entry.answer=undefined → todos 0.
+        const v = entry.value || {}
+        const answer = bet.input_type === 'yes_no' ? v.answer
+          : bet.input_type === 'single_team' ? v.team_id
+          : bet.input_type === 'single_player' ? v.player_name
+          : (v.answer ?? v.team_id ?? v.player_name)
 
         if (Array.isArray(correctAnswer)) {
           // For bets where correct is a set of team IDs (revelation, disappointment, players)
