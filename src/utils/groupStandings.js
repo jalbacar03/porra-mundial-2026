@@ -4,6 +4,40 @@
  */
 
 /**
+ * Compute head-to-head stats among a subset of teams in a group.
+ * Only counts matches where BOTH home and away are in the given team set.
+ * Used to apply FIFA 2026 tiebreaker order: H2H pts → H2H gd → H2H gf → overall gd → overall gf.
+ */
+function computeH2HStats(teams, groupMatches, predictions) {
+  const teamIds = new Set(teams.map(t => t.team.id))
+  const stats = {}
+  teams.forEach(t => { stats[t.team.id] = { pts: 0, gd: 0, gf: 0 } })
+
+  groupMatches.forEach(m => {
+    const pred = predictions[m.id]
+    if (!pred || pred.home_score == null || pred.away_score == null) return
+    const homeId = m.home_team?.id || m.home_team_id
+    const awayId = m.away_team?.id || m.away_team_id
+    if (!teamIds.has(homeId) || !teamIds.has(awayId)) return
+
+    const hs = parseInt(pred.home_score)
+    const as = parseInt(pred.away_score)
+    if (isNaN(hs) || isNaN(as)) return
+
+    stats[homeId].gf += hs
+    stats[homeId].gd += hs - as
+    stats[awayId].gf += as
+    stats[awayId].gd += as - hs
+
+    if (hs > as) { stats[homeId].pts += 3 }
+    else if (as > hs) { stats[awayId].pts += 3 }
+    else { stats[homeId].pts += 1; stats[awayId].pts += 1 }
+  })
+
+  return stats
+}
+
+/**
  * Given matches and predictions, calculate the table for each group.
  * @param {Array} matches - All group stage matches with home_team/away_team objects
  * @param {Object} predictions - { matchId: { home_score, away_score } }
@@ -75,17 +109,49 @@ export function calculateGroupStandings(matches, predictions) {
     }
   })
 
-  // Sort each group: pts DESC, gd DESC, gf DESC
+  // Sort each group per FIFA 2026 tiebreaker order:
+  // 1. pts DESC
+  // 2. H2H pts (among tied teams only)
+  // 3. H2H gd
+  // 4. H2H gf
+  // 5. Overall gd
+  // 6. Overall gf
+  // 7. Alphabetical (proxy for fair play / FIFA ranking — both untrackable here)
   const sortedGroups = {}
   Object.keys(groups).sort().forEach(g => {
     const teams = Object.values(groups[g])
-    teams.sort((a, b) => {
-      if (b.pts !== a.pts) return b.pts - a.pts
-      if (b.gd !== a.gd) return b.gd - a.gd
-      if (b.gf !== a.gf) return b.gf - a.gf
-      return a.team.name.localeCompare(b.team.name)
+    const groupMatches = matches.filter(m => m.stage === 'group' && m.group_name === g)
+
+    // Bucket by pts, then sort within each bucket using H2H
+    const ptsBuckets = {}
+    teams.forEach(t => {
+      if (!ptsBuckets[t.pts]) ptsBuckets[t.pts] = []
+      ptsBuckets[t.pts].push(t)
     })
-    sortedGroups[g] = teams
+
+    const sorted = []
+    Object.keys(ptsBuckets).sort((a, b) => b - a).forEach(pts => {
+      const bucket = ptsBuckets[pts]
+      if (bucket.length === 1) {
+        sorted.push(bucket[0])
+        return
+      }
+      // Compute H2H sub-table for just these tied teams
+      const h2h = computeH2HStats(bucket, groupMatches, predictions)
+      bucket.sort((a, b) => {
+        const ha = h2h[a.team.id]
+        const hb = h2h[b.team.id]
+        if (hb.pts !== ha.pts) return hb.pts - ha.pts
+        if (hb.gd !== ha.gd) return hb.gd - ha.gd
+        if (hb.gf !== ha.gf) return hb.gf - ha.gf
+        if (b.gd !== a.gd) return b.gd - a.gd
+        if (b.gf !== a.gf) return b.gf - a.gf
+        return a.team.name.localeCompare(b.team.name)
+      })
+      sorted.push(...bucket)
+    })
+
+    sortedGroups[g] = sorted
   })
 
   // Track which groups have ALL their matches predicted (used by callers
@@ -120,7 +186,7 @@ export function calculateGroupStandings(matches, predictions) {
     if (table[2]) thirdPlace.push({ ...table[2], group: g })
   })
 
-  // Best 8 third-place teams (sorted by pts, gd, gf)
+  // Best 8 third-place teams: pts → gd → gf only (no H2H — different groups, never played each other)
   thirdPlace.sort((a, b) => {
     if (b.pts !== a.pts) return b.pts - a.pts
     if (b.gd !== a.gd) return b.gd - a.gd
