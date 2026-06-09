@@ -6,6 +6,7 @@ import {
   resolveR32Matchups, resolveRoundMatchups
 } from '../../utils/bracketStructure'
 import { FootballSpinner } from '../Skeleton'
+import { PREDICTIONS_DEADLINE } from '../../hooks/useCountdown'
 
 export default function BracketView({ session, targetUserId, persist }) {
   // Usuario destino: por defecto el propio; en modo admin-Bot365 se pasa su UID
@@ -524,7 +525,11 @@ export default function BracketView({ session, targetUserId, persist }) {
           const matchup = matchups[m.matchNumber]
           const pick = picks[m.matchNumber]
           const matchInfo = knockoutDates[m.matchNumber]
-          const matchLocked = matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled')
+          // Cierre global pre-torneo (9 jun 23:59 ES) — salvo modo admin/Bot365
+          // (persist), donde se puede editar siempre. Mantiene también el lock
+          // por-partido por si acaso.
+          const deadlinePassed = !persist && new Date() >= PREDICTIONS_DEADLINE
+          const matchLocked = deadlinePassed || (matchInfo && (matchInfo.date <= new Date() || matchInfo.status !== 'scheduled'))
 
           const renderSlot = (side) => {
             const team = matchup?.[side]
