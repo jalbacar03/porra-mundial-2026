@@ -343,8 +343,10 @@ export default function BracketView({ session, targetUserId, persist }) {
   // This lets the cascade flow without requiring user input on R32. They can still tap to change.
 
   // Total picks needed: 8 R16 + 4 QF + 2 SF + 1 Final = 15
-  const totalNeeded = 15
-  const totalDone = totalR16Picked + totalQFPicked + totalSFPicked + totalFinalPicked
+  // 31 cruces que predice el usuario: 16avos 16 + Octavos 8 + Cuartos 4 +
+  // Semis 2 + Final 1. Los 16avos también cuentan (predices quién pasa).
+  const totalNeeded = 31
+  const totalDone = totalR32Picked + totalR16Picked + totalQFPicked + totalSFPicked + totalFinalPicked
   // Potential points: 16avos 1 · Octavos 1 · Cuartos 2 · Semis 4 · Final 8.
   // Ganar la final ya vale 8 (sin bonus aparte). Cadena campeón = 16.
   const potentialPts = (totalR32Picked * 1) + (totalR16Picked * 1) + (totalQFPicked * 2) + (totalSFPicked * 4) + (totalFinalPicked * 8)

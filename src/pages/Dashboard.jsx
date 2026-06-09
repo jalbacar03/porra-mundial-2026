@@ -192,14 +192,12 @@ export default function Dashboard({ session, demoMode }) {
     setGroupProgress(gProgress)
 
     // Pre-Mundial progress: count user's specials + bracket picks + active bets total.
-    // Exclude round_of_32 from the bets count — it auto-fills from group predictions
-    // and the user never picks it directly (so it would inflate the denominator).
     const [specialsRes, bracketRes, activeBetsRes] = await Promise.all([
       supabase.from('pre_tournament_entries').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
-      // Cuadro: contar solo picks que el usuario hace manualmente (R16+QF+SF+Final = 15).
-      // R32 se auto-rellena desde las predicciones de grupo — incluirlo aquí infla
-      // el numerador (29/15) aunque el usuario no haya tocado nada.
-      supabase.from('bracket_picks').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).not('predicted_winner_id', 'is', null).neq('round', 'r32'),
+      // Cuadro: TODOS los cruces que predice el usuario (16avos→Final = 31). Los
+      // 16avos también cuentan: predices quién gana cada uno (= quién pasa a
+      // octavos), aunque vengan pre-rellenados con el favorito y puntúen 1 pt.
+      supabase.from('bracket_picks').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).not('predicted_winner_id', 'is', null),
       supabase.from('pre_tournament_bets').select('id', { count: 'exact', head: true }).eq('is_active', true).neq('slug', 'round_of_32')
     ])
     setSpecialsCount(specialsRes.count || 0)
@@ -793,7 +791,7 @@ function formatDateShort(dateStr) {
         const items = [
           { label: 'Grupos', done: groupDone, total: groupTotal },
           { label: 'Especiales', done: specialsCount, total: activeBetsCount },
-          { label: 'Cuadro', done: bracketCount, total: 15 }
+          { label: 'Cuadro', done: bracketCount, total: 31 }
         ]
         const allDone = items.every(i => i.done >= i.total)
         // Contador agregado: 72 grupos + 13 especiales + 15 cuadro = 100.
