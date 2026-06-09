@@ -230,18 +230,19 @@ export default function Dashboard({ session, demoMode }) {
       .select('*')
     const { data: allProfiles } = await supabase
       .from('profiles')
-      .select('id, full_name, nickname, has_paid')
+      .select('id, full_name, nickname, has_paid, admission_dismissed')
 
     const nicknameMap = {}
     const paidSet = new Set()
     allProfiles?.forEach(p => {
       nicknameMap[p.id] = displayName(p)
-      if (p.has_paid) paidSet.add(p.id)
+      // Los ocultos (admission_dismissed) no cuentan como participantes.
+      if (p.has_paid && !p.admission_dismissed) paidSet.add(p.id)
     })
 
-    // Bote: total de participantes (excluyendo Bot365), tanto pagados como no.
-    // El user pidió contar a todo el mundo: damos por hecho que pagarán todos.
-    const participantsCount = (allProfiles || []).filter(p => p.id !== BOT365_ID).length
+    // Bote: total de participantes (excluyendo Bot365 y ocultos), pagados o no.
+    // Se cuenta a todo el mundo asumiendo que pagarán; los ocultos quedan fuera.
+    const participantsCount = (allProfiles || []).filter(p => p.id !== BOT365_ID && !p.admission_dismissed).length
     setTotalParticipants(participantsCount)
 
     // Test match (pre-Mundial dry-run): a single friendly used to validate
