@@ -106,6 +106,15 @@ export default function Rules() {
           { label: 'Signo correcto (1X2)', value: '+1 punto', color: '#4ade80' },
           { label: 'Fallo', value: '0 puntos', color: 'var(--text-dim)' }
         ]} />
+        <div style={{
+          marginTop: '10px', padding: '10px 12px',
+          background: 'rgba(255,204,0,0.05)', border: '0.5px solid rgba(255,204,0,0.2)',
+          borderRadius: '6px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.6'
+        }}>
+          <strong style={{ color: 'var(--text-primary)' }}>Desempate en clasificación de grupo (normativa FIFA 2026)</strong><br />
+          1. Puntos · 2. Enfrentamiento directo (pts → DG → GF) · 3. Diferencia de goles global · 4. Goles marcados global<br />
+          <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>Para los 8 mejores terceros: pts → DG → GF (sin H2H, son de grupos distintos).</span>
+        </div>
       </Section>
 
       {/* ===== 2. CUADRO CIEGO ===== */}
@@ -145,7 +154,7 @@ export default function Rules() {
         </div>
         <ItemTable items={[
           { label: 'Selección revelación (llega a cuartos)', value: '+3 pts', color: '#4ade80' },
-          { label: 'Selección decepción (cae en grupos)', value: '+3 pts', color: '#4ade80' },
+          { label: 'Selección decepción (no pasa de 16avos)', value: '+3 pts', color: '#4ade80' },
           { label: 'Selección más goleadora en grupos', value: '+2 pts', color: '#4ade80' },
           { label: 'Selección menos goleada en grupos', value: '+2 pts', color: '#4ade80' }
         ]} />

@@ -36,7 +36,7 @@ const RULES_SECTIONS = [
     title: 'Predicciones especiales',
     items: [
       { label: 'Revelación (llega a cuartos)', value: '4 pts' },
-      { label: 'Decepción (cae en grupos)', value: '4 pts' },
+      { label: 'Decepción (no pasa de 16avos)', value: '4 pts' },
       { label: 'Goleador, asistencias...', value: 'Según categoría' }
     ]
   },
