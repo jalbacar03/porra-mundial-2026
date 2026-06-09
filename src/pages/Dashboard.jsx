@@ -857,6 +857,9 @@ function formatDateShort(dateStr) {
           { label: 'Cuadro', done: bracketCount, total: 15 }
         ]
         const allDone = items.every(i => i.done >= i.total)
+        // Contador agregado: 72 grupos + 13 especiales + 15 cuadro = 100.
+        const aggTotal = items.reduce((s, i) => s + i.total, 0)
+        const aggDone = items.reduce((s, i) => s + Math.min(i.done, i.total), 0)
         return (
           <div onClick={() => navigate('/predictions')} role="button" tabIndex={0}
             style={{
@@ -874,9 +877,11 @@ function formatDateShort(dateStr) {
               }}>Tu progreso</span>
               <span style={{
                 fontSize: '11px', fontWeight: '600',
-                color: allDone ? 'var(--green)' : 'var(--gold)'
+                color: allDone ? 'var(--green)' : 'var(--gold)',
+                display: 'inline-flex', alignItems: 'baseline', gap: '6px'
               }}>
-                {allDone ? '✓ Completo' : 'Cierra el 9 jun'}
+                <span style={{ fontWeight: '800' }}>{aggDone}/{aggTotal}</span>
+                <span style={{ opacity: 0.85 }}>{allDone ? '✓ Completo' : '· Cierra el 9 jun'}</span>
               </span>
             </div>
             {items.map(it => {
