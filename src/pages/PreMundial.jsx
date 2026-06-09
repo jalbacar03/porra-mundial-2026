@@ -480,8 +480,8 @@ function OptInScreen({ onJoin, joining }) {
 
 function MatchCard({ match, pred, saved, locked, collapsed, onSetScore, onEdit }) {
   const matchDate = new Date(match.match_date)
-  const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
-  const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' })
+  const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
 

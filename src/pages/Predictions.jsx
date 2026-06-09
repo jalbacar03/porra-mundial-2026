@@ -117,7 +117,8 @@ export default function Predictions({ session }) {
   function formatDate(dateStr) {
     const date = new Date(dateStr)
     return date.toLocaleDateString('es-ES', {
-      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+      timeZone: 'Europe/Madrid'
     })
   }
 

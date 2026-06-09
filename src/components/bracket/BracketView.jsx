@@ -621,9 +621,9 @@ export default function BracketView({ session, targetUserId, persist }) {
                 <span>Partido {idx + 1}</span>
                 {matchInfo && (
                   <span style={{ fontWeight: '500', letterSpacing: '0', textTransform: 'none' }}>
-                    {matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                    {matchInfo.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' })}
                     {' · '}
-                    {matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    {matchInfo.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })}
                     {matchInfo.city && ` · 📍 ${matchInfo.city}`}
                   </span>
                 )}

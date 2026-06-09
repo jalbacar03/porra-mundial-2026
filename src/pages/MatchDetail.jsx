@@ -104,8 +104,8 @@ export default function MatchDetail({ session }) {
   const sameDay = (a, b) => a.toDateString() === b.toDateString()
   const dayLabel = sameDay(matchDate, today) ? 'Hoy'
                  : sameDay(matchDate, tomorrow) ? 'Mañana'
-                 : matchDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')
-  const timeLabel = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                 : matchDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).replace('.', '')
+  const timeLabel = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
 
   const stageLabels = {
     'group': 'Fase de grupos',

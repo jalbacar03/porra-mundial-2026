@@ -214,7 +214,8 @@ export default function Stats({ demoMode }) {
   function formatDate(dateStr) {
     if (!dateStr) return ''
     return new Date(dateStr).toLocaleDateString('es-ES', {
-      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+      weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+      timeZone: 'Europe/Madrid'
     })
   }
 

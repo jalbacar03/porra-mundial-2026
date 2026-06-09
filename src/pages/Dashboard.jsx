@@ -336,7 +336,7 @@ export default function Dashboard({ session, demoMode }) {
       if (dayTotal > 0) {
         setPostMatchReport({
           date: lastDay,
-          dateLabel: new Date(lastDay).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }),
+          dateLabel: new Date(lastDay).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Madrid' }),
           matches: lastDayMatches.length,
           predicted: dayTotal,
           exacts: dayExacts,
@@ -367,7 +367,7 @@ function formatLiveMinute(m) {
 function formatDateShort(dateStr) {
     if (!dateStr) return ''
     const date = new Date(dateStr)
-    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
   }
 
   if (loading) {
@@ -479,8 +479,8 @@ function formatDateShort(dateStr) {
       {testMatches.map((m, mi) => {
         const matchDate = new Date(m.match_date)
         const isLive = m.status === 'live'
-        const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })
-        const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' })
+        const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
         const pred = m.userPrediction
         const hasPred = pred && pred.predicted_home !== null && pred.predicted_away !== null
         const isLastBanner = mi === testMatches.length - 1
@@ -1210,8 +1210,8 @@ function formatDateShort(dateStr) {
         const today = new Date()
         const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1)
         const sameDay = (a, b) => a.toDateString() === b.toDateString()
-        const dayLabel = (d) => sameDay(d, today) ? 'HOY' : sameDay(d, tomorrow) ? 'MAÑ' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).toUpperCase().replace('.', '')
-        const timeLabel = (d) => d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        const dayLabel = (d) => sameDay(d, today) ? 'HOY' : sameDay(d, tomorrow) ? 'MAÑ' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' }).toUpperCase().replace('.', '')
+        const timeLabel = (d) => d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
         return (
           <div style={{ marginBottom: '14px' }}>
             <div style={{
