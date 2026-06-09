@@ -588,70 +588,9 @@ function formatDateShort(dateStr) {
         )
       })}
 
-      {/* === PRE-MUNDIAL CARD (genérico) ===
-          Solo aparece cuando NO hay próximo partido friendly en ventana ±3h
-          (es decir, no estamos mostrando el banner "próximo partido" arriba).
-          Evita el doble widget azul cuando ya hay info concreta del partido.
-       */}
-      {isFriendlyVisible(profile) && profile?.has_paid && testMatches.length === 0 && (() => {
-        const LIGUILLA_DEADLINE = new Date('2026-06-04T18:50:00Z') // 20:50 hora España
-        const deadlinePassed = new Date() >= LIGUILLA_DEADLINE
-        const inLiguilla = !!profile.friendly_joined
-        // Color/copy según el estado
-        const stateColor = inLiguilla ? '#7eb3ff' : (deadlinePassed ? '#9b9eaa' : '#ffcc00')
-        const bgGradient = inLiguilla
-          ? 'linear-gradient(135deg, #1a2433, #0f1b2e)'
-          : deadlinePassed
-            ? 'linear-gradient(135deg, #1a1d26, #1a1d26)'
-            : 'linear-gradient(135deg, #2a2410, #3a1d18)'
-        const borderColor = inLiguilla
-          ? '1px solid rgba(100,150,255,0.25)'
-          : deadlinePassed
-            ? '1px solid rgba(255,255,255,0.08)'
-            : '1.5px solid rgba(255,204,0,0.4)'
-        const titleText = inLiguilla
-          ? 'Estás dentro de La Liguilla'
-          : deadlinePassed
-            ? 'La Liguilla en marcha'
-            : '12 amistosos. Top 3 recuperan los 20€'
-        const ctaText = inLiguilla
-          ? 'Predice tus partidos →'
-          : deadlinePassed
-            ? 'Sigue la clasificación y resultados →'
-            : 'Pulsa para apuntarte →'
-        return (
-          <div
-            onClick={() => navigate('/pre-mundial')}
-            role="button" tabIndex={0}
-            className="tap-scale"
-            style={{
-              marginBottom: '14px', padding: '14px 16px',
-              borderRadius: '14px',
-              background: bgGradient,
-              border: borderColor,
-              cursor: 'pointer'
-            }}
-          >
-            <div style={{
-              fontSize: '10px', fontWeight: '800',
-              color: stateColor,
-              letterSpacing: '1.4px', textTransform: 'uppercase',
-              marginBottom: '6px'
-            }}>
-              🏆 La Liguilla · 4-9 jun
-            </div>
-            <div style={{
-              fontSize: '16px', fontWeight: '700', color: '#fff',
-              marginBottom: '4px'
-            }}>
-              {titleText}
-            </div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-              {ctaText}
-            </div>
-          </div>
-        )
-      })()}
+      {/* (Widget genérico de La Liguilla retirado — el mini-torneo de amistosos
+          ya terminó. La clasificación final sigue accesible desde la pestaña
+          Clasificación → Liguilla.) */}
 
       {/* ===== HERO: TU POSICIÓN · LIVE + BOTE ===== */}
       <div style={{
