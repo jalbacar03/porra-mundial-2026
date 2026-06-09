@@ -48,19 +48,20 @@ export default function Leaderboard({ demoMode }) {
 
   useEffect(() => {
     fetchData()
-    supabase.from('profiles').select('id, full_name, nickname, has_paid, payment_confirmed').then(({ data }) => {
+    supabase.from('profiles').select('id, full_name, nickname, has_paid, payment_confirmed, admission_dismissed').then(({ data }) => {
       if (data) {
         const map = {}
         const fullNames = {}
         const paid = new Set()
         const payConfirmed = new Set()
         data.forEach(p => {
-          // Probando "nombre real" en la clasificación — formato "Nombre Apellido"
           // Nombre según el modo global (displayName del util). Hoy = real.
           const shown = displayName(p)
           map[p.id] = shown
           fullNames[p.id] = shown
-          if (p.has_paid) paid.add(p.id)
+          // Un usuario OCULTO (admission_dismissed) no aparece en la clasificación
+          // aunque tenga has_paid=true → blindaje contra estados raros.
+          if (p.has_paid && !p.admission_dismissed) paid.add(p.id)
           if (p.payment_confirmed) payConfirmed.add(p.id)
         })
         setProfileNames(map)
