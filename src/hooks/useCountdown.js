@@ -6,7 +6,8 @@ export const WORLD_CUP_START = new Date('2026-06-11T17:00:00Z')
 // Deadline predicciones: 10 de junio 2026, 23:59h hora España (CEST = UTC+2).
 // Fixed wall-clock cutoff (not "48h before") so it matches the rules copy
 // and the RLS policies in the DB exactly. Keep these three in sync.
-export const PREDICTIONS_DEADLINE = new Date('2026-06-10T21:59:59Z')
+// PRÓRROGA PUNTUAL: ampliado a 00:30 (11 jun) para que Alex Obeso termine.
+export const PREDICTIONS_DEADLINE = new Date('2026-06-10T22:30:00Z')
 
 export function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(targetDate))
