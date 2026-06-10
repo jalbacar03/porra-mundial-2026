@@ -251,17 +251,22 @@ DÍAS HASTA EL CIERRE DE PREDICCIONES: ${data.daysToDeadline}`
     context = `CONTEXTO:
 - Hoy: ${today}
 - ${data.totalParticipants} participantes inscritos
-- Plazo de predicciones: cierra el 9 de junio (faltan ${data.daysToDeadline} días)
+- EL MUNDIAL TODAVÍA NO HA EMPEZADO. El primer partido es el 11 de junio de 2026. NO se ha jugado NINGÚN partido del Mundial todavía.
+- Plazo de predicciones: cierra el 10 de junio (faltan ${data.daysToDeadline} días)
 ${newsContext}
 
 DÍAS HASTA EL CIERRE DE PREDICCIONES: ${data.daysToDeadline}`
   }
 
+  const noMatchesRule = !data.hasMatchesPlayed
+    ? `\n- CRÍTICO: el Mundial NO ha empezado. NO menciones resultados, debuts, victorias ni derrotas de ningún partido del Mundial (no existen aún). NO inventes que una selección ha ganado o perdido. Los titulares de noticias son contexto previo (amistosos, fichajes, lesiones, expectativas) — NO los presentes como resultados del Mundial. Habla solo de expectativas, favoritos y el cierre de predicciones.`
+    : ''
+
   const styleRules = `REGLAS:
 - Tono profesional pero cercano. Cero hype. Datos > adjetivos. Nombres > genéricos.
 - PROHIBIDO: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", emojis decorativos, signos "¡".
 - Permitido máximo 1 emoji solo si aporta dato (🏆 líder, ⚽ gol).
-- Usa exactamente ${data.daysToDeadline} días para el cierre. No inventes.`
+- Usa exactamente ${data.daysToDeadline} días para el cierre. No inventes.${noMatchesRule}`
 
   const shortPrompt = `Redacta la SHORT del día — el extracto que un usuario lee de un vistazo en el dashboard.
 
@@ -289,7 +294,7 @@ ESTRUCTURA:
 - Estructura: contexto de la noticia o jornada → análisis del impacto sobre las predicciones (campeón, revelación, goleador, líder de la porra) → comparativa o patrón histórico relevante → implicación para los participantes.
 - Frases comparativas explícitas ("a diferencia de…", "frente a…"), datos numéricos o porcentajes cuando proceda, ironía mesurada permitida.
 - Tono editorial: periodista de fondo, no comentarista de partido. Como The Economist o un buen columnista de El País.
-- Cierra mencionando los ${data.daysToDeadline} días que faltan para el cierre del plazo.
+- Cierra mencionando que ${data.daysToDeadline === 0 ? 'hoy es el último día' : data.daysToDeadline === 1 ? 'queda 1 día' : `quedan ${data.daysToDeadline} días`} para el cierre del plazo. Respeta exactamente esa forma (singular/plural).
 
 ${context}
 
