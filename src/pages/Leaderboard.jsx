@@ -594,7 +594,11 @@ function renderSofaScore({
   }
   const total = fullRankings.length
   // Col # algo más ancha + gap mayor → "T29" no se pega al nombre.
-  const GRID = '30px 1fr 24px 26px 32px 38px'
+  // Mundial añade columna ESP (puntos de predicciones especiales) entre 1X2 y PTS.
+  const showEsp = !isFriendly
+  const GRID = showEsp
+    ? '30px 1fr 24px 26px 32px 30px 38px'
+    : '30px 1fr 24px 26px 32px 38px'
   const clickable = typeof onRowClick === 'function'
   return (
     <div style={{
@@ -617,6 +621,7 @@ function renderSofaScore({
         <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
         <span title="Resultado exacto · 3 pts" style={{ textAlign: 'center' }}>RE</span>
         <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
+        {showEsp && <span title="Puntos de predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>}
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
       </div>
       {fullRankings.map((user, idx) => {
@@ -635,6 +640,7 @@ function renderSofaScore({
         // solo los de la vista. PJ = partidos jugados (global del stage).
         const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
         const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
+        const esp = user.pre_tournament_points || 0
         const pj = playedCount
         const pts = tabHasLive ? user.effective_points : user.total_points
         const isLast = idx === total - 1
@@ -689,6 +695,11 @@ function renderSofaScore({
               className={tabHasLive ? 'live-points' : ''}
               style={{ color: tabHasLive ? 'var(--red)' : (si > 0 ? C.green : 'var(--text-dim)'), textAlign: 'center', fontWeight: 700 }}
             >{si}</span>
+            {showEsp && (
+              <span
+                style={{ color: esp > 0 ? C.gold : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}
+              >{esp}</span>
+            )}
             <span
               className={tabHasLive ? 'live-points' : ''}
               style={{
