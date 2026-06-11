@@ -6,7 +6,7 @@ import { SkeletonDashboard } from '../components/Skeleton'
 import PointsChart from '../components/PointsChart'
 import Avatar from '../components/Avatar'
 import PWAInstallBanner from '../components/PWAInstallBanner'
-import { PREDICTIONS_DEADLINE } from '../hooks/useCountdown'
+import { PREDICTIONS_DEADLINE, useCountdown } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
@@ -35,6 +35,7 @@ export default function Dashboard({ session, demoMode }) {
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
+  const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: empiezan en <5h (banner pre)
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
   const { points: livePoints, matchCount: liveMatchCount } = useLivePoints(session?.user?.id)
@@ -212,6 +213,15 @@ export default function Dashboard({ session, demoMode }) {
     setLiveMatches(live)
     const upcoming = allMatches?.filter(m => m.status !== 'finished' && m.status !== 'live' && new Date(m.match_date) > now).slice(0, 3) || []
     setNextMatches(upcoming)
+
+    // Banner PRE del Mundial: partidos que empiezan en las próximas 5h (verde + countdown).
+    const in5h = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+    const preMundial = (allMatchesData || [])
+      .filter(m => m.status === 'scheduled' && m.stage !== 'friendly' && m.stage !== 'test'
+        && new Date(m.match_date) > now && new Date(m.match_date) <= in5h)
+      .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
+      .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
+    setPreMundialMatches(preMundial)
 
     // User's predictions for live matches (for the EN DIRECTO overlay)
     if (live.length > 0) {
@@ -585,6 +595,21 @@ function formatDateShort(dateStr) {
           </div>
         )
       })}
+
+      {/* ===== BANNERS PARTIDOS DEL MUNDIAL: live (rojo) arriba, pre (verde + countdown) abajo ===== */}
+      {(() => {
+        const items = [
+          ...liveMatches.map(m => ({ m, pred: livePredictions[m.id] })),
+          ...preMundialMatches.map(m => ({ m, pred: m.userPrediction }))
+        ]
+        return items.map(({ m, pred }, i) => (
+          <MundialMatchBanner
+            key={m.id} match={m} prediction={pred}
+            isLast={i === items.length - 1}
+            onClick={() => navigate('/matchday')}
+          />
+        ))
+      })()}
 
       {/* (Widget genérico de La Liguilla retirado — el mini-torneo de amistosos
           ya terminó. La clasificación final sigue accesible desde la pestaña
@@ -1420,6 +1445,55 @@ function formatDateShort(dateStr) {
         />
       )}
 
+    </div>
+  )
+}
+
+// Banner de partido del Mundial: live (rojo) o pre (verde + countdown hasta el inicio).
+function MundialMatchBanner({ match, prediction, isLast, onClick }) {
+  const isLive = match.status === 'live'
+  const matchDate = new Date(match.match_date)
+  const cd = useCountdown(matchDate)
+  const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
+  const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' })
+  const hasPred = prediction && prediction.predicted_home != null && prediction.predicted_away != null
+  const cdStr = cd.expired ? 'empezando…'
+    : cd.days > 0 ? `${cd.days}d ${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m`
+      : `${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m`
+  const liveMin = match.live_minute != null ? `${match.live_minute}'` : (match.live_status_short === 'HT' ? 'Descanso' : '')
+  return (
+    <div onClick={onClick} role="button" tabIndex={0} className="tap-scale"
+      style={{
+        marginBottom: isLast ? '14px' : '8px', padding: '14px 16px', borderRadius: '14px',
+        background: isLive ? 'linear-gradient(135deg, #3a1418, #5a1d24)' : 'linear-gradient(135deg, #0d2a1a, #123a23)',
+        border: isLive ? '1.5px solid rgba(226,75,74,0.5)' : '1px solid rgba(0,144,81,0.4)',
+        cursor: 'pointer', position: 'relative', overflow: 'hidden'
+      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <span style={{ fontSize: '10px', fontWeight: '800', color: isLive ? 'var(--red)' : '#4ade80', letterSpacing: '1.4px', textTransform: 'uppercase' }}>
+          {isLive ? `🔴 EN DIRECTO${liveMin ? ` · ${liveMin}` : ''}` : `⚽ Próximo partido · ${cdStr}`}
+        </span>
+        {isLive && <span className="live-dot" />}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+          {match.home_team?.flag_url && <img src={match.home_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px', flexShrink: 0 }} />}
+          <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.home_team?.name || '?'}</span>
+        </div>
+        {isLive
+          ? <span className="live-pulse" style={{ fontSize: '22px', fontWeight: '800', color: '#fff', flexShrink: 0 }}>{match.home_score ?? 0} - {match.away_score ?? 0}</span>
+          : <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', fontWeight: '600', flexShrink: 0 }}>vs</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
+          <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.away_team?.name || '?'}</span>
+          {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px', flexShrink: 0 }} />}
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+        <span>{isLive ? 'En juego' : `${dateStr} · ${timeStr}`}</span>
+        {hasPred
+          ? <span style={{ color: isLive ? 'var(--red)' : '#4ade80', fontWeight: '700' }}>Tu predicción: {prediction.predicted_home}-{prediction.predicted_away}</span>
+          : <span style={{ color: 'rgba(255,255,255,0.4)' }}>Sin predicción</span>}
+      </div>
     </div>
   )
 }
