@@ -204,7 +204,8 @@ async function gatherData() {
     leaderboard: filteredLeaderboard.slice(0, 15),
     recentMatches: matches,
     todayMovements: movements,
-    totalParticipants: profiles.filter(p => p.id !== BOT365_ID).length,
+    // Solo participantes admitidos en la porra (has_paid), no todo perfil registrado.
+    totalParticipants: profiles.filter(p => p.has_paid && p.id !== BOT365_ID).length,
     newsHeadlines: newsHeadlines.slice(0, 8),
     hasMatchesPlayed: matches.length > 0,
     daysToDeadline
