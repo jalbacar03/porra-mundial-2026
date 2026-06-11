@@ -672,7 +672,7 @@ function renderSofaScore({
                 color: isMe ? C.accentLight : 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 minWidth: 0
-              }}>{formatRealName(user.full_name)}</span>
+              }}>{user.full_name}</span>
               {notPaid && (
                 <span
                   title="No pagado"
