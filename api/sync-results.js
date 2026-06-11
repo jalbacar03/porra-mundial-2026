@@ -93,6 +93,7 @@ export default async function handler(req, res) {
     log.push('📡 Fetching matches from API-Football...')
     const matchesResponse = await apiFetch(`/fixtures?league=${WORLD_CUP_ID}&season=${WORLD_CUP_SEASON}`)
     const apiMatches = matchesResponse.response || []
+    log.push(`   API devolvió ${apiMatches.length} fixtures (liga ${WORLD_CUP_ID}, temporada ${WORLD_CUP_SEASON})`)
 
     // 1b. Extra fixtures by ID — para amistosos fuera del Mundial (Liguilla).
     // OPTIMIZACIÓN CRÍTICA DE CUOTA: solo hacemos fetch individual de cada
