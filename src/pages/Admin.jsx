@@ -112,19 +112,32 @@ export default function Admin({ session }) {
     if (!error && data) setProfiles(data)
   }
 
+  // Trae todas las filas paginando de 1000 en 1000 (límite por defecto de Supabase).
+  async function fetchAllRows(table, columns) {
+    let all = []
+    let from = 0
+    const size = 1000
+    while (true) {
+      const { data } = await supabase.from(table).select(columns).range(from, from + size - 1)
+      const batch = data || []
+      all = all.concat(batch)
+      if (batch.length < size) break
+      from += size
+    }
+    return all
+  }
+
   async function fetchBetsData() {
-    const [predsRes, betsRes, entriesRes, teamsRes] = await Promise.all([
-      supabase.from('predictions')
-        .select('user_id, match_id, predicted_home, predicted_away, points_earned'),
+    const [preds, betsRes, entries, teamsRes] = await Promise.all([
+      fetchAllRows('predictions', 'user_id, match_id, predicted_home, predicted_away, points_earned'),
       supabase.from('pre_tournament_bets')
         .select('*').order('id', { ascending: true }),
-      supabase.from('pre_tournament_entries')
-        .select('user_id, bet_id, value, points_awarded, is_resolved'),
+      fetchAllRows('pre_tournament_entries', 'user_id, bet_id, value, points_awarded, is_resolved'),
       supabase.from('teams').select('id, name, flag_url')
     ])
-    setAllPredictions(predsRes.data || [])
+    setAllPredictions(preds)
     setPreTournamentBets(betsRes.data || [])
-    setPreTournamentEntries(entriesRes.data || [])
+    setPreTournamentEntries(entries)
     setTeams(teamsRes.data || [])
   }
 

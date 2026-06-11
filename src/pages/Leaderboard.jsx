@@ -161,11 +161,21 @@ export default function Leaderboard({ demoMode }) {
 
     let preds = []
     if (recentMatchIds.length > 0) {
-      const { data } = await supabase
-        .from('predictions')
-        .select('user_id, points_earned')
-        .in('match_id', recentMatchIds)
-      preds = data || []
+      // Paginamos: en fase de grupos 3 días pueden superar las 1000 predicciones
+      // (límite por defecto de Supabase) y la suma quedaría incompleta.
+      let from = 0
+      const size = 1000
+      while (true) {
+        const { data } = await supabase
+          .from('predictions')
+          .select('user_id, points_earned')
+          .in('match_id', recentMatchIds)
+          .range(from, from + size - 1)
+        const batch = data || []
+        preds = preds.concat(batch)
+        if (batch.length < size) break
+        from += size
+      }
     }
 
     const recentPoints = {}

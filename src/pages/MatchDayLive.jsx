@@ -84,20 +84,25 @@ export default function MatchDayLive({ session }) {
   const fetchData = useCallback(async () => {
     const userId = session?.user?.id
 
-    const [matchesRes, predsRes, allPredsRes, lbRes, profilesRes] = await Promise.all([
-      supabase.from('matches')
-        .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
-        .order('match_date', { ascending: true }),
+    // Fase 1: partidos (para saber cuáles ya tienen marcador / están en juego).
+    const matchesRes = await supabase.from('matches')
+      .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
+      .order('match_date', { ascending: true })
+    const newMatches = matchesRes.data || []
+    // El consenso solo se muestra para partidos jugados/en juego: filtramos las
+    // predicciones por esos match_id (evita el corte de 1000 filas de Supabase).
+    const relevantIds = newMatches.filter(m => m.status !== 'scheduled').map(m => m.id)
+
+    const [predsRes, allPredsRes, lbRes, profilesRes] = await Promise.all([
       userId ? supabase.from('predictions')
         .select('match_id, predicted_home, predicted_away, points_earned')
-        .eq('user_id', userId) : { data: [] },
-      supabase.from('predictions')
-        .select('match_id, predicted_home, predicted_away, user_id'),
+        .eq('user_id', userId) : Promise.resolve({ data: [] }),
+      relevantIds.length > 0
+        ? supabase.from('predictions').select('match_id, predicted_home, predicted_away, user_id').in('match_id', relevantIds)
+        : Promise.resolve({ data: [] }),
       supabase.from('leaderboard').select('*'),
       supabase.from('profiles').select('id, full_name, has_paid')
     ])
-
-    const newMatches = matchesRes.data || []
 
     // Detect score changes for animation
     const newChanged = new Set()
