@@ -211,6 +211,27 @@ export default function Dashboard({ session, demoMode }) {
     // propio banner. Sin esto, un amistoso en vivo ponía "LIVE" en el hero.
     const live = (allMatchesData || []).filter(m => m.status === 'live' && m.stage !== 'friendly' && m.stage !== 'test')
     setLiveMatches(live)
+
+    // Puntos provisionales en vivo POR USUARIO (para que la posición del hero
+    // refleje el partido en curso, no el ranking congelado). Solo si hay live.
+    const liveProvisional = {}
+    if (live.length > 0) {
+      const liveIds = live.map(m => m.id)
+      const { data: allLivePreds } = await supabase
+        .from('predictions')
+        .select('user_id, match_id, predicted_home, predicted_away')
+        .in('match_id', liveIds)
+      ;(allLivePreds || []).forEach(p => {
+        const m = live.find(x => x.id === p.match_id)
+        if (!m || p.predicted_home == null || p.predicted_away == null) return
+        const h = m.home_score ?? 0, a = m.away_score ?? 0
+        let pts = 0
+        if (p.predicted_home === h && p.predicted_away === a) pts = 3
+        else if (Math.sign(p.predicted_home - p.predicted_away) === Math.sign(h - a)) pts = 1
+        liveProvisional[p.user_id] = (liveProvisional[p.user_id] || 0) + pts
+      })
+    }
+
     const upcoming = allMatches?.filter(m => m.status !== 'finished' && m.status !== 'live' && new Date(m.match_date) > now).slice(0, 3) || []
     setNextMatches(upcoming)
 
@@ -283,21 +304,25 @@ export default function Dashboard({ session, demoMode }) {
     let rank = '-'
     let rankingsTotal = 0
     if (rankings) {
-      // Filter out Bot365 and unpaid users
-      const realRankings = rankings.filter(r => r.user_id !== BOT365_ID && paidSet.has(r.user_id))
+      // Filter out Bot365 and unpaid users. Puntos efectivos = oficiales + en
+      // vivo (provisional), y reordenamos para que la posición sea la real ahora.
+      const realRankings = rankings
+        .filter(r => r.user_id !== BOT365_ID && paidSet.has(r.user_id))
+        .map(r => ({ ...r, effective_points: (r.total_points || 0) + (liveProvisional[r.user_id] || 0) }))
+        .sort((a, b) => b.effective_points - a.effective_points)
       rankingsTotal = realRankings.length
 
-      // Calculate tied position
+      // Calculate tied position (sobre puntos efectivos)
       const myIdx = realRankings.findIndex(r => r.user_id === session.user.id)
       if (myIdx !== -1) {
-        const myPts = realRankings[myIdx].total_points
+        const myPts = realRankings[myIdx].effective_points
         let firstWithSame = myIdx
-        while (firstWithSame > 0 && realRankings[firstWithSame - 1].total_points === myPts) {
+        while (firstWithSame > 0 && realRankings[firstWithSame - 1].effective_points === myPts) {
           firstWithSame--
         }
         const pos = firstWithSame + 1
         const isTied = (firstWithSame < myIdx) ||
-          (myIdx + 1 < realRankings.length && realRankings[myIdx + 1].total_points === myPts)
+          (myIdx + 1 < realRankings.length && realRankings[myIdx + 1].effective_points === myPts)
         rank = isTied ? `T${pos}` : pos
       }
 
