@@ -6,7 +6,10 @@ export const WORLD_CUP_START = new Date('2026-06-11T17:00:00Z')
 // Deadline predicciones: 10 de junio 2026, 23:59h hora España (CEST = UTC+2).
 // Fixed wall-clock cutoff (not "48h before") so it matches the rules copy
 // and the RLS policies in the DB exactly. Keep these three in sync.
-export const PREDICTIONS_DEADLINE = new Date('2026-06-10T21:59:59Z')
+// VENTANA PUNTUAL 11 jun 10:00–11:00: alta de Mateo (sustituye a César).
+// El backend (RLS+trigger) solo permite escritura en esa franja; el cierre
+// real lo gobierna la ventana de la DB. Aquí el cutoff es el fin de ventana.
+export const PREDICTIONS_DEADLINE = new Date('2026-06-11T09:00:00Z')
 
 export function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(targetDate))
