@@ -405,7 +405,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
   // Get all bets and entries
   const bets = await supaFetch('/rest/v1/pre_tournament_bets?select=*')
-  const entries = await supaFetch('/rest/v1/pre_tournament_entries?select=*&is_resolved=eq.false')
+  const entries = await supaFetchAll('/rest/v1/pre_tournament_entries?select=*&is_resolved=eq.false')
 
   // Get all finished group matches
   const finishedGroups = ourMatches.filter(m => m.stage === 'group' && m.home_score !== null)
@@ -849,8 +849,8 @@ async function scoreBracketPicks(log) {
 
   if (!knockoutMatches || knockoutMatches.length === 0) return 0
 
-  // Get all bracket picks that haven't been scored yet
-  const unscoredPicks = await supaFetch(
+  // Get all bracket picks that haven't been scored yet (paginado: >1000 picks)
+  const unscoredPicks = await supaFetchAll(
     '/rest/v1/bracket_picks?select=id,user_id,match_number,round,predicted_winner_id' +
     '&points_awarded=is.null'
   )
@@ -922,6 +922,31 @@ async function supaFetch(path, options = {}) {
 
   if (options.method === 'PATCH') return null
   return res.json()
+}
+
+// Igual que supaFetch pero pagina (PostgREST corta en 1000 filas por defecto).
+// CRÍTICO para resolver apuestas: con >1000 entries sin resolver, sin paginar
+// solo se procesaban las primeras 1000 y el resto se quedaba sin puntuar.
+async function supaFetchAll(path) {
+  let all = [], from = 0
+  const size = 1000
+  while (true) {
+    const res = await fetch(`${SUPABASE_URL}${path}`, {
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Range-Unit': 'items',
+        'Range': `${from}-${from + size - 1}`
+      }
+    })
+    if (!res.ok) break
+    const batch = await res.json().catch(() => [])
+    if (!Array.isArray(batch) || batch.length === 0) break
+    all = all.concat(batch)
+    if (batch.length < size) break
+    from += size
+  }
+  return all
 }
 
 /**
