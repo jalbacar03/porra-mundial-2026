@@ -921,8 +921,8 @@ function formatDateShort(dateStr) {
         )
       })()}
 
-      {/* ===== EN DIRECTO (live match widget with prediction overlay) ===== */}
-      {liveMatches.length > 0 && (
+      {/* ===== EN DIRECTO — desactivado: el banner rojo de arriba ya muestra el partido en vivo (evita duplicado) ===== */}
+      {false && liveMatches.length > 0 && (
         <div style={{ marginBottom: '14px' }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
