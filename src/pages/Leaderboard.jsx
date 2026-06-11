@@ -5,7 +5,7 @@ import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonLeaderboard } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
-import { displayName } from '../utils/nickname'
+import { displayName, formatRealName } from '../utils/nickname'
 import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
@@ -672,7 +672,7 @@ function renderSofaScore({
                 color: isMe ? C.accentLight : 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 minWidth: 0
-              }}>{compactName(user.full_name)}</span>
+              }}>{formatRealName(user.full_name)}</span>
               {notPaid && (
                 <span
                   title="No pagado"
