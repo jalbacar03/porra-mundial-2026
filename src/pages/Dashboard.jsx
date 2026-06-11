@@ -1459,7 +1459,7 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
   const hasPred = prediction && prediction.predicted_home != null && prediction.predicted_away != null
   const cdStr = cd.expired ? 'empezando…'
     : cd.days > 0 ? `${cd.days}d ${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m`
-      : `${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m`
+      : `${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m ${String(cd.seconds).padStart(2, '0')}s`
   const liveMin = match.live_minute != null ? `${match.live_minute}'` : (match.live_status_short === 'HT' ? 'Descanso' : '')
   return (
     <div onClick={onClick} role="button" tabIndex={0} className="tap-scale"
@@ -1488,11 +1488,18 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
           {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px', flexShrink: 0 }} />}
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-        <span>{isLive ? 'En juego' : `${dateStr} · ${timeStr}`}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+        <div style={{ minWidth: 0 }}>
+          <div>{isLive ? 'En juego' : `${dateStr} · ${timeStr}`}</div>
+          {match.city && (
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              📍 {match.city}
+            </div>
+          )}
+        </div>
         {hasPred
-          ? <span style={{ color: isLive ? 'var(--red)' : '#4ade80', fontWeight: '700' }}>Tu predicción: {prediction.predicted_home}-{prediction.predicted_away}</span>
-          : <span style={{ color: 'rgba(255,255,255,0.4)' }}>Sin predicción</span>}
+          ? <span style={{ color: isLive ? 'var(--red)' : '#4ade80', fontWeight: '700', flexShrink: 0 }}>Tu predicción: {prediction.predicted_home}-{prediction.predicted_away}</span>
+          : <span style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>Sin predicción</span>}
       </div>
     </div>
   )
