@@ -713,13 +713,8 @@ function formatDateShort(dateStr) {
 
       {/* === BOTE ACUMULADO === */}
       {(() => {
-        // El bote (N×16€) ya es el 100% repartible. Mantenemos la proporción
-        // antigua 5:2:1 (antes 50/20/10 sobre 100€/persona) renormalizada para
-        // que la suma cubra el bote entero: 62.5% / 25% / 12.5%.
-        const bote = totalParticipants * 16
-        const first  = Math.round(bote * 0.625)
-        const second = Math.round(bote * 0.25)
-        const third  = bote - first - second  // resto (asegura que suma exacta = bote)
+        // Bote y reparto FIJOS (acordados por la organización). 1.900€ total.
+        const bote = 1900
         // Separador de miles manual (determinista, no depende de Intl/ICU): 1248 → 1.248
         const miles = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
         return (
@@ -774,9 +769,23 @@ function formatDateShort(dateStr) {
               }}>
                 Reparto
               </div>
-              <div><span style={{ color: '#ffd700', fontWeight: 700 }}>1º</span> · {miles(first)}€</div>
-              <div><span style={{ color: '#c0c0c0', fontWeight: 700 }}>2º</span> · {miles(second)}€</div>
-              <div><span style={{ color: '#cd7f32', fontWeight: 700 }}>3º</span> · {miles(third)}€</div>
+              <div><span style={{ color: '#ffd700', fontWeight: 700 }}>1º</span> · 1.000€</div>
+              <div><span style={{ color: '#c0c0c0', fontWeight: 700 }}>2º</span> · 450€</div>
+              <div><span style={{ color: '#cd7f32', fontWeight: 700 }}>3º</span> · 250€</div>
+              <details className="bote-desglose" style={{ marginTop: '4px' }}>
+                <summary style={{
+                  cursor: 'pointer', listStyle: 'none', userSelect: 'none',
+                  fontSize: '9px', color: 'rgba(255,204,0,0.7)', fontWeight: '600',
+                  letterSpacing: '0.3px'
+                }}>
+                  Ver desglose ▾
+                </summary>
+                <div style={{ marginTop: '4px', color: 'rgba(255,255,255,0.55)' }}>
+                  <div>4º · 100€</div>
+                  <div>5º · 50€</div>
+                  <div style={{ whiteSpace: 'nowrap' }}>Fase grupos · 50€</div>
+                </div>
+              </details>
             </div>
           </div>
         )

@@ -78,3 +78,7 @@ button, a {
     width: 40px !important;
   }
 }
+/* Bote — desplegable de reparto: oculta el marcador nativo del <details> */
+.bote-desglose summary::-webkit-details-marker { display: none; }
+.bote-desglose summary::marker { content: ''; }
+.bote-desglose[open] summary { color: rgba(255,204,0,0.9); }
