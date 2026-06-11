@@ -6,6 +6,9 @@ import { SkeletonDashboard } from '../components/Skeleton'
 import Avatar from '../components/Avatar'
 
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
+const MALDINI_ID = 'abc6a77b-f2af-4189-82ff-583ce22f92a4'
+// Participantes ficticios (referencia) — se excluyen del consenso "qué votó la gente".
+const FICTICIOS = new Set([BOT365_ID, MALDINI_ID])
 
 export default function Stats({ demoMode }) {
   const [matches, setMatches] = useState([])
@@ -42,6 +45,7 @@ export default function Stats({ demoMode }) {
   const [teams, setTeams] = useState([])
   const [allPreTournamentEntries, setAllPreTournamentEntries] = useState([])
   const [allMatches, setAllMatches] = useState([])
+  const [bracketPicks, setBracketPicks] = useState([])
 
   const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
   const betCategories = [
@@ -69,7 +73,8 @@ export default function Stats({ demoMode }) {
       supabase.from('teams').select('id, name, flag_url'),
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
-        .order('match_date', { ascending: true })
+        .order('match_date', { ascending: true }),
+      supabase.from('bracket_picks').select('user_id, match_number, round, predicted_winner_id')
     ]
 
     // Fetch user's own predictions with points
@@ -95,7 +100,8 @@ export default function Stats({ demoMode }) {
     setLeaderboard(results[5].data || [])
     setTeams(results[6].data || [])
     setAllMatches(results[7].data || [])
-    if (results[8]) setMyPredictions(results[8].data || [])
+    setBracketPicks(results[8].data || [])
+    if (results[9]) setMyPredictions(results[9].data || [])
     setLoading(false)
   }
 
@@ -196,8 +202,14 @@ export default function Stats({ demoMode }) {
     }
   }
 
+  // IDs de participantes reales (admitidos, sin ficticios): base del consenso "qué votó la gente".
+  const realUserIds = useMemo(
+    () => new Set(profiles.filter(p => p.has_paid && !FICTICIOS.has(p.id)).map(p => p.id)),
+    [profiles]
+  )
+
   function getBetStats(betId) {
-    const entries = betEntries.filter(e => e.bet_id === betId)
+    const entries = betEntries.filter(e => e.bet_id === betId && realUserIds.has(e.user_id))
     if (entries.length === 0) return { total: 0, topAnswers: [] }
     const bet = bets.find(b => b.id === betId)
     const counts = {}
@@ -206,9 +218,28 @@ export default function Stats({ demoMode }) {
       counts[a] = (counts[a] || 0) + 1
     })
     const sorted = Object.entries(counts)
-      .sort(([, a], [, b]) => b - a).slice(0, 5)
+      .sort(([, a], [, b]) => b - a).slice(0, 8)
       .map(([answer, count]) => ({ answer, count, pct: Math.round((count / entries.length) * 100) }))
     return { total: entries.length, topAnswers: sorted }
+  }
+
+  // Consenso del cuadro: campeón (final), finalistas (semis), semifinalistas (cuartos).
+  function getBracketStats() {
+    const teamName = (id) => teams.find(t => t.id === id)?.name || '?'
+    const tally = (matchNumbers) => {
+      const picks = bracketPicks.filter(b => matchNumbers.includes(b.match_number) && realUserIds.has(b.user_id) && b.predicted_winner_id)
+      const voters = new Set(picks.map(b => b.user_id)).size
+      const counts = {}
+      picks.forEach(b => { counts[b.predicted_winner_id] = (counts[b.predicted_winner_id] || 0) + 1 })
+      const top = Object.entries(counts).sort(([, a], [, b]) => b - a).slice(0, 8)
+        .map(([id, count]) => ({ answer: teamName(Number(id)), count, pct: Math.round((count / Math.max(voters, 1)) * 100) }))
+      return { total: voters, topAnswers: top }
+    }
+    return {
+      champion: tally([104]),
+      finalists: tally([101, 102]),
+      semifinalists: tally([97, 98, 99, 100])
+    }
   }
 
   function formatDate(dateStr) {
@@ -1338,10 +1369,71 @@ export default function Stats({ demoMode }) {
       {/* ==================== BETS TAB ==================== */}
       {activeTab === 'bets' && (
         <div className="tab-fade-in">
+          {/* ===== EL CUADRO DE LA GENTE (consenso del bracket) ===== */}
+          {(() => {
+            const bs = getBracketStats()
+            const blocks = [
+              { title: 'Campeón del Mundial', stats: bs.champion },
+              { title: 'Equipos puestos en la final', stats: bs.finalists },
+              { title: 'Equipos puestos en semifinales', stats: bs.semifinalists }
+            ]
+            return (
+              <>
+                <div style={{
+                  fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase',
+                  letterSpacing: '1.2px', fontWeight: '700', marginBottom: '10px'
+                }}>
+                  El cuadro de la gente
+                </div>
+                {blocks.map(blk => (
+                  <div key={blk.title} style={{
+                    background: 'var(--bg-secondary)', borderRadius: '12px',
+                    padding: '14px 16px', marginBottom: '10px'
+                  }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        {blk.title}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                        {blk.stats.total} porras
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                      {blk.stats.topAnswers.map((a, i) => (
+                        <div key={i}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', gap: '8px' }}>
+                            <span style={{
+                              fontSize: '13px', color: i === 0 ? 'var(--text-primary)' : 'var(--text-muted)',
+                              fontWeight: i === 0 ? '700' : '500', display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                            }}>
+                              {i === 0 && <span style={{ color: 'var(--gold)', fontSize: '12px', flexShrink: 0 }}>★</span>}
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.answer}</span>
+                            </span>
+                            <span style={{ fontSize: '12px', fontWeight: '700', flexShrink: 0, color: i === 0 ? 'var(--gold)' : 'var(--text-muted)' }}>
+                              {a.pct}%
+                            </span>
+                          </div>
+                          <div style={{ height: '6px', background: 'var(--bg-input)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%', width: `${a.pct}%`,
+                              background: i === 0 ? 'linear-gradient(90deg, var(--green), var(--gold))' : 'rgba(157,163,176,0.35)',
+                              borderRadius: '3px', transition: 'width 0.5s ease'
+                            }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )
+          })()}
+
           {/* Section header */}
           <div style={{
             fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase',
-            letterSpacing: '1.2px', fontWeight: '700', marginBottom: '10px'
+            letterSpacing: '1.2px', fontWeight: '700', marginBottom: '10px', marginTop: '20px'
           }}>
             Consenso predicciones especiales
           </div>
