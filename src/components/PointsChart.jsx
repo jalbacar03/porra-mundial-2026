@@ -28,12 +28,16 @@ export default function PointsChart({ userId }) {
       return
     }
 
-    // Get match dates for ordering
+    // Get match dates for ordering. Excluimos friendly/test (La Liguilla) — el
+    // gráfico es SOLO del Mundial; si no, los puntos de los amistosos arrancan
+    // la línea en >0 antes de empezar el Mundial.
     const matchIds = preds.map(p => p.match_id)
     const { data: matches } = await supabase
       .from('matches')
       .select('id, match_date')
       .in('id', matchIds)
+      .neq('stage', 'friendly')
+      .neq('stage', 'test')
       .order('match_date', { ascending: true })
 
     if (!matches) {
