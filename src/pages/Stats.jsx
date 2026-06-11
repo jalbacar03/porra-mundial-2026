@@ -57,6 +57,20 @@ export default function Stats({ demoMode }) {
 
   useEffect(() => { fetchData() }, [])
 
+  // Trae TODAS las filas de una tabla paginando (Supabase corta en 1000/req).
+  // Sin esto, las stats agregadas se calculaban sobre una muestra parcial.
+  async function fetchAll(table, columns) {
+    let all = [], from = 0
+    while (true) {
+      const { data } = await supabase.from(table).select(columns).range(from, from + 999)
+      if (!data?.length) break
+      all = all.concat(data)
+      if (data.length < 1000) break
+      from += 1000
+    }
+    return { data: all }
+  }
+
   async function fetchData() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) setUserId(user.id)
@@ -65,16 +79,16 @@ export default function Stats({ demoMode }) {
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
         .eq('stage', 'group').order('match_date', { ascending: true }),
-      supabase.from('predictions').select('match_id, predicted_home, predicted_away, user_id'),
+      fetchAll('predictions', 'match_id, predicted_home, predicted_away, user_id'),
       supabase.from('profiles').select('id, full_name, has_paid, avatar_url'),
       supabase.from('pre_tournament_bets').select('*').order('id', { ascending: true }),
-      supabase.from('pre_tournament_entries').select('bet_id, user_id, value, points_awarded, is_resolved'),
+      fetchAll('pre_tournament_entries', 'bet_id, user_id, value, points_awarded, is_resolved'),
       supabase.from('leaderboard').select('*'),
       supabase.from('teams').select('id, name, flag_url'),
       supabase.from('matches')
         .select('*, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
         .order('match_date', { ascending: true }),
-      supabase.from('bracket_picks').select('user_id, match_number, round, predicted_winner_id')
+      fetchAll('bracket_picks', 'user_id, match_number, round, predicted_winner_id')
     ]
 
     // Fetch user's own predictions with points
@@ -92,7 +106,8 @@ export default function Stats({ demoMode }) {
     setAllPredictions(results[1].data || [])
     const profilesData = results[2].data || []
     setProfiles(profilesData)
-    setTotalUsers(profilesData.length)
+    // Participantes reales: admitidos (has_paid), sin ficticios (Bot365/Maldini).
+    setTotalUsers(profilesData.filter(p => p.has_paid && !FICTICIOS.has(p.id)).length)
     setBets(results[3].data || [])
     const allEntries = results[4].data || []
     setBetEntries(allEntries)
@@ -1564,7 +1579,7 @@ export default function Stats({ demoMode }) {
         const rankA = h2hUserA ? lbSorted.findIndex(u => u.user_id === h2hUserA) + 1 : 0
         const rankB = h2hUserB ? lbSorted.findIndex(u => u.user_id === h2hUserB) + 1 : 0
 
-        const h2hGroupMatches = displayMatches.filter(m => m.group_name === h2hGroup && m.status === 'finished')
+        const h2hGroupMatches = displayMatches.filter(m => m.group_name === h2hGroup)
 
         return (
           <div className="tab-fade-in">
@@ -1813,7 +1828,7 @@ export default function Stats({ demoMode }) {
                       padding: '16px', textAlign: 'center', color: 'var(--text-dim)',
                       fontSize: '12px', background: 'var(--bg-input)', borderRadius: '8px'
                     }}>
-                      No hay partidos finalizados en el Grupo {h2hGroup}
+                      No hay partidos en el Grupo {h2hGroup}
                     </div>
                   ) : (
                     h2hGroupMatches.map(match => {
@@ -1830,10 +1845,10 @@ export default function Stats({ demoMode }) {
                             </span>
                             <span style={{
                               padding: '3px 10px', background: 'var(--bg-input)', borderRadius: '6px',
-                              fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)',
+                              fontSize: '13px', fontWeight: '800', color: match.status === 'finished' ? 'var(--text-primary)' : 'var(--text-dim)',
                               fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '1px'
                             }}>
-                              {match.home_score}-{match.away_score}
+                              {match.status === 'finished' ? `${match.home_score}-${match.away_score}` : 'vs'}
                             </span>
                             <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {match.away_team?.name}
@@ -1856,7 +1871,7 @@ export default function Stats({ demoMode }) {
                                 {predA ? `${predA.predicted_home}-${predA.predicted_away}` : '—'}
                               </div>
                               <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px', fontWeight: '600' }}>
-                                {predA ? `+${predA.points_earned || 0}` : ''}
+                                {predA && match.status === 'finished' ? `+${predA.points_earned || 0}` : ''}
                               </div>
                             </div>
                             <div style={{
@@ -1874,7 +1889,7 @@ export default function Stats({ demoMode }) {
                                 {predB ? `${predB.predicted_home}-${predB.predicted_away}` : '—'}
                               </div>
                               <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '3px', fontWeight: '600' }}>
-                                {predB ? `+${predB.points_earned || 0}` : ''}
+                                {predB && match.status === 'finished' ? `+${predB.points_earned || 0}` : ''}
                               </div>
                             </div>
                           </div>
