@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { FootballSpinner } from './Skeleton'
+import { formatRealName } from '../utils/nickname'
 
 /**
  * Head-to-head comparison modal between current user and a rival.
@@ -17,6 +18,7 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
   }, [userId, rivalId])
 
   async function fetchH2H() {
+    try {
     // Fetch both users' predictions + the matches
     const [myPreds, rivalPreds, profileRes] = await Promise.all([
       supabase.from('predictions').select('match_id, predicted_home, predicted_away, points_earned').eq('user_id', userId),
@@ -25,7 +27,7 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
     ])
 
     if (profileRes.data) {
-      setMyName(profileRes.profileRes.data.full_name || 'Tú')
+      setMyName(formatRealName(profileRes.data.full_name) || 'Tú')
     }
 
     const myMap = {}
@@ -63,7 +65,12 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
     const rivalBetPts = (rivalBets.data || []).reduce((s, e) => s + (e.points_awarded || 0), 0)
 
     setData({ myWins, rivalWins, draws, total, myTotalPts, rivalTotalPts, myBetPts, rivalBetPts })
-    setLoading(false)
+    } catch (e) {
+      console.error('H2H fetch error', e)
+      setData(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

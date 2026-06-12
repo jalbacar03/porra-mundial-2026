@@ -16,7 +16,7 @@ import NicknameModal from '../components/NicknameModal'
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
-  const [stats, setStats] = useState({ total: 0, completed: 0, points: 0, exactHits: 0, signHits: 0, rank: '-' })
+  const [stats, setStats] = useState({ total: 0, completed: 0, points: 0, exactHits: 0, signHits: 0, rePoints: 0, signPoints: 0, espPoints: 0, rank: '-' })
   const [topRanking, setTopRanking] = useState([])
   const [groupProgress, setGroupProgress] = useState([])
   const [specialsCount, setSpecialsCount] = useState(0)
@@ -36,6 +36,7 @@ export default function Dashboard({ session, demoMode }) {
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
   const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: empiezan en <5h (banner pre)
+  const [recentFinishedMatches, setRecentFinishedMatches] = useState([]) // Mundial: terminados hoy/ayer (banner final)
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
   const { points: livePoints, matchCount: liveMatchCount } = useLivePoints(session?.user?.id)
@@ -177,6 +178,9 @@ export default function Dashboard({ session, demoMode }) {
     const points = mundialPreds.reduce((sum, p) => sum + (p.points_earned || 0), 0)
     const exactHits = mundialPreds.filter(p => p.points_earned === 3).length
     const signHits = mundialPreds.filter(p => p.points_earned === 1).length
+    // Desglose de puntos para el hero: RE (exactos ×3) · 1X2 (signos ×1) · ESP (especiales)
+    const rePoints = exactHits * 3
+    const signPoints = signHits * 1
 
     // Build predictions map
     const predsMap = {}
@@ -193,17 +197,19 @@ export default function Dashboard({ session, demoMode }) {
     setGroupProgress(gProgress)
 
     // Pre-Mundial progress: count user's specials + bracket picks + active bets total.
-    const [specialsRes, bracketRes, activeBetsRes] = await Promise.all([
+    const [specialsRes, bracketRes, activeBetsRes, espPointsRes] = await Promise.all([
       supabase.from('pre_tournament_entries').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id),
       // Cuadro: TODOS los cruces que predice el usuario (16avos→Final = 31). Los
       // 16avos también cuentan: predices quién gana cada uno (= quién pasa a
       // octavos), aunque vengan pre-rellenados con el favorito y puntúen 1 pt.
       supabase.from('bracket_picks').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).not('predicted_winner_id', 'is', null),
-      supabase.from('pre_tournament_bets').select('id', { count: 'exact', head: true }).eq('is_active', true).neq('slug', 'round_of_32')
+      supabase.from('pre_tournament_bets').select('id', { count: 'exact', head: true }).eq('is_active', true).neq('slug', 'round_of_32'),
+      supabase.from('pre_tournament_entries').select('points_awarded').eq('user_id', session.user.id)
     ])
     setSpecialsCount(specialsRes.count || 0)
     setBracketCount(bracketRes.count || 0)
     setActiveBetsCount(activeBetsRes.count || 13)
+    const espPoints = (espPointsRes.data || []).reduce((s, e) => s + (e.points_awarded || 0), 0)
 
     // Live matches (status='live') and next upcoming
     const now = new Date()
@@ -243,6 +249,20 @@ export default function Dashboard({ session, demoMode }) {
       .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
       .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
     setPreMundialMatches(preMundial)
+
+    // Banner FINAL del Mundial: partidos terminados que se quedan visibles hasta
+    // el final del día siguiente. startOfYesterday = medianoche local de ayer →
+    // muestra los partidos de ayer y de hoy, descarta los más antiguos.
+    const startOfYesterday = new Date(now)
+    startOfYesterday.setHours(0, 0, 0, 0)
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+    const recentFinished = (allMatchesData || [])
+      .filter(m => m.status === 'finished' && m.home_score !== null
+        && m.stage !== 'friendly' && m.stage !== 'test'
+        && new Date(m.match_date) >= startOfYesterday)
+      .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))
+      .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
+    setRecentFinishedMatches(recentFinished)
 
     // User's predictions for live matches (for the EN DIRECTO overlay)
     if (live.length > 0) {
@@ -333,7 +353,7 @@ export default function Dashboard({ session, demoMode }) {
     }
     setTotalUsers(rankingsTotal)
 
-    setStats({ total: totalMatches, completed, points, exactHits, signHits, rank })
+    setStats({ total: totalMatches, completed, points, exactHits, signHits, rePoints, signPoints, espPoints, rank })
 
     // Post-match report: find the most recent completed match day.
     // Solo Mundial (excluye friendly/test) — el "vs ayer" del hero sale de aquí.
@@ -625,7 +645,8 @@ function formatDateShort(dateStr) {
       {(() => {
         const items = [
           ...liveMatches.map(m => ({ m, pred: livePredictions[m.id] })),
-          ...preMundialMatches.map(m => ({ m, pred: m.userPrediction }))
+          ...preMundialMatches.map(m => ({ m, pred: m.userPrediction })),
+          ...recentFinishedMatches.map(m => ({ m, pred: m.userPrediction }))
         ]
         return items.map(({ m, pred }, i) => (
           <MundialMatchBanner
@@ -708,56 +729,48 @@ function formatDateShort(dateStr) {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'baseline' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-              <span
-                className={hasLiveMundial ? 'live-points' : ''}
-                style={{
-                  fontSize: '22px', fontWeight: '800',
-                  color: hasLiveMundial ? 'var(--red)' : '#fff',
-                  lineHeight: 1
-                }}
-              >
-                {hasLiveMundial ? (displayStats.points + livePoints) : displayStats.points}
-              </span>
-              {leaderInfo && (
-                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: '500' }}>
-                  · líder {leaderInfo.points} <span style={{ color: 'rgba(255,255,255,0.6)' }}>({leaderInfo.names})</span>
-                </span>
-              )}
-            </div>
-            <div style={{
-              fontSize: '9px', color: 'rgba(255,255,255,0.5)',
-              textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: '4px', fontWeight: '600'
+        {/* Total de puntos + desglose RE · 1X2 · ESP */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <span
+            className={hasLiveMundial ? 'live-points' : ''}
+            style={{ fontSize: '26px', fontWeight: '800', color: hasLiveMundial ? 'var(--red)' : '#fff', lineHeight: 1 }}
+          >
+            {hasLiveMundial ? (displayStats.points + livePoints) : displayStats.points}
+          </span>
+          <span style={{
+            fontSize: '9px', color: 'rgba(255,255,255,0.5)',
+            textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: '600'
+          }}>
+            Puntos
+          </span>
+          {leaderInfo && (
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: '500' }}>
+              · líder {leaderInfo.points} <span style={{ color: 'rgba(255,255,255,0.6)' }}>({leaderInfo.names})</span>
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {[
+            { label: 'RE', value: displayStats.rePoints || 0, hint: 'Exactos' },
+            { label: '1X2', value: displayStats.signPoints || 0, hint: 'Signo' },
+            { label: 'ESP', value: displayStats.espPoints || 0, hint: 'Especiales' },
+          ].map(b => (
+            <div key={b.label} style={{
+              flex: 1, background: 'rgba(0,0,0,0.22)', borderRadius: '10px',
+              padding: '8px 10px', textAlign: 'center'
             }}>
-              Puntos
-            </div>
-          </div>
-          <div>
-            <div className={hasLiveMundial ? 'live-points' : ''} style={{ fontSize: '22px', fontWeight: '800', color: hasLiveMundial ? 'var(--red)' : 'var(--gold)', lineHeight: 1 }}>
-              {displayStats.exactHits}
-            </div>
-            <div style={{
-              fontSize: '9px', color: 'rgba(255,255,255,0.5)',
-              textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: '4px', fontWeight: '600'
-            }}>
-              Exactos
-            </div>
-          </div>
-          {deltaVsYesterday > 0 && (
-            <div>
-              <div style={{ fontSize: '22px', fontWeight: '800', color: '#4ade80', lineHeight: 1 }}>
-                +{deltaVsYesterday}
+              <div style={{ fontSize: '18px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
+                {b.value}
               </div>
               <div style={{
-                fontSize: '9px', color: 'rgba(255,255,255,0.5)',
-                textTransform: 'uppercase', letterSpacing: '1.2px', marginTop: '4px', fontWeight: '600'
+                fontSize: '9px', color: 'rgba(255,255,255,0.55)',
+                textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px', fontWeight: '700'
               }}>
-                Vs. Ayer
+                {b.label}
               </div>
             </div>
-          )}
+          ))}
         </div>
       </div>
 
@@ -1477,6 +1490,7 @@ function formatDateShort(dateStr) {
 // Banner de partido del Mundial: live (rojo) o pre (verde + countdown hasta el inicio).
 function MundialMatchBanner({ match, prediction, isLast, onClick }) {
   const isLive = match.status === 'live'
+  const isFinished = match.status === 'finished'
   const matchDate = new Date(match.match_date)
   const cd = useCountdown(matchDate)
   const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
@@ -1486,17 +1500,27 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
     : cd.days > 0 ? `${cd.days}d ${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m`
       : `${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m ${String(cd.seconds).padStart(2, '0')}s`
   const liveMin = match.live_minute != null ? `${match.live_minute}'` : (match.live_status_short === 'HT' ? 'Descanso' : '')
+  const pts = isFinished && hasPred ? (prediction.points_earned ?? null) : null
+  // Estilos por estado: live (rojo) · finalizado (gris neutro) · pre (verde)
+  const bg = isLive ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
+    : isFinished ? 'linear-gradient(135deg, #1c1f29, #242833)'
+      : 'linear-gradient(135deg, #0d2a1a, #123a23)'
+  const borderCol = isLive ? '1.5px solid rgba(226,75,74,0.5)'
+    : isFinished ? '1px solid rgba(255,255,255,0.1)'
+      : '1px solid rgba(0,144,81,0.4)'
+  const accent = isLive ? 'var(--red)' : isFinished ? 'rgba(255,255,255,0.55)' : '#4ade80'
   return (
     <div onClick={onClick} role="button" tabIndex={0} className="tap-scale"
       style={{
         marginBottom: isLast ? '14px' : '8px', padding: '14px 16px', borderRadius: '14px',
-        background: isLive ? 'linear-gradient(135deg, #3a1418, #5a1d24)' : 'linear-gradient(135deg, #0d2a1a, #123a23)',
-        border: isLive ? '1.5px solid rgba(226,75,74,0.5)' : '1px solid rgba(0,144,81,0.4)',
+        background: bg, border: borderCol,
         cursor: 'pointer', position: 'relative', overflow: 'hidden'
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <span style={{ fontSize: '10px', fontWeight: '800', color: isLive ? 'var(--red)' : '#4ade80', letterSpacing: '1.4px', textTransform: 'uppercase' }}>
-          {isLive ? `🔴 EN DIRECTO${liveMin ? ` · ${liveMin}` : ''}` : `⚽ Próximo partido · ${cdStr}`}
+        <span style={{ fontSize: '10px', fontWeight: '800', color: accent, letterSpacing: '1.4px', textTransform: 'uppercase' }}>
+          {isLive ? `🔴 EN DIRECTO${liveMin ? ` · ${liveMin}` : ''}`
+            : isFinished ? '✓ FINALIZADO'
+              : `⚽ Próximo partido · ${cdStr}`}
         </span>
         {isLive && <span className="live-dot" />}
       </div>
@@ -1507,7 +1531,9 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
         </div>
         {isLive
           ? <span className="live-pulse" style={{ fontSize: '22px', fontWeight: '800', color: '#fff', flexShrink: 0 }}>{match.home_score ?? 0} - {match.away_score ?? 0}</span>
-          : <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', fontWeight: '600', flexShrink: 0 }}>vs</span>}
+          : isFinished
+            ? <span style={{ fontSize: '22px', fontWeight: '800', color: '#fff', flexShrink: 0 }}>{match.home_score ?? 0} - {match.away_score ?? 0}</span>
+            : <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', fontWeight: '600', flexShrink: 0 }}>vs</span>}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
           <span style={{ fontSize: '16px', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.away_team?.name || '?'}</span>
           {match.away_team?.flag_url && <img src={match.away_team.flag_url} alt="" style={{ width: '24px', height: '16px', borderRadius: '2px', flexShrink: 0 }} />}
@@ -1522,9 +1548,20 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
             </div>
           )}
         </div>
-        {hasPred
-          ? <span style={{ color: isLive ? 'var(--red)' : '#4ade80', fontWeight: '700', flexShrink: 0 }}>Tu predicción: {prediction.predicted_home}-{prediction.predicted_away}</span>
-          : <span style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>Sin predicción</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {hasPred
+            ? <span style={{ color: accent, fontWeight: '700' }}>Tu predicción: {prediction.predicted_home}-{prediction.predicted_away}</span>
+            : <span style={{ color: 'rgba(255,255,255,0.4)' }}>Sin predicción</span>}
+          {pts != null && (
+            <span style={{
+              padding: '2px 9px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
+              background: pts === 3 ? 'rgba(0,122,69,0.2)' : pts === 1 ? 'rgba(255,204,0,0.15)' : 'rgba(226,75,74,0.15)',
+              color: pts === 3 ? '#4ade80' : pts === 1 ? 'var(--gold)' : '#e74c3c'
+            }}>
+              {pts === 3 ? '+3' : pts === 1 ? '+1' : '0'}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

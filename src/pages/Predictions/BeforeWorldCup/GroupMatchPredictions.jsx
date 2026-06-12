@@ -62,7 +62,8 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
       predsData.forEach(p => {
         predsMap[p.match_id] = {
           home_score: p.predicted_home,
-          away_score: p.predicted_away
+          away_score: p.predicted_away,
+          points_earned: p.points_earned
         }
       })
       setPredictions(predsMap)
@@ -346,13 +347,13 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                       📍 {match.city}
                     </span>
                   )}
-                  {demoMode && isFinished && (
+                  {isFinished && (
                     <span style={{
                       fontSize: '9px', padding: '1px 6px', borderRadius: '3px',
                       background: 'rgba(0,122,69,0.1)', color: 'var(--green)', fontWeight: '600'
                     }}>FINAL</span>
                   )}
-                  {demoMode && isLive && (
+                  {isLive && (
                     <span style={{
                       fontSize: '9px', padding: '1px 6px', borderRadius: '3px',
                       background: 'rgba(226,75,74,0.15)', color: '#ff6b6b', fontWeight: '600',
@@ -384,6 +385,82 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                     flips this match back into picker mode (data is preserved
                     because predictions[] already mirrors savedPredictions[]). */}
                 {(() => {
+                  // ── Partido EN VIVO o FINALIZADO (modo real) ──────────────
+                  // Sustituye a los pickers: muestra resultado real + tu
+                  // predicción + los puntos que sumaste (signo/exacto/fallo).
+                  if (!demoMode && (isFinished || isLive)) {
+                    const sp = savedPredictions[match.id] || {}
+                    const hasPred = sp.home_score != null && sp.away_score != null
+                    const pts = pred.points_earned
+                    const ptsBadge = isFinished && hasPred && pts != null ? (
+                      <span style={{
+                        padding: '3px 11px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
+                        background: pts === 3 ? 'rgba(0,122,69,0.15)' : pts === 1 ? 'rgba(255,204,0,0.12)' : 'rgba(226,75,74,0.12)',
+                        color: pts === 3 ? 'var(--green)' : pts === 1 ? 'var(--gold)' : '#e74c3c'
+                      }}>
+                        {pts === 3 ? 'Exacto +3' : pts === 1 ? 'Signo +1' : 'Fallo · 0'}
+                      </span>
+                    ) : null
+
+                    return (
+                      <div>
+                        {/* Equipos + resultado real */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                            {match.home_team?.flag_url && (
+                              <img src={match.home_team.flag_url} alt=""
+                                style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                            )}
+                            <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {match.home_team?.name || 'Por determinar'}
+                            </span>
+                          </div>
+                          <div style={{
+                            display: 'flex', alignItems: 'baseline', gap: '7px', padding: '0 6px',
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            <span style={{ fontSize: '24px', fontWeight: '800', color: isLive ? '#ff6b6b' : 'var(--text-primary)' }}>
+                              {match.home_score ?? 0}
+                            </span>
+                            <span style={{ fontSize: '15px', color: 'var(--text-dim)' }}>:</span>
+                            <span style={{ fontSize: '24px', fontWeight: '800', color: isLive ? '#ff6b6b' : 'var(--text-primary)' }}>
+                              {match.away_score ?? 0}
+                            </span>
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0 }}>
+                            <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {match.away_team?.name || 'Por determinar'}
+                            </span>
+                            {match.away_team?.flag_url && (
+                              <img src={match.away_team.flag_url} alt=""
+                                style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover', flexShrink: 0 }} />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tu predicción + puntos */}
+                        <div style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          marginTop: '10px', flexWrap: 'wrap'
+                        }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Tu predicción:</span>
+                          <span style={{
+                            fontSize: '13px', fontWeight: '700', color: 'var(--gold)',
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            {hasPred ? `${sp.home_score} - ${sp.away_score}` : '— sin predicción —'}
+                          </span>
+                          {ptsBadge}
+                          {isLive && hasPred && (
+                            <span style={{ padding: '3px 11px', borderRadius: '4px', fontSize: '11px', background: 'rgba(226,75,74,0.1)', color: '#ff6b6b', fontWeight: '600' }}>
+                              En juego…
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+
                   const collapsed = !demoMode && saved && !unsaved && !isEditing(match.id)
                                     && !deadline.expired
 

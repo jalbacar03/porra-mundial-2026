@@ -35,6 +35,7 @@ export const NAME_OVERRIDES = {
   'Gonzalo de Parellada Menéndez': 'Gonzalo de Parellada',
   'Juan Antonio Borrell Alonso': 'Juan Antonio Borrell',
   'Alejandro Balaguer Blanco': 'Alejandro Balaguer',
+  'Amadeo Arboles': 'Amadeo Árboles',
   'Héctor Cienfuegos Retana': 'Héctor Cienfuegos',
   'Álvaro García-Valdecasas': 'Álvaro G-Valdecasas',
   'Victor Casajuana Mukendi': 'Víctor Casajuana',
