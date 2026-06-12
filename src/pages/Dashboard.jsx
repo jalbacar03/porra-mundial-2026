@@ -323,6 +323,7 @@ export default function Dashboard({ session, demoMode }) {
 
     let rank = '-'
     let rankingsTotal = 0
+    let myTotalPoints = null  // total oficial del leaderboard (partidos + ESP + cuadro)
     if (rankings) {
       // Filter out Bot365 and unpaid users. Puntos efectivos = oficiales + en
       // vivo (provisional), y reordenamos para que la posición sea la real ahora.
@@ -335,6 +336,7 @@ export default function Dashboard({ session, demoMode }) {
       // Calculate tied position (sobre puntos efectivos)
       const myIdx = realRankings.findIndex(r => r.user_id === session.user.id)
       if (myIdx !== -1) {
+        myTotalPoints = realRankings[myIdx].total_points || 0
         const myPts = realRankings[myIdx].effective_points
         let firstWithSame = myIdx
         while (firstWithSame > 0 && realRankings[firstWithSame - 1].effective_points === myPts) {
@@ -353,7 +355,10 @@ export default function Dashboard({ session, demoMode }) {
     }
     setTotalUsers(rankingsTotal)
 
-    setStats({ total: totalMatches, completed, points, exactHits, signHits, rePoints, signPoints, espPoints, rank })
+    // Puntos del hero = total oficial del leaderboard (partidos + ESP + cuadro).
+    // Fallback a partidos+ESP si el usuario aún no está en el ranking.
+    const heroPoints = myTotalPoints != null ? myTotalPoints : (points + espPoints)
+    setStats({ total: totalMatches, completed, points: heroPoints, exactHits, signHits, rePoints, signPoints, espPoints, rank })
 
     // Post-match report: find the most recent completed match day.
     // Solo Mundial (excluye friendly/test) — el "vs ayer" del hero sale de aquí.
@@ -729,48 +734,20 @@ function formatDateShort(dateStr) {
           )}
         </div>
 
-        {/* Total de puntos + desglose RE · 1X2 · ESP */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+        {/* Puntos — simple */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
           <span
             className={hasLiveMundial ? 'live-points' : ''}
-            style={{ fontSize: '26px', fontWeight: '800', color: hasLiveMundial ? 'var(--red)' : '#fff', lineHeight: 1 }}
+            style={{ fontSize: '28px', fontWeight: '800', color: hasLiveMundial ? 'var(--red)' : '#fff', lineHeight: 1 }}
           >
             {hasLiveMundial ? (displayStats.points + livePoints) : displayStats.points}
           </span>
           <span style={{
-            fontSize: '9px', color: 'rgba(255,255,255,0.5)',
-            textTransform: 'uppercase', letterSpacing: '1.2px', fontWeight: '600'
+            fontSize: '10px', color: 'rgba(255,255,255,0.5)',
+            textTransform: 'uppercase', letterSpacing: '1.4px', fontWeight: '600'
           }}>
             Puntos
           </span>
-          {leaderInfo && (
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontWeight: '500' }}>
-              · líder {leaderInfo.points} <span style={{ color: 'rgba(255,255,255,0.6)' }}>({leaderInfo.names})</span>
-            </span>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {[
-            { label: 'RE', value: displayStats.rePoints || 0, hint: 'Exactos' },
-            { label: '1X2', value: displayStats.signPoints || 0, hint: 'Signo' },
-            { label: 'ESP', value: displayStats.espPoints || 0, hint: 'Especiales' },
-          ].map(b => (
-            <div key={b.label} style={{
-              flex: 1, background: 'rgba(0,0,0,0.22)', borderRadius: '10px',
-              padding: '8px 10px', textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '18px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
-                {b.value}
-              </div>
-              <div style={{
-                fontSize: '9px', color: 'rgba(255,255,255,0.55)',
-                textTransform: 'uppercase', letterSpacing: '1px', marginTop: '4px', fontWeight: '700'
-              }}>
-                {b.label}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -998,148 +975,6 @@ function formatDateShort(dateStr) {
               </div>
             )
           })}
-        </div>
-      )}
-
-      {/* ===== POST-MATCH REPORT ===== */}
-      {postMatchReport && !demoMode && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(0,122,69,0.06), var(--bg-secondary))',
-          borderRadius: '10px',
-          padding: '16px 18px',
-          marginBottom: '12px',
-          border: '1px solid rgba(0,122,69,0.15)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
-            background: 'linear-gradient(90deg, var(--green), var(--gold), var(--green))'
-          }} />
-          <div style={{
-            fontSize: '10px', color: 'var(--green)', textTransform: 'uppercase',
-            letterSpacing: '1px', fontWeight: '600', marginBottom: '12px',
-            display: 'flex', alignItems: 'center', gap: '6px'
-          }}>
-            <span>📊</span> Informe de jornada
-            <span style={{
-              fontSize: '9px', color: 'var(--text-dim)', fontWeight: '400',
-              marginLeft: 'auto', textTransform: 'capitalize', letterSpacing: '0'
-            }}>{postMatchReport.dateLabel}</span>
-          </div>
-
-          {/* Stats row */}
-          <div style={{
-            display: 'flex', gap: '8px', marginBottom: '12px'
-          }}>
-            {[
-              { value: postMatchReport.exacts, label: 'Exactos', color: 'var(--gold)', bg: 'rgba(255,204,0,0.08)' },
-              { value: postMatchReport.signs, label: 'Signos', color: 'var(--green)', bg: 'rgba(0,122,69,0.08)' },
-              { value: postMatchReport.misses, label: 'Fallos', color: 'var(--red)', bg: 'rgba(226,75,74,0.08)' }
-            ].map((s, i) => (
-              <div key={i} style={{
-                flex: 1, textAlign: 'center', padding: '10px 4px',
-                borderRadius: '8px', background: s.bg
-              }}>
-                <div style={{ fontSize: '20px', fontWeight: '800', color: s.color, lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Points earned + accuracy */}
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-input)'
-          }}>
-            <div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Puntos ganados: </span>
-              <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--green)' }}>+{postMatchReport.points}</span>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Aciertos: </span>
-              <span style={{
-                fontSize: '14px', fontWeight: '700',
-                color: (postMatchReport.exacts + postMatchReport.signs) / postMatchReport.predicted >= 0.5 ? 'var(--green)' : 'var(--red)'
-              }}>
-                {postMatchReport.exacts + postMatchReport.signs}/{postMatchReport.predicted}
-              </span>
-            </div>
-          </div>
-
-          {/* Best prediction */}
-          {postMatchReport.bestMatch && postMatchReport.bestPoints === 3 && (
-            <div style={{
-              marginTop: '10px', padding: '8px 12px', borderRadius: '6px',
-              background: 'rgba(255,204,0,0.06)', border: '1px solid rgba(255,204,0,0.1)',
-              fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center'
-            }}>
-              Mejor predicción: <span style={{ color: 'var(--gold)', fontWeight: '600' }}>
-                {postMatchReport.bestMatch.home_team?.name} {postMatchReport.bestMatch.home_score}-{postMatchReport.bestMatch.away_score} {postMatchReport.bestMatch.away_team?.name}
-              </span> <span style={{ color: 'var(--green)' }}>(exacto)</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Demo post-match report */}
-      {demoMode && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(0,122,69,0.06), var(--bg-secondary))',
-          borderRadius: '10px',
-          padding: '16px 18px',
-          marginBottom: '12px',
-          border: '1px solid rgba(0,122,69,0.15)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
-            background: 'linear-gradient(90deg, var(--green), var(--gold), var(--green))'
-          }} />
-          <div style={{
-            fontSize: '10px', color: 'var(--green)', textTransform: 'uppercase',
-            letterSpacing: '1px', fontWeight: '600', marginBottom: '12px',
-            display: 'flex', alignItems: 'center', gap: '6px'
-          }}>
-            <span>📊</span> Informe de jornada
-            <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: '400', marginLeft: 'auto', letterSpacing: '0' }}>jueves 12 de junio</span>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-            {[
-              { value: 1, label: 'Exactos', color: 'var(--gold)', bg: 'rgba(255,204,0,0.08)' },
-              { value: 2, label: 'Signos', color: 'var(--green)', bg: 'rgba(0,122,69,0.08)' },
-              { value: 1, label: 'Fallos', color: 'var(--red)', bg: 'rgba(226,75,74,0.08)' }
-            ].map((s, i) => (
-              <div key={i} style={{
-                flex: 1, textAlign: 'center', padding: '10px 4px',
-                borderRadius: '8px', background: s.bg
-              }}>
-                <div style={{ fontSize: '20px', fontWeight: '800', color: s.color, lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: '9px', color: 'var(--text-dim)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '10px 14px', borderRadius: '8px', background: 'var(--bg-input)'
-          }}>
-            <div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Puntos ganados: </span>
-              <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--green)' }}>+5</span>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Aciertos: </span>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--green)' }}>3/4</span>
-            </div>
-          </div>
-          <div style={{
-            marginTop: '10px', padding: '8px 12px', borderRadius: '6px',
-            background: 'rgba(255,204,0,0.06)', border: '1px solid rgba(255,204,0,0.1)',
-            fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center'
-          }}>
-            Mejor predicción: <span style={{ color: 'var(--gold)', fontWeight: '600' }}>España 3-0 Croacia</span> <span style={{ color: 'var(--green)' }}>(exacto)</span>
-          </div>
         </div>
       )}
 
