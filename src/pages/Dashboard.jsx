@@ -720,18 +720,6 @@ function formatDateShort(dateStr) {
           <span style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', paddingBottom: '6px' }}>
             /{displayTotalUsers > 0 ? displayTotalUsers : '?'}
           </span>
-          {/* ▲ delta if positive */}
-          {deltaVsYesterday > 0 && (
-            <span style={{
-              marginLeft: 'auto', marginBottom: '8px',
-              padding: '4px 9px', borderRadius: '20px',
-              background: 'rgba(0,0,0,0.25)', color: '#4ade80',
-              fontSize: '11px', fontWeight: '700',
-              display: 'inline-flex', alignItems: 'center', gap: '3px'
-            }}>
-              ▲ {deltaVsYesterday}
-            </span>
-          )}
         </div>
 
         {/* Puntos — simple */}
