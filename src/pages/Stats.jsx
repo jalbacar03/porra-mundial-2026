@@ -775,11 +775,16 @@ export default function Stats({ demoMode }) {
       {/* ==================== PERSONAL TAB ==================== */}
       {activeTab === 'me' && (() => {
         const myLb = lbSorted.find(u => u.user_id === userId)
-        const myRank = lbSorted.findIndex(u => u.user_id === userId) + 1
+        const myIndex = lbSorted.findIndex(u => u.user_id === userId)  // posición en el array (para vecinos)
         const myExacts = myLb?.exact_hits || 0
         const mySigns = myLb?.sign_hits || 0
         const myMisses = myLb?.misses || 0
         const myPoints = myLb?.total_points || 0
+        // Rango de COMPETICIÓN (igual que el Dashboard): nº de gente con MÁS
+        // puntos + 1. Los empatados comparten posición → "T10" en vez del índice.
+        const rankOf = (pts) => lbSorted.filter(u => u.total_points > pts).length + 1
+        const myRank = myLb ? rankOf(myPoints) : 0
+        const isTied = myLb ? lbSorted.filter(u => u.total_points === myPoints).length > 1 : false
         const myTotal = myExacts + mySigns + myMisses
         const myAccuracy = myTotal > 0 ? Math.round(((myExacts + mySigns) / myTotal) * 100) : 0
         const avgAcc = accuracyRate
@@ -804,8 +809,8 @@ export default function Stats({ demoMode }) {
           ? Math.round(((lbSorted.length - myRank) / (lbSorted.length - 1)) * 100)
           : 100
 
-        // Points to next rank
-        const nextUp = myRank > 1 ? lbSorted[myRank - 2] : null
+        // Points to next rank (vecino directo en el array, por índice)
+        const nextUp = myIndex > 0 ? lbSorted[myIndex - 1] : null
         const ptsToNext = nextUp ? nextUp.total_points - myPoints : 0
 
         return (
@@ -840,7 +845,7 @@ export default function Stats({ demoMode }) {
 
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '46px', fontWeight: '800', color: '#fff', lineHeight: 1 }}>
-                  {myRank > 0 ? myRank : '-'}
+                  {myRank > 0 ? `${isTied ? 'T' : ''}${myRank}` : '-'}
                 </span>
                 {myRank > 0 && (
                   <span style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', paddingBottom: '6px' }}>
@@ -893,7 +898,7 @@ export default function Stats({ demoMode }) {
                   display: 'inline-flex', alignItems: 'center', gap: '6px'
                 }}>
                   <span style={{ color: 'var(--gold)', fontWeight: '700' }}>▲ {ptsToNext} pts</span>
-                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>de {nextUp.full_name} ({myRank - 1}º)</span>
+                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>de {nextUp.full_name} ({rankOf(nextUp.total_points)}º)</span>
                 </div>
               )}
             </div>
@@ -1060,11 +1065,11 @@ export default function Stats({ demoMode }) {
                 .filter(m => m.status === 'scheduled')
                 .slice(0, 6)
 
-              if (upcoming.length === 0 || myRank === 0) return null
+              if (upcoming.length === 0 || myIndex === -1) return null
 
-              // Rivals: user above and below
-              const rivalAbove = myRank > 1 ? lbSorted[myRank - 2] : null
-              const rivalBelow = myRank < lbSorted.length ? lbSorted[myRank] : null
+              // Rivals: vecino directo de arriba y de abajo (por índice en el array)
+              const rivalAbove = myIndex > 0 ? lbSorted[myIndex - 1] : null
+              const rivalBelow = myIndex < lbSorted.length - 1 ? lbSorted[myIndex + 1] : null
 
               // Get nickname helper
               const getName = (uid) => {
@@ -1123,7 +1128,7 @@ export default function Stats({ demoMode }) {
                       <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
                         Estás a <span style={{ color: 'var(--gold)', fontWeight: '800', fontSize: '14px' }}>{gapToAbove} pts</span> de{' '}
                         <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{getName(rivalAbove.user_id)}</span>{' '}
-                        <span style={{ color: 'var(--text-dim)' }}>({myRank - 1}º)</span>
+                        <span style={{ color: 'var(--text-dim)' }}>({rankOf(rivalAbove.total_points)}º)</span>
                       </div>
                       <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <div style={{
@@ -1153,7 +1158,7 @@ export default function Stats({ demoMode }) {
                       <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
                         <span style={{ color: 'var(--red)', fontWeight: '600' }}>⚠</span>{' '}
                         <span style={{ fontWeight: '600' }}>{getName(rivalBelow.user_id)}</span>{' '}
-                        <span style={{ color: 'var(--text-dim)' }}>({myRank + 1}º)</span> está solo a{' '}
+                        <span style={{ color: 'var(--text-dim)' }}>({rankOf(rivalBelow.total_points)}º)</span> está solo a{' '}
                         <span style={{ color: 'var(--red)', fontWeight: '700' }}>{gapFromBelow} pts</span>
                       </div>
                     </div>
@@ -1576,8 +1581,10 @@ export default function Stats({ demoMode }) {
 
         const lbA = leaderboard.find(u => u.user_id === h2hUserA)
         const lbB = leaderboard.find(u => u.user_id === h2hUserB)
-        const rankA = h2hUserA ? lbSorted.findIndex(u => u.user_id === h2hUserA) + 1 : 0
-        const rankB = h2hUserB ? lbSorted.findIndex(u => u.user_id === h2hUserB) + 1 : 0
+        // Rango de competición (empatados comparten posición), consistente con el resto
+        const rankOfPts = (pts) => lbSorted.filter(u => u.total_points > pts).length + 1
+        const rankA = lbA ? rankOfPts(lbA.total_points || 0) : 0
+        const rankB = lbB ? rankOfPts(lbB.total_points || 0) : 0
 
         const h2hGroupMatches = displayMatches.filter(m => m.group_name === h2hGroup)
 
