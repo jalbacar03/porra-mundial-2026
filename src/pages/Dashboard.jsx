@@ -646,22 +646,6 @@ function formatDateShort(dateStr) {
         )
       })}
 
-      {/* ===== BANNERS PARTIDOS DEL MUNDIAL: live (rojo) arriba, pre (verde + countdown) abajo ===== */}
-      {(() => {
-        const items = [
-          ...liveMatches.map(m => ({ m, pred: livePredictions[m.id] })),
-          ...preMundialMatches.map(m => ({ m, pred: m.userPrediction })),
-          ...recentFinishedMatches.map(m => ({ m, pred: m.userPrediction }))
-        ]
-        return items.map(({ m, pred }, i) => (
-          <MundialMatchBanner
-            key={m.id} match={m} prediction={pred}
-            isLast={i === items.length - 1}
-            onClick={() => navigate('/matchday')}
-          />
-        ))
-      })()}
-
       {/* (Widget genérico de La Liguilla retirado — el mini-torneo de amistosos
           ya terminó. La clasificación final sigue accesible desde la pestaña
           Clasificación → Liguilla.) */}
@@ -820,6 +804,22 @@ function formatDateShort(dateStr) {
       })()}
 
       </div>
+
+      {/* ===== BANNERS PARTIDOS DEL MUNDIAL: live (rojo) arriba, pre (verde + countdown) abajo ===== */}
+      {(() => {
+        const items = [
+          ...liveMatches.map(m => ({ m, pred: livePredictions[m.id] })),
+          ...preMundialMatches.map(m => ({ m, pred: m.userPrediction })),
+          ...recentFinishedMatches.map(m => ({ m, pred: m.userPrediction }))
+        ]
+        return items.map(({ m, pred }, i) => (
+          <MundialMatchBanner
+            key={m.id} match={m} prediction={pred}
+            isLast={i === items.length - 1}
+            onClick={() => navigate('/matchday')}
+          />
+        ))
+      })()}
 
       {/* ===== TU PROGRESO (pre-Mundial only — pushes users to complete predictions) ===== */}
       {!demoMode && new Date() < PREDICTIONS_DEADLINE && (() => {
