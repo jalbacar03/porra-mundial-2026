@@ -707,7 +707,8 @@ function renderSofaScore({
             >{si}</span>
             {showEsp && (
               <span
-                style={{ color: esp > 0 ? C.gold : 'var(--text-dim)', textAlign: 'center', fontWeight: 700 }}
+                className={tabHasLive ? 'live-points' : ''}
+                style={{ color: tabHasLive ? 'var(--red)' : (esp > 0 ? C.gold : 'var(--text-dim)'), textAlign: 'center', fontWeight: 700 }}
               >{esp}</span>
             )}
             <span
