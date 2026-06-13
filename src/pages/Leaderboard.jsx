@@ -362,13 +362,17 @@ export default function Leaderboard({ demoMode }) {
     const usableW = W - 2 * M
     const total = currentRankings.length
 
+    const redZone = bottomRedZone(
+      currentRankings,
+      u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0)
+    )
     const rows = currentRankings.map((u, i) => {
       const { rank, tied } = getTiedRank(i)
       const ex = tabHasLive ? (u.display_exact ?? u.exact_hits ?? 0) : (u.exact_hits || 0)
       const si = tabHasLive ? (u.display_sign ?? u.sign_hits ?? 0) : (u.sign_hits || 0)
       const pts = tabHasLive ? u.effective_points : u.total_points
       const medal = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null
-      const bottom = total > 6 && i >= total - 3 && !medal
+      const bottom = redZone.has(u.user_id) && !medal
       return { rankLabel: tied ? `T${rank}` : `${rank}`, rank, name: u.full_name, played, ex, si, pts, medal, bottom }
     })
 
@@ -581,7 +585,27 @@ function compactName(name, maxLen = 18) {
 // ─── Vista SofaScore-style — unificada Mundial + Liguilla ────────────────
 // Tabla compacta: #, NICK, PJ, 3·(exactos), 1·(signos), PTS.
 // theme='friendly' → paleta azul · theme='mundial' → paleta verde.
-// Top 3 con medalla (oro/plata/bronce) · Últimos 3 con rank en rojo.
+// Zona roja (descenso): un participante está en rojo si hay MENOS de 3 personas
+// con estrictamente menos puntos que él. Equivale a las últimas 3 POSICIONES por
+// competición, pero incluyendo a TODOS los empatados del borde — no se parte un
+// empate (si 5 empatan en el fondo, los 5 van en rojo; sin empates, salen 3).
+function bottomRedZone(rankings, ptsOf) {
+  const total = rankings.length
+  if (total <= 6) return new Set()
+  const allPts = rankings.map(ptsOf)
+  const leaderPts = Math.max(...allPts)
+  const ids = rankings.filter(u => {
+    const p = ptsOf(u)
+    if (p >= leaderPts) return false            // nadie con el máximo está en descenso
+    return allPts.filter(v => v < p).length < 3 // <3 personas estrictamente por debajo
+  })
+  // Anti-degenerado: si la zona abarca a más de la mitad (todos muy empatados,
+  // p.ej. inicio del torneo), no marcamos a nadie.
+  if (ids.length > Math.floor(total / 2)) return new Set()
+  return new Set(ids.map(u => u.user_id))
+}
+
+// Top 3 con medalla (oro/plata/bronce) · Últimos por competición con rank en rojo.
 // Mundial añade: payment dot "no pagado" + onClick → H2H modal.
 function renderSofaScore({
   fullRankings, currentRankings, getTiedRank,
@@ -634,13 +658,18 @@ function renderSofaScore({
         {showEsp && <span title="Puntos de predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>}
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
       </div>
-      {fullRankings.map((user, idx) => {
+      {(() => {
+      const redZone = bottomRedZone(
+        fullRankings,
+        u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0)
+      )
+      return fullRankings.map((user, idx) => {
         const isMe = user.user_id === userId
         const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
         const { rank, tied } = getTiedRank(realIdx)
         const rankLabel = tied ? `T${rank}` : `${rank}`
         const isTop3 = rank <= 3
-        const isBottom3 = idx >= total - 3 && total > 6
+        const isBottom3 = !isTop3 && redZone.has(user.user_id)
         const rankColor = isTop3
           ? (rank === 1 ? C.gold : rank === 2 ? C.silver : C.bronze)
           : isBottom3
@@ -721,7 +750,8 @@ function renderSofaScore({
             >{pts}</span>
           </div>
         )
-      })}
+      })
+      })()}
     </div>
   )
 }
