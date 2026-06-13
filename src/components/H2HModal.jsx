@@ -45,9 +45,13 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
       const rivalMap = {}
       ;(rivalPreds.data || []).forEach(p => { rivalMap[p.match_id] = p })
 
-      // Totales de partidos: cada uno suma TODOS sus puntos (cuadra con leaderboard)
-      const myMatchPts = (myPreds.data || []).reduce((s, p) => s + (p.points_earned || 0), 0)
-      const rivalMatchPts = (rivalPreds.data || []).reduce((s, p) => s + (p.points_earned || 0), 0)
+      // Solo partidos del Mundial (excluye Liguilla/friendly/test) — matchesRes ya
+      // viene filtrado. Sin esto, los puntos de la Liguilla descuadraban el H2H.
+      const mundialIds = new Set((matchesRes.data || []).map(m => m.id))
+
+      // Totales de partidos: cada uno suma SUS puntos del Mundial (cuadra con leaderboard)
+      const myMatchPts = (myPreds.data || []).reduce((s, p) => s + (mundialIds.has(p.match_id) ? (p.points_earned || 0) : 0), 0)
+      const rivalMatchPts = (rivalPreds.data || []).reduce((s, p) => s + (mundialIds.has(p.match_id) ? (p.points_earned || 0) : 0), 0)
 
       // Especiales
       const myBetPts = (myBets.data || []).reduce((s, e) => s + (e.points_awarded || 0), 0)
