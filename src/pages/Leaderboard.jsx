@@ -673,7 +673,7 @@ function renderSofaScore({
               fontVariantNumeric: 'tabular-nums',
               cursor: rowClickable ? 'pointer' : 'default'
             }}>
-            <span style={{ fontWeight: 800, color: rankColor, textAlign: 'center', fontSize: '12px' }}>{rankLabel}</span>
+            <span style={{ fontWeight: 800, color: rankColor, textAlign: 'center', fontSize: '13px' }}>{rankLabel}</span>
             <span style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               minWidth: 0
@@ -695,20 +695,20 @@ function renderSofaScore({
             </span>
             <span
               className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
             >{pj}</span>
             <span
               className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
             >{ex}</span>
             <span
               className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
             >{si}</span>
             {showEsp && (
               <span
                 className={tabHasLive ? 'live-points' : ''}
-                style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
+                style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
               >{esp}</span>
             )}
             <span
