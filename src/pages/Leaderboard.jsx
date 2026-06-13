@@ -627,12 +627,12 @@ function renderSofaScore({
     red: '#ef4444',
   }
   const total = fullRankings.length
-  // Col # algo más ancha + gap mayor → "T29" no se pega al nombre.
+  // Col # ancha para que "T115" (4 caracteres) no se pegue al nombre.
   // Mundial añade columna ESP (puntos de predicciones especiales) entre 1X2 y PTS.
   const showEsp = !isFriendly
   const GRID = showEsp
-    ? '30px 1fr 24px 26px 32px 30px 38px'
-    : '30px 1fr 24px 26px 32px 38px'
+    ? '40px 1fr 24px 26px 32px 30px 38px'
+    : '40px 1fr 24px 26px 32px 38px'
   const clickable = typeof onRowClick === 'function'
   return (
     <div style={{
