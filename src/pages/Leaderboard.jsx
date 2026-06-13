@@ -716,7 +716,7 @@ function renderSofaScore({
               style={{
                 textAlign: 'right', fontWeight: 800,
                 color: tabHasLive ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'),
-                fontSize: '14px'
+                fontSize: '13px'
               }}
             >{pts}</span>
           </div>
