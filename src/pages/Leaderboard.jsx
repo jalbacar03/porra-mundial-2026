@@ -372,8 +372,9 @@ export default function Leaderboard({ demoMode }) {
       const si = tabHasLive ? (u.display_sign ?? u.sign_hits ?? 0) : (u.sign_hits || 0)
       const pts = tabHasLive ? u.effective_points : u.total_points
       const medal = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null
-      const bottom = redZone.has(u.user_id) && !medal
-      return { rankLabel: tied ? `T${rank}` : `${rank}`, rank, name: u.full_name, played, ex, si, pts, medal, bottom }
+      const prize = !medal && (rank === 4 || rank === 5)   // premiados fuera del podio
+      const bottom = redZone.has(u.user_id) && !medal && !prize
+      return { rankLabel: tied ? `T${rank}` : `${rank}`, rank, name: u.full_name, played, ex, si, pts, medal, prize, bottom }
     })
 
     // ── Cabecera de marca ──
@@ -418,6 +419,12 @@ export default function Leaderboard({ demoMode }) {
         if (r.medal) {
           data.cell.styles.fillColor = ROW_TINT[r.medal]
           if (data.column.index === 0) { data.cell.styles.textColor = MEDAL[r.medal] }
+          if (data.column.index === 5) { data.cell.styles.textColor = ACCENT }
+        }
+        // 4º y 5º (premiados) → tinte arena muy tenue, # en dorado apagado.
+        if (r.prize) {
+          data.cell.styles.fillColor = [247, 243, 232]
+          if (data.column.index === 0) { data.cell.styles.textColor = [154, 132, 86] }
           if (data.column.index === 5) { data.cell.styles.textColor = ACCENT }
         }
         // Descenso → toda la fila en rojo tenue, # en rojo fuerte.
@@ -624,6 +631,7 @@ function renderSofaScore({
     gold: '#ffd700',
     silver: '#c0c0c0',
     bronze: '#cd7f32',
+    prize: '#9a8456',   // 4º y 5º: dorado apagado/arena, premiados pero discretos
     red: '#ef4444',
   }
   const total = fullRankings.length
@@ -669,12 +677,15 @@ function renderSofaScore({
         const { rank, tied } = getTiedRank(realIdx)
         const rankLabel = tied ? `T${rank}` : `${rank}`
         const isTop3 = rank <= 3
-        const isBottom3 = !isTop3 && redZone.has(user.user_id)
+        const isPrize = rank === 4 || rank === 5   // también premiados (bote), tono discreto
+        const isBottom3 = !isTop3 && !isPrize && redZone.has(user.user_id)
         const rankColor = isTop3
           ? (rank === 1 ? C.gold : rank === 2 ? C.silver : C.bronze)
-          : isBottom3
-            ? C.red
-            : 'var(--text-muted)'
+          : isPrize
+            ? C.prize
+            : isBottom3
+              ? C.red
+              : 'var(--text-muted)'
         // En vivo: ex/si muestran finished + provisional (display_*). Sin live:
         // solo los de la vista. PJ = partidos jugados (global del stage).
         const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
