@@ -31,9 +31,10 @@ export default function Leaderboard({ demoMode }) {
   const [profileFullNames, setProfileFullNames] = useState({})
   const [paymentConfirmed, setPaymentConfirmed] = useState(new Set())
   const [searchParams] = useSearchParams()
-  // ?only=friendly → modo "solo Liguilla": tab activa friendly + tab bar oculta.
-  const onlyFriendly = searchParams.get('only') === 'friendly'
-  const [activeTab, setActiveTab] = useState(onlyFriendly ? 'friendly' : 'mundial')
+  // La Liguilla (amistosos) ya terminó: su clasificación queda OCULTA en la app
+  // (los datos se conservan en la BD / vistas, solo se retira de la UI).
+  const onlyFriendly = false
+  const [activeTab, setActiveTab] = useState('mundial')
   const [friendlyRankings, setFriendlyRankings] = useState([])
   const [userJoinedFriendly, setUserJoinedFriendly] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -482,10 +483,9 @@ export default function Leaderboard({ demoMode }) {
         )}
       </div>
 
-      {/* Tabs Mundial / Pre-Mundial — ocultas en modo onlyFriendly (entrada
-          directa desde /pre-mundial → Clasificación). Indicador azul para la
-          tab Liguilla, verde para Mundial — refuerza la separación visual. */}
-      {userJoinedFriendly && !onlyFriendly && (
+      {/* Tabs Mundial / La Liguilla — OCULTAS: La Liguilla terminó y ya no se
+          muestra su clasificación en la app (datos conservados en BD). */}
+      {false && userJoinedFriendly && !onlyFriendly && (
         <div style={{
           display: 'flex', gap: '6px', marginBottom: '14px',
           padding: '4px', borderRadius: '10px',
