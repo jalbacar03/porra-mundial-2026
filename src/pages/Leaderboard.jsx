@@ -699,16 +699,16 @@ function renderSofaScore({
             >{pj}</span>
             <span
               className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : (ex > 0 ? 'var(--text-primary)' : 'var(--text-dim)'), textAlign: 'center', fontWeight: 700 }}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
             >{ex}</span>
             <span
               className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : (si > 0 ? 'var(--text-primary)' : 'var(--text-dim)'), textAlign: 'center', fontWeight: 700 }}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
             >{si}</span>
             {showEsp && (
               <span
                 className={tabHasLive ? 'live-points' : ''}
-                style={{ color: tabHasLive ? 'var(--red)' : (esp > 0 ? 'var(--text-primary)' : 'var(--text-dim)'), textAlign: 'center', fontWeight: 700 }}
+                style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '12px', fontWeight: tabHasLive ? 700 : 400 }}
               >{esp}</span>
             )}
             <span
