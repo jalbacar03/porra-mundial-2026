@@ -308,7 +308,10 @@ export default function Stats({ demoMode }) {
 
   // Leaderboard stats
   const paidUserIds = useMemo(() => new Set(profiles.filter(p => p.has_paid).map(p => p.id)), [profiles])
-  const lbSorted = [...leaderboard].filter(u => u.user_id !== BOT365_ID && paidUserIds.has(u.user_id)).sort((a, b) => b.total_points - a.total_points)
+  // Orden y desempate OFICIAL (Normas): puntos, y a igualdad, más exactos.
+  const lbSorted = [...leaderboard]
+    .filter(u => u.user_id !== BOT365_ID && paidUserIds.has(u.user_id))
+    .sort((a, b) => b.total_points - a.total_points || (b.exact_hits || 0) - (a.exact_hits || 0))
   const avgPoints = lbSorted.length > 0 ? Math.round(lbSorted.reduce((s, u) => s + u.total_points, 0) / lbSorted.length) : 0
   const totalExacts = lbSorted.reduce((s, u) => s + (u.exact_hits || 0), 0)
   const totalSigns = lbSorted.reduce((s, u) => s + (u.sign_hits || 0), 0)
@@ -780,11 +783,17 @@ export default function Stats({ demoMode }) {
         const mySigns = myLb?.sign_hits || 0
         const myMisses = myLb?.misses || 0
         const myPoints = myLb?.total_points || 0
-        // Rango de COMPETICIÓN (igual que el Dashboard): nº de gente con MÁS
-        // puntos + 1. Los empatados comparten posición → "T10" en vez del índice.
-        const rankOf = (pts) => lbSorted.filter(u => u.total_points > pts).length + 1
-        const myRank = myLb ? rankOf(myPoints) : 0
-        const isTied = myLb ? lbSorted.filter(u => u.total_points === myPoints).length > 1 : false
+        // Rango de COMPETICIÓN (igual que Inicio y Clasificación): nº de gente
+        // ESTRICTAMENTE por encima + 1. Desempate oficial (Normas): a igualdad de
+        // puntos, más resultados exactos. Empate real = mismos puntos Y mismos exactos.
+        const rankOf = (u) => lbSorted.filter(v =>
+          v.total_points > (u.total_points || 0) ||
+          (v.total_points === (u.total_points || 0) && (v.exact_hits || 0) > (u.exact_hits || 0))
+        ).length + 1
+        const myRank = myLb ? rankOf(myLb) : 0
+        const isTied = myLb
+          ? lbSorted.filter(u => u.total_points === myPoints && (u.exact_hits || 0) === myExacts).length > 1
+          : false
         const myTotal = myExacts + mySigns + myMisses
         const myAccuracy = myTotal > 0 ? Math.round(((myExacts + mySigns) / myTotal) * 100) : 0
         const avgAcc = accuracyRate
@@ -898,7 +907,7 @@ export default function Stats({ demoMode }) {
                   display: 'inline-flex', alignItems: 'center', gap: '6px'
                 }}>
                   <span style={{ color: 'var(--gold)', fontWeight: '700' }}>▲ {ptsToNext} pts</span>
-                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>de {nextUp.full_name} ({rankOf(nextUp.total_points)}º)</span>
+                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>de {nextUp.full_name} ({rankOf(nextUp)}º)</span>
                 </div>
               )}
             </div>
@@ -1128,7 +1137,7 @@ export default function Stats({ demoMode }) {
                       <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
                         Estás a <span style={{ color: 'var(--gold)', fontWeight: '800', fontSize: '14px' }}>{gapToAbove} pts</span> de{' '}
                         <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{getName(rivalAbove.user_id)}</span>{' '}
-                        <span style={{ color: 'var(--text-dim)' }}>({rankOf(rivalAbove.total_points)}º)</span>
+                        <span style={{ color: 'var(--text-dim)' }}>({rankOf(rivalAbove)}º)</span>
                       </div>
                       <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <div style={{
@@ -1158,7 +1167,7 @@ export default function Stats({ demoMode }) {
                       <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
                         <span style={{ color: 'var(--red)', fontWeight: '600' }}>⚠</span>{' '}
                         <span style={{ fontWeight: '600' }}>{getName(rivalBelow.user_id)}</span>{' '}
-                        <span style={{ color: 'var(--text-dim)' }}>({rankOf(rivalBelow.total_points)}º)</span> está solo a{' '}
+                        <span style={{ color: 'var(--text-dim)' }}>({rankOf(rivalBelow)}º)</span> está solo a{' '}
                         <span style={{ color: 'var(--red)', fontWeight: '700' }}>{gapFromBelow} pts</span>
                       </div>
                     </div>
@@ -1581,10 +1590,13 @@ export default function Stats({ demoMode }) {
 
         const lbA = leaderboard.find(u => u.user_id === h2hUserA)
         const lbB = leaderboard.find(u => u.user_id === h2hUserB)
-        // Rango de competición (empatados comparten posición), consistente con el resto
-        const rankOfPts = (pts) => lbSorted.filter(u => u.total_points > pts).length + 1
-        const rankA = lbA ? rankOfPts(lbA.total_points || 0) : 0
-        const rankB = lbB ? rankOfPts(lbB.total_points || 0) : 0
+        // Rango de competición con desempate oficial por exactos (consistente con el resto)
+        const rankOfU = (u) => lbSorted.filter(v =>
+          v.total_points > (u.total_points || 0) ||
+          (v.total_points === (u.total_points || 0) && (v.exact_hits || 0) > (u.exact_hits || 0))
+        ).length + 1
+        const rankA = lbA ? rankOfU(lbA) : 0
+        const rankB = lbB ? rankOfU(lbB) : 0
 
         const h2hGroupMatches = displayMatches.filter(m => m.group_name === h2hGroup)
 

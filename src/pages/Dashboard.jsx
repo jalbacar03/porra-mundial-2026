@@ -327,24 +327,28 @@ export default function Dashboard({ session, demoMode }) {
     if (rankings) {
       // Filter out Bot365 and unpaid users. Puntos efectivos = oficiales + en
       // vivo (provisional), y reordenamos para que la posición sea la real ahora.
+      // Desempate OFICIAL (Normas): a igualdad de puntos, más resultados exactos.
+      // Mismo criterio que la Clasificación → la posición cuadra en ambas pantallas.
       const realRankings = rankings
         .filter(r => r.user_id !== BOT365_ID && paidSet.has(r.user_id))
         .map(r => ({ ...r, effective_points: (r.total_points || 0) + (liveProvisional[r.user_id] || 0) }))
-        .sort((a, b) => b.effective_points - a.effective_points)
+        .sort((a, b) => b.effective_points - a.effective_points || (b.exact_hits || 0) - (a.exact_hits || 0))
       rankingsTotal = realRankings.length
 
-      // Calculate tied position (sobre puntos efectivos)
+      // Calculate tied position (puntos efectivos + exactos como desempate)
       const myIdx = realRankings.findIndex(r => r.user_id === session.user.id)
       if (myIdx !== -1) {
         myTotalPoints = realRankings[myIdx].total_points || 0
         const myPts = realRankings[myIdx].effective_points
+        const myEx = realRankings[myIdx].exact_hits || 0
+        const same = (r) => r.effective_points === myPts && (r.exact_hits || 0) === myEx
         let firstWithSame = myIdx
-        while (firstWithSame > 0 && realRankings[firstWithSame - 1].effective_points === myPts) {
+        while (firstWithSame > 0 && same(realRankings[firstWithSame - 1])) {
           firstWithSame--
         }
         const pos = firstWithSame + 1
         const isTied = (firstWithSame < myIdx) ||
-          (myIdx + 1 < realRankings.length && realRankings[myIdx + 1].effective_points === myPts)
+          (myIdx + 1 < realRankings.length && same(realRankings[myIdx + 1]))
         rank = isTied ? `T${pos}` : pos
       }
 
