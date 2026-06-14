@@ -661,7 +661,7 @@ function renderSofaScore({
   const baseGrid = showEsp
     ? '40px 1fr 24px 26px 32px 30px 38px'
     : '40px 1fr 24px 26px 32px 38px'
-  const GRID = (canFollow ? '26px ' : '') + baseGrid
+  const GRID = (canFollow ? '16px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 
   const redZone = bottomRedZone(
@@ -718,9 +718,9 @@ function renderSofaScore({
                 aria-label={isFav ? 'Dejar de seguir' : 'Seguir'}
                 title={isFav ? 'Dejar de seguir' : 'Seguir'}
                 style={{
-                  textAlign: 'center', cursor: 'pointer', fontSize: '14px', lineHeight: 1,
+                  textAlign: 'center', cursor: 'pointer', fontSize: '13px', lineHeight: 1,
                   color: isFav ? '#ffcc00' : 'var(--text-dim)',
-                  userSelect: 'none', padding: '2px'
+                  userSelect: 'none', padding: 0, marginLeft: '-2px'
                 }}
               >{isFav ? '★' : '☆'}</span>
         )}
@@ -767,7 +767,7 @@ function renderSofaScore({
         borderBottom: `1px solid rgba(${C.accentBgRGB},0.20)`
       }}>
         {canFollow && <span />}
-        <span>#</span>
+        <span style={{ textAlign: 'center' }}>#</span>
         <span>Participante</span>
         <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
         <span title="Resultado exacto · 3 pts" style={{ textAlign: 'center' }}>RE</span>
