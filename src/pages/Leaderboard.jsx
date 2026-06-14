@@ -31,6 +31,21 @@ export default function Leaderboard({ demoMode }) {
   const [profileFullNames, setProfileFullNames] = useState({})
   const [paymentConfirmed, setPaymentConfirmed] = useState(new Set())
   const [searchParams] = useSearchParams()
+
+  // ⭐ Favoritos (seguir) — experimento guardado SOLO en el navegador (localStorage),
+  // sin tocar la BD. Los seguidos se fijan arriba con su posición real.
+  const [following, setFollowing] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('lb_following') || '[]')) }
+    catch { return new Set() }
+  })
+  function toggleFollow(id) {
+    setFollowing(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      try { localStorage.setItem('lb_following', JSON.stringify([...next])) } catch { /* ignore */ }
+      return next
+    })
+  }
   // La Liguilla (amistosos) ya terminó: su clasificación queda OCULTA en la app
   // (los datos se conservan en la BD / vistas, solo se retira de la UI).
   const onlyFriendly = false
@@ -544,6 +559,8 @@ export default function Leaderboard({ demoMode }) {
           onRowClick: activeTab === 'friendly'
             ? null
             : (user) => setH2hRival({ id: user.user_id, name: user.full_name }),
+          following: activeTab === 'friendly' ? null : following,
+          onToggleFollow: activeTab === 'friendly' ? null : toggleFollow,
         })
       )}
 
@@ -618,6 +635,7 @@ function renderSofaScore({
   fullRankings, currentRankings, getTiedRank,
   userId, tabHasLive, theme = 'friendly',
   playedCount = 0, paymentConfirmed, onRowClick,
+  following = null, onToggleFollow = null,
 }) {
   const isFriendly = theme === 'friendly'
   // Paleta — accent cambia con el theme; 3·/1· mantienen siempre azul/verde
@@ -638,9 +656,11 @@ function renderSofaScore({
   // Col # ancha para que "T115" (4 caracteres) no se pegue al nombre.
   // Mundial añade columna ESP (puntos de predicciones especiales) entre 1X2 y PTS.
   const showEsp = !isFriendly
-  const GRID = showEsp
+  const canFollow = typeof onToggleFollow === 'function'
+  const star = canFollow ? ' 26px' : ''   // columna estrella al final
+  const GRID = (showEsp
     ? '40px 1fr 24px 26px 32px 30px 38px'
-    : '40px 1fr 24px 26px 32px 38px'
+    : '40px 1fr 24px 26px 32px 38px') + star
   const clickable = typeof onRowClick === 'function'
   return (
     <div style={{
@@ -665,14 +685,23 @@ function renderSofaScore({
         <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
         {showEsp && <span title="Puntos de predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>}
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
+        {canFollow && <span />}
       </div>
       {(() => {
       const redZone = bottomRedZone(
         fullRankings,
         u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0)
       )
-      return fullRankings.map((user, idx) => {
+      // Seguidos arriba (conservan su posición real, que sale de currentRankings).
+      const fav = (u) => canFollow && following && following.has(u.user_id) && u.user_id !== BOT365_ID
+      const followedCount = canFollow ? fullRankings.filter(fav).length : 0
+      const ordered = followedCount > 0
+        ? [...fullRankings.filter(fav), ...fullRankings.filter(u => !fav(u))]
+        : fullRankings
+      return ordered.map((user, idx) => {
         const isMe = user.user_id === userId
+        const isFav = fav(user)
+        const isLastFollowed = followedCount > 0 && idx === followedCount - 1
         const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
         const { rank, tied } = getTiedRank(realIdx)
         const rankLabel = tied ? `T${rank}` : `${rank}`
@@ -706,9 +735,11 @@ function renderSofaScore({
               gridTemplateColumns: GRID,
               gap: '3px', padding: '7px 8px',
               alignItems: 'center', minHeight: '34px',
-              background: isMe ? `rgba(${C.accentBgRGB},0.12)` : 'transparent',
-              borderLeft: isMe ? `3px solid ${C.accent}` : '3px solid transparent',
-              borderBottom: isLast ? 'none' : `0.5px solid rgba(${C.accentBgRGB},0.08)`,
+              background: isMe ? `rgba(${C.accentBgRGB},0.12)` : isFav ? 'rgba(255,204,0,0.06)' : 'transparent',
+              borderLeft: isMe ? `3px solid ${C.accent}` : isFav ? '3px solid rgba(255,204,0,0.55)' : '3px solid transparent',
+              borderBottom: isLastFollowed
+                ? '2px solid rgba(255,204,0,0.25)'
+                : (isLast ? 'none' : `0.5px solid rgba(${C.accentBgRGB},0.08)`),
               fontSize: '13px',
               fontVariantNumeric: 'tabular-nums',
               cursor: rowClickable ? 'pointer' : 'default'
@@ -759,6 +790,21 @@ function renderSofaScore({
                 fontSize: '13px'
               }}
             >{pts}</span>
+            {canFollow && (
+              user.user_id === BOT365_ID
+                ? <span />
+                : <span
+                    onClick={(e) => { e.stopPropagation(); onToggleFollow(user.user_id) }}
+                    role="button"
+                    aria-label={isFav ? 'Dejar de seguir' : 'Seguir'}
+                    title={isFav ? 'Dejar de seguir' : 'Seguir'}
+                    style={{
+                      textAlign: 'center', cursor: 'pointer', fontSize: '14px', lineHeight: 1,
+                      color: isFav ? '#ffcc00' : 'var(--text-dim)',
+                      userSelect: 'none', padding: '2px'
+                    }}
+                  >{isFav ? '★' : '☆'}</span>
+            )}
           </div>
         )
       })

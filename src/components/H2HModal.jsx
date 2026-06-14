@@ -86,11 +86,30 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
         }
       })
 
+      // Próximos 3 partidos (scheduled) — qué ha puesto cada uno, sin resultado
+      const upcoming = (matchesRes.data || [])
+        .filter(m => m.status === 'scheduled')
+        .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
+        .slice(0, 3)
+        .map(m => {
+          const me = myMap[m.id]
+          const them = rivalMap[m.id]
+          return {
+            id: m.id,
+            home: m.home_team?.name || '?',
+            away: m.away_team?.name || '?',
+            homeFlag: m.home_team?.flag_url,
+            awayFlag: m.away_team?.flag_url,
+            myPred: me && me.predicted_home != null ? `${me.predicted_home}-${me.predicted_away}` : null,
+            rivalPred: them && them.predicted_home != null ? `${them.predicted_home}-${them.predicted_away}` : null,
+          }
+        })
+
       setData({
         myWins, rivalWins, draws,
         myMatchPts, rivalMatchPts, myBetPts, rivalBetPts,
         myTotal: myMatchPts + myBetPts, rivalTotal: rivalMatchPts + rivalBetPts,
-        rows,
+        rows, upcoming,
       })
     } catch (e) {
       console.error('H2H fetch error', e)
@@ -205,6 +224,38 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
                 Aún no hay partidos jugados para comparar.
               </div>
             )}
+
+            {/* Próximos partidos — qué ha puesto cada uno (sin resultado aún) */}
+            {data.upcoming && data.upcoming.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <div style={{
+                  fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase',
+                  letterSpacing: '0.8px', fontWeight: '700', marginBottom: '8px',
+                }}>
+                  Próximos partidos
+                </div>
+                {data.upcoming.map(r => (
+                  <div key={r.id} style={{
+                    padding: '9px 0', borderBottom: '0.5px solid var(--border-light)',
+                  }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      fontSize: '12px', color: 'var(--text-primary)', marginBottom: '5px', fontWeight: '600',
+                    }}>
+                      {r.homeFlag && <img src={r.homeFlag} alt="" style={{ width: '16px', height: '11px', borderRadius: '2px' }} />}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '95px', textAlign: 'right' }}>{r.home}</span>
+                      <span style={{ fontWeight: '700', color: 'var(--text-dim)', fontSize: '11px' }}>vs</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '95px', textAlign: 'left' }}>{r.away}</span>
+                      {r.awayFlag && <img src={r.awayFlag} alt="" style={{ width: '16px', height: '11px', borderRadius: '2px' }} />}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                      <PredCell name={myName} pred={r.myPred} align="flex-start" />
+                      <PredCell name={rivalName} pred={r.rivalPred} align="flex-end" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
 
@@ -232,7 +283,7 @@ function PredCell({ name, pred, pts, win, align }) {
         fontSize: '12px', fontWeight: '700',
         color: pred ? (win ? 'var(--gold)' : 'var(--text-primary)') : 'var(--text-dim)',
       }}>
-        {pred || '—'} {pred ? <span style={{ fontSize: '10px', fontWeight: '600', color: pts === 3 ? 'var(--green)' : pts === 1 ? 'var(--gold)' : 'var(--text-dim)' }}>+{pts}</span> : null}
+        {pred || '—'} {pred && pts != null ? <span style={{ fontSize: '10px', fontWeight: '600', color: pts === 3 ? 'var(--green)' : pts === 1 ? 'var(--gold)' : 'var(--text-dim)' }}>+{pts}</span> : null}
       </span>
     </div>
   )
