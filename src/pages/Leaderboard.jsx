@@ -657,11 +657,99 @@ function renderSofaScore({
   // Mundial añade columna ESP (puntos de predicciones especiales) entre 1X2 y PTS.
   const showEsp = !isFriendly
   const canFollow = typeof onToggleFollow === 'function'
-  const star = canFollow ? ' 26px' : ''   // columna estrella al final
-  const GRID = (showEsp
+  // Estrella (seguir) = primera columna a la izquierda del todo.
+  const baseGrid = showEsp
     ? '40px 1fr 24px 26px 32px 30px 38px'
-    : '40px 1fr 24px 26px 32px 38px') + star
+    : '40px 1fr 24px 26px 32px 38px'
+  const GRID = (canFollow ? '26px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
+
+  const redZone = bottomRedZone(
+    fullRankings,
+    u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0)
+  )
+  const fav = (u) => canFollow && following && following.has(u.user_id) && u.user_id !== BOT365_ID
+  const followed = canFollow ? fullRankings.filter(fav) : []
+
+  // Una fila. `pinned` = se pinta en la sección "Siguiendo" de arriba (no es la
+  // posición real, solo un duplicado fijado). `last` controla el borde inferior.
+  const Row = (user, { pinned = false, last = false } = {}) => {
+    const isMe = user.user_id === userId
+    const isFav = fav(user)
+    const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
+    const { rank, tied } = getTiedRank(realIdx)
+    const rankLabel = tied ? `T${rank}` : `${rank}`
+    const isTop3 = rank <= 3
+    const isPrize = rank === 4 || rank === 5
+    const isBottom3 = !isTop3 && !isPrize && redZone.has(user.user_id)
+    const rankColor = isTop3
+      ? (rank === 1 ? C.gold : rank === 2 ? C.silver : C.bronze)
+      : isPrize ? C.prize : isBottom3 ? C.red : 'var(--text-muted)'
+    const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
+    const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
+    const esp = user.pre_tournament_points || 0
+    const pj = playedCount
+    const pts = tabHasLive ? user.effective_points : user.total_points
+    const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
+    const rowClickable = clickable && !isMe
+    return (
+      <div
+        key={(pinned ? 'fav-' : '') + user.user_id}
+        className={rowClickable ? 'tap-scale' : ''}
+        onClick={rowClickable ? () => onRowClick(user) : undefined}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: GRID,
+          gap: '3px', padding: '7px 8px',
+          alignItems: 'center', minHeight: '34px',
+          background: isMe ? `rgba(${C.accentBgRGB},0.12)` : (isFav && !pinned) ? 'rgba(255,204,0,0.05)' : 'transparent',
+          borderLeft: isMe ? `3px solid ${C.accent}` : (isFav && !pinned) ? '3px solid rgba(255,204,0,0.5)' : '3px solid transparent',
+          borderBottom: last ? 'none' : `0.5px solid rgba(${C.accentBgRGB},0.08)`,
+          fontSize: '13px',
+          fontVariantNumeric: 'tabular-nums',
+          cursor: rowClickable ? 'pointer' : 'default'
+        }}>
+        {canFollow && (
+          user.user_id === BOT365_ID
+            ? <span />
+            : <span
+                onClick={(e) => { e.stopPropagation(); onToggleFollow(user.user_id) }}
+                role="button"
+                aria-label={isFav ? 'Dejar de seguir' : 'Seguir'}
+                title={isFav ? 'Dejar de seguir' : 'Seguir'}
+                style={{
+                  textAlign: 'center', cursor: 'pointer', fontSize: '14px', lineHeight: 1,
+                  color: isFav ? '#ffcc00' : 'var(--text-dim)',
+                  userSelect: 'none', padding: '2px'
+                }}
+              >{isFav ? '★' : '☆'}</span>
+        )}
+        <span style={{ fontWeight: 800, color: rankColor, textAlign: 'center', fontSize: '13px' }}>{rankLabel}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+          <span style={{
+            color: isMe ? C.accentLight : 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0
+          }}>{user.full_name}</span>
+          {notPaid && (
+            <span title="No pagado" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#c2362b', flexShrink: 0 }} />
+          )}
+        </span>
+        <span className={tabHasLive ? 'live-points' : ''}
+          style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{pj}</span>
+        <span className={tabHasLive ? 'live-points' : ''}
+          style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{ex}</span>
+        <span className={tabHasLive ? 'live-points' : ''}
+          style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{si}</span>
+        {showEsp && (
+          <span className={tabHasLive ? 'live-points' : ''}
+            style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{esp}</span>
+        )}
+        <span className={tabHasLive ? 'live-points' : ''}
+          style={{ textAlign: 'right', fontWeight: 800, color: tabHasLive ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'), fontSize: '13px' }}>{pts}</span>
+      </div>
+    )
+  }
+
   return (
     <div style={{
       background: 'var(--bg-secondary)',
@@ -678,6 +766,7 @@ function renderSofaScore({
         background: `rgba(${C.accentBgRGB},0.10)`,
         borderBottom: `1px solid rgba(${C.accentBgRGB},0.20)`
       }}>
+        {canFollow && <span />}
         <span>#</span>
         <span>Participante</span>
         <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
@@ -685,130 +774,23 @@ function renderSofaScore({
         <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
         {showEsp && <span title="Puntos de predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>}
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
-        {canFollow && <span />}
       </div>
-      {(() => {
-      const redZone = bottomRedZone(
-        fullRankings,
-        u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0)
-      )
-      // Seguidos arriba (conservan su posición real, que sale de currentRankings).
-      const fav = (u) => canFollow && following && following.has(u.user_id) && u.user_id !== BOT365_ID
-      const followedCount = canFollow ? fullRankings.filter(fav).length : 0
-      const ordered = followedCount > 0
-        ? [...fullRankings.filter(fav), ...fullRankings.filter(u => !fav(u))]
-        : fullRankings
-      return ordered.map((user, idx) => {
-        const isMe = user.user_id === userId
-        const isFav = fav(user)
-        const isLastFollowed = followedCount > 0 && idx === followedCount - 1
-        const realIdx = currentRankings.findIndex(u => u.user_id === user.user_id)
-        const { rank, tied } = getTiedRank(realIdx)
-        const rankLabel = tied ? `T${rank}` : `${rank}`
-        const isTop3 = rank <= 3
-        const isPrize = rank === 4 || rank === 5   // también premiados (bote), tono discreto
-        const isBottom3 = !isTop3 && !isPrize && redZone.has(user.user_id)
-        const rankColor = isTop3
-          ? (rank === 1 ? C.gold : rank === 2 ? C.silver : C.bronze)
-          : isPrize
-            ? C.prize
-            : isBottom3
-              ? C.red
-              : 'var(--text-muted)'
-        // En vivo: ex/si muestran finished + provisional (display_*). Sin live:
-        // solo los de la vista. PJ = partidos jugados (global del stage).
-        const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
-        const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
-        const esp = user.pre_tournament_points || 0
-        const pj = playedCount
-        const pts = tabHasLive ? user.effective_points : user.total_points
-        const isLast = idx === total - 1
-        const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
-        const rowClickable = clickable && !isMe
-        return (
-          <div
-            key={user.user_id}
-            className={rowClickable ? 'tap-scale' : ''}
-            onClick={rowClickable ? () => onRowClick(user) : undefined}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: GRID,
-              gap: '3px', padding: '7px 8px',
-              alignItems: 'center', minHeight: '34px',
-              background: isMe ? `rgba(${C.accentBgRGB},0.12)` : isFav ? 'rgba(255,204,0,0.06)' : 'transparent',
-              borderLeft: isMe ? `3px solid ${C.accent}` : isFav ? '3px solid rgba(255,204,0,0.55)' : '3px solid transparent',
-              borderBottom: isLastFollowed
-                ? '2px solid rgba(255,204,0,0.25)'
-                : (isLast ? 'none' : `0.5px solid rgba(${C.accentBgRGB},0.08)`),
-              fontSize: '13px',
-              fontVariantNumeric: 'tabular-nums',
-              cursor: rowClickable ? 'pointer' : 'default'
-            }}>
-            <span style={{ fontWeight: 800, color: rankColor, textAlign: 'center', fontSize: '13px' }}>{rankLabel}</span>
-            <span style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              minWidth: 0
-            }}>
-              <span style={{
-                color: isMe ? C.accentLight : 'var(--text-primary)', fontWeight: isMe ? 700 : 500,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                minWidth: 0
-              }}>{user.full_name}</span>
-              {notPaid && (
-                <span
-                  title="No pagado"
-                  style={{
-                    width: '6px', height: '6px', borderRadius: '50%',
-                    background: '#c2362b', flexShrink: 0
-                  }}
-                />
-              )}
-            </span>
-            <span
-              className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
-            >{pj}</span>
-            <span
-              className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
-            >{ex}</span>
-            <span
-              className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
-            >{si}</span>
-            {showEsp && (
-              <span
-                className={tabHasLive ? 'live-points' : ''}
-                style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}
-              >{esp}</span>
-            )}
-            <span
-              className={tabHasLive ? 'live-points' : ''}
-              style={{
-                textAlign: 'right', fontWeight: 800,
-                color: tabHasLive ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'),
-                fontSize: '13px'
-              }}
-            >{pts}</span>
-            {canFollow && (
-              user.user_id === BOT365_ID
-                ? <span />
-                : <span
-                    onClick={(e) => { e.stopPropagation(); onToggleFollow(user.user_id) }}
-                    role="button"
-                    aria-label={isFav ? 'Dejar de seguir' : 'Seguir'}
-                    title={isFav ? 'Dejar de seguir' : 'Seguir'}
-                    style={{
-                      textAlign: 'center', cursor: 'pointer', fontSize: '14px', lineHeight: 1,
-                      color: isFav ? '#ffcc00' : 'var(--text-dim)',
-                      userSelect: 'none', padding: '2px'
-                    }}
-                  >{isFav ? '★' : '☆'}</span>
-            )}
-          </div>
-        )
-      })
-      })()}
+
+      {/* Sección fijada "Siguiendo" — duplica a los favoritos arriba; SIGUEN también
+          en su posición real más abajo. */}
+      {followed.length > 0 && (
+        <>
+          <div style={{
+            padding: '5px 10px', fontSize: '9px', fontWeight: '800',
+            color: '#ffcc00', textTransform: 'uppercase', letterSpacing: '0.8px',
+            background: 'rgba(255,204,0,0.06)'
+          }}>★ Siguiendo</div>
+          {followed.map((u, i) => Row(u, { pinned: true, last: i === followed.length - 1 }))}
+          <div style={{ height: '2px', background: 'rgba(255,204,0,0.25)' }} />
+        </>
+      )}
+
+      {fullRankings.map((u, idx) => Row(u, { last: idx === total - 1 }))}
     </div>
   )
 }
