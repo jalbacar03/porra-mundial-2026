@@ -658,10 +658,11 @@ function renderSofaScore({
   const showEsp = !isFriendly
   const canFollow = typeof onToggleFollow === 'function'
   // Estrella (seguir) = primera columna a la izquierda del todo.
+  // Columnas de puntuación/ranking más estrechas → el nombre (1fr) gana ancho.
   const baseGrid = showEsp
-    ? '40px 1fr 24px 26px 32px 30px 38px'
-    : '40px 1fr 24px 26px 32px 38px'
-  const GRID = (canFollow ? '16px ' : '') + baseGrid
+    ? '34px 1fr 20px 22px 26px 24px 34px'
+    : '34px 1fr 20px 22px 26px 34px'
+  const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 
   const redZone = bottomRedZone(
@@ -700,7 +701,7 @@ function renderSofaScore({
         style={{
           display: 'grid',
           gridTemplateColumns: GRID,
-          gap: '3px', padding: '7px 8px',
+          gap: '2px', padding: '7px 6px',
           alignItems: 'center', minHeight: '34px',
           background: isMe ? `rgba(${C.accentBgRGB},0.12)` : 'transparent',
           borderLeft: isMe ? `3px solid ${C.accent}` : '3px solid transparent',
@@ -760,7 +761,7 @@ function renderSofaScore({
       <div style={{
         display: 'grid',
         gridTemplateColumns: GRID,
-        gap: '3px', padding: '6px 8px',
+        gap: '2px', padding: '6px 6px',
         fontSize: '9px', fontWeight: '800',
         color: C.accentLight, textTransform: 'uppercase', letterSpacing: '0.6px',
         background: `rgba(${C.accentBgRGB},0.10)`,
