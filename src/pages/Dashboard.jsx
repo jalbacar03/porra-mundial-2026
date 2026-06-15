@@ -221,6 +221,7 @@ export default function Dashboard({ session, demoMode }) {
     // Puntos provisionales en vivo POR USUARIO (para que la posición del hero
     // refleje el partido en curso, no el ranking congelado). Solo si hay live.
     const liveProvisional = {}
+    const liveProvisionalExacts = {}   // exactos en vivo, para el DESEMPATE (igual que la Clasificación)
     if (live.length > 0) {
       const liveIds = live.map(m => m.id)
       const { data: allLivePreds } = await supabase
@@ -232,7 +233,7 @@ export default function Dashboard({ session, demoMode }) {
         if (!m || p.predicted_home == null || p.predicted_away == null) return
         const h = m.home_score ?? 0, a = m.away_score ?? 0
         let pts = 0
-        if (p.predicted_home === h && p.predicted_away === a) pts = 3
+        if (p.predicted_home === h && p.predicted_away === a) { pts = 3; liveProvisionalExacts[p.user_id] = (liveProvisionalExacts[p.user_id] || 0) + 1 }
         else if (Math.sign(p.predicted_home - p.predicted_away) === Math.sign(h - a)) pts = 1
         liveProvisional[p.user_id] = (liveProvisional[p.user_id] || 0) + pts
       })
@@ -331,17 +332,21 @@ export default function Dashboard({ session, demoMode }) {
       // Mismo criterio que la Clasificación → la posición cuadra en ambas pantallas.
       const realRankings = rankings
         .filter(r => r.user_id !== BOT365_ID && paidSet.has(r.user_id))
-        .map(r => ({ ...r, effective_points: (r.total_points || 0) + (liveProvisional[r.user_id] || 0) }))
-        .sort((a, b) => b.effective_points - a.effective_points || (b.exact_hits || 0) - (a.exact_hits || 0))
+        .map(r => ({
+          ...r,
+          effective_points: (r.total_points || 0) + (liveProvisional[r.user_id] || 0),
+          effective_exacts: (r.exact_hits || 0) + (liveProvisionalExacts[r.user_id] || 0)
+        }))
+        .sort((a, b) => b.effective_points - a.effective_points || b.effective_exacts - a.effective_exacts)
       rankingsTotal = realRankings.length
 
-      // Calculate tied position (puntos efectivos + exactos como desempate)
+      // Calculate tied position (puntos efectivos + exactos efectivos como desempate)
       const myIdx = realRankings.findIndex(r => r.user_id === session.user.id)
       if (myIdx !== -1) {
         myTotalPoints = realRankings[myIdx].total_points || 0
         const myPts = realRankings[myIdx].effective_points
-        const myEx = realRankings[myIdx].exact_hits || 0
-        const same = (r) => r.effective_points === myPts && (r.exact_hits || 0) === myEx
+        const myEx = realRankings[myIdx].effective_exacts
+        const same = (r) => r.effective_points === myPts && r.effective_exacts === myEx
         let firstWithSame = myIdx
         while (firstWithSame > 0 && same(realRankings[firstWithSame - 1])) {
           firstWithSame--
