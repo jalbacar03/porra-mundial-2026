@@ -34,11 +34,31 @@ function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [isLogin, setIsLogin] = useState(true)
+  // 'login' | 'signup' | 'forgot'
+  const [mode, setMode] = useState('login')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const isLogin = mode === 'login'
+
+  // Enviar email de recuperación (Supabase manda el enlace mágico).
+  const handleForgot = async () => {
+    setLoading(true)
+    setMessage('')
+    if (!email.trim()) {
+      setMessage('Escribe tu email para enviarte el enlace.')
+      setLoading(false)
+      return
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin
+    })
+    setLoading(false)
+    if (error) setMessage(error.message)
+    else setMessage('Revisa tu email: te hemos enviado un enlace para restablecer la contraseña.')
+  }
 
   const handleSubmit = async () => {
+    if (mode === 'forgot') return handleForgot()
     setLoading(true)
     setMessage('')
     if (isLogin) {
@@ -100,10 +120,19 @@ function Auth() {
             fontSize: '16px',
             fontWeight: '600'
           }}>
-            {isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
+            {mode === 'forgot' ? 'Restablecer contraseña' : isLogin ? 'Iniciar sesión' : 'Crear cuenta'}
           </h3>
 
-          {!isLogin && (
+          {mode === 'forgot' && (
+            <div style={{
+              fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5',
+              marginBottom: '14px', textAlign: 'center'
+            }}>
+              Escribe tu email y te enviaremos un enlace para crear una contraseña nueva.
+            </div>
+          )}
+
+          {mode === 'signup' && (
             <>
               <input
                 type="text"
@@ -128,13 +157,15 @@ function Auth() {
             onChange={e => setEmail(e.target.value)}
             style={inputStyle}
           />
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            style={{ ...inputStyle, marginBottom: '20px' }}
-          />
+          {mode !== 'forgot' && (
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              style={{ ...inputStyle, marginBottom: '20px' }}
+            />
+          )}
 
           {message && (
             <div style={{
@@ -167,23 +198,41 @@ function Auth() {
               opacity: loading ? 0.7 : 1
             }}
           >
-            {loading ? 'Cargando...' : isLogin ? 'Entrar' : 'Crear cuenta'}
+            {loading ? 'Cargando...' : mode === 'forgot' ? 'Enviar enlace' : isLogin ? 'Entrar' : 'Crear cuenta'}
           </button>
 
-          <p style={{
-            textAlign: 'center',
-            marginTop: '16px',
-            fontSize: '13px',
-            color: 'var(--text-muted)'
-          }}>
-            {isLogin ? '¿No tienes cuenta? ' : '¿Ya tienes cuenta? '}
-            <span
-              onClick={() => { setIsLogin(!isLogin); setMessage('') }}
-              style={{ color: 'var(--green)', cursor: 'pointer', fontWeight: '600' }}
-            >
-              {isLogin ? 'Regístrate' : 'Inicia sesión'}
-            </span>
-          </p>
+          {mode === 'forgot' ? (
+            <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
+              <span
+                onClick={() => { setMode('login'); setMessage('') }}
+                style={{ color: 'var(--green)', cursor: 'pointer', fontWeight: '600' }}
+              >
+                Volver a iniciar sesión
+              </span>
+            </p>
+          ) : (
+            <>
+              <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                {isLogin ? '¿No tienes cuenta? ' : '¿Ya tienes cuenta? '}
+                <span
+                  onClick={() => { setMode(isLogin ? 'signup' : 'login'); setMessage('') }}
+                  style={{ color: 'var(--green)', cursor: 'pointer', fontWeight: '600' }}
+                >
+                  {isLogin ? 'Regístrate' : 'Inicia sesión'}
+                </span>
+              </p>
+              {isLogin && (
+                <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '12.5px' }}>
+                  <span
+                    onClick={() => { setMode('forgot'); setMessage('') }}
+                    style={{ color: 'var(--text-muted)', cursor: 'pointer' }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </span>
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -200,6 +249,87 @@ const inputStyle = {
   color: 'var(--text-primary)',
   fontSize: '14px',
   boxSizing: 'border-box'
+}
+
+/* Pantalla para fijar una contraseña nueva tras pulsar el enlace del email.
+   Llega aquí cuando Supabase dispara el evento PASSWORD_RECOVERY. */
+function ResetPassword({ onDone }) {
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [done, setDone] = useState(false)
+
+  const submit = async () => {
+    setMessage('')
+    if (password.length < 6) { setMessage('La contraseña debe tener al menos 6 caracteres.'); return }
+    if (password !== confirm) { setMessage('Las contraseñas no coinciden.'); return }
+    setLoading(true)
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) { setMessage(error.message); setLoading(false); return }
+    // Cerramos la sesión de recuperación para que entre con la nueva contraseña.
+    await supabase.auth.signOut()
+    setLoading(false)
+    setDone(true)
+  }
+
+  return (
+    <div style={{
+      minHeight: '100svh', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', padding: '20px', background: 'var(--bg-primary)'
+    }}>
+      <div style={{ width: '100%', maxWidth: '380px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ fontSize: '22px', fontWeight: '700', color: '#fff', letterSpacing: '1.5px' }}>
+            PORRA MUNDIAL <span style={{ color: 'var(--gold)' }}>26</span>
+          </div>
+        </div>
+        <div style={{
+          background: 'var(--bg-secondary)', padding: '28px 24px',
+          borderRadius: '10px', border: '0.5px solid var(--border)'
+        }}>
+          <h3 style={{ margin: '0 0 20px', textAlign: 'center', color: 'var(--text-primary)', fontSize: '16px', fontWeight: '600' }}>
+            {done ? 'Contraseña actualizada' : 'Nueva contraseña'}
+          </h3>
+
+          {done ? (
+            <>
+              <div style={{
+                padding: '10px 12px', marginBottom: '16px', background: 'var(--green-light)',
+                borderRadius: '6px', fontSize: '13px', color: 'var(--green)', textAlign: 'center'
+              }}>
+                ¡Listo! Ya puedes iniciar sesión con tu contraseña nueva.
+              </div>
+              <button onClick={onDone} style={{
+                width: '100%', padding: '12px', background: 'var(--green)', color: '#fff',
+                border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px',
+                fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase'
+              }}>Ir a iniciar sesión</button>
+            </>
+          ) : (
+            <>
+              <input type="password" placeholder="Nueva contraseña" value={password}
+                onChange={e => setPassword(e.target.value)} style={inputStyle} />
+              <input type="password" placeholder="Repite la contraseña" value={confirm}
+                onChange={e => setConfirm(e.target.value)} style={{ ...inputStyle, marginBottom: '20px' }} />
+              {message && (
+                <div style={{
+                  padding: '10px 12px', marginBottom: '16px', background: 'var(--red-bg)',
+                  borderRadius: '6px', fontSize: '13px', color: 'var(--red)'
+                }}>{message}</div>
+              )}
+              <button onClick={submit} disabled={loading} style={{
+                width: '100%', padding: '12px', background: 'var(--green)', color: '#fff',
+                border: 'none', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: '14px', fontWeight: '600', letterSpacing: '0.5px',
+                textTransform: 'uppercase', opacity: loading ? 0.7 : 1
+              }}>{loading ? 'Guardando...' : 'Guardar contraseña'}</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /* ============================
@@ -668,13 +798,16 @@ function AppLayout({ session }) {
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setLoading(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // El usuario llegó desde el enlace de "restablecer contraseña" del email.
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
       setSession(session)
     })
     return () => subscription.unsubscribe()
@@ -693,6 +826,7 @@ export default function App() {
     )
   }
 
+  if (recovery) return <ResetPassword onDone={() => setRecovery(false)} />
   if (!session) return <Auth />
 
   return (
