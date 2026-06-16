@@ -9,6 +9,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/generate-insight",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/notify",
       "schedule": "*/30 * * * *"
     }

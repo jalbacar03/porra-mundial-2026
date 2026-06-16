@@ -44,21 +44,26 @@ export default async function handler(req, res) {
     }})
   }
 
-  // Auth gate: require a valid Supabase user JWT. The endpoint generates a
-  // Gemini completion when there's no cached insight for the day, so leaving
-  // it open let anonymous callers burn Gemini quota. Any logged-in user is
-  // fine (not admin-only) — the Dashboard shows the insight to everyone.
+  // Auth gate: el endpoint puede gastar cuota de Gemini al generar, así que no se
+  // deja abierto. Se acepta si:
+  //  (a) es el cron de Vercel (08:00 España) — Vercel manda 'x-vercel-cron', y si
+  //      hay CRON_SECRET en env lo envía como Bearer; o
+  //  (b) un usuario logueado (JWT de Supabase) — la crónica se muestra a todos.
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
-  if (!token) return res.status(401).json({ error: 'Unauthorized' })
-  try {
-    const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` }
-    })
-    if (!uRes.ok) return res.status(401).json({ error: 'Unauthorized' })
-    const user = await uRes.json()
-    if (!user?.id) return res.status(401).json({ error: 'Unauthorized' })
-  } catch {
-    return res.status(401).json({ error: 'Unauthorized' })
+  const cronSecret = process.env.CRON_SECRET
+  const isCron = cronSecret ? token === cronSecret : !!req.headers['x-vercel-cron']
+  if (!isCron) {
+    if (!token) return res.status(401).json({ error: 'Unauthorized' })
+    try {
+      const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` }
+      })
+      if (!uRes.ok) return res.status(401).json({ error: 'Unauthorized' })
+      const user = await uRes.json()
+      if (!user?.id) return res.status(401).json({ error: 'Unauthorized' })
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
   }
 
   const today = new Date().toISOString().split('T')[0]
