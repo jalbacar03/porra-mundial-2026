@@ -551,9 +551,10 @@ export default function Stats({ demoMode }) {
                 </ResponsiveContainer>
                 <div style={{
                   position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                  fontSize: '13px', fontWeight: '800', color: '#fff'
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1
                 }}>
-                  {finishedMatches.length}
+                  <span style={{ fontSize: '15px', fontWeight: '800', color: '#fff' }}>{finishedMatches.length}</span>
+                  <span style={{ fontSize: '7px', fontWeight: '700', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '2px' }}>jugados</span>
                 </div>
               </div>
             </div>

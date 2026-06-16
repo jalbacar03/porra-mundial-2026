@@ -64,9 +64,15 @@ export default async function handler(req, res) {
   const today = new Date().toISOString().split('T')[0]
 
   try {
-    // Check cache first
+    // Nº de partidos del Mundial ya terminados. La crónica se cachea por día PERO
+    // se regenera en cuanto este número sube (han acabado más partidos) → no se
+    // queda congelada cuando se juegan partidos por la tarde/madrugada.
+    const finished = await supaFetch('matches?status=eq.finished&stage=not.in.(friendly,test)&select=id') || []
+    const matchCount = finished.length
+
+    // Check cache — válido solo si cubre los mismos partidos que ya hay ahora.
     const cached = await supaFetch(`daily_insights?date=eq.${today}&select=*&limit=1`)
-    if (cached && cached.length > 0) {
+    if (cached && cached.length > 0 && (cached[0].match_count ?? 0) >= matchCount) {
       return res.status(200).json({
         insight: cached[0].content,
         insightLong: cached[0].content_long || null,
@@ -79,7 +85,11 @@ export default async function handler(req, res) {
     const data = await gatherData()
     const { short, long } = await generateWithGemini(data)
 
-    // Save both versions to cache
+    // Reemplaza la fila de hoy (borra + inserta) con el nuevo match_count.
+    await fetch(`${SUPABASE_URL}/rest/v1/daily_insights?date=eq.${today}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` }
+    })
     const saveRes = await fetch(`${SUPABASE_URL}/rest/v1/daily_insights`, {
       method: 'POST',
       headers: {
@@ -88,7 +98,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ date: today, content: short, content_long: long })
+      body: JSON.stringify({ date: today, content: short, content_long: long, match_count: matchCount })
     })
 
     if (!saveRes.ok) {
