@@ -23,9 +23,17 @@ const MatchDetail = lazy(() => import('./pages/MatchDetail'))
 const PreMundial = lazy(() => import('./pages/PreMundial'))
 
 import PaymentWall from './components/PaymentWall'
+import AccessBlocked from './components/AccessBlocked'
 import RulesPopup from './components/RulesPopup'
 import NicknameModal from './components/NicknameModal'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
+
+// Acceso pausado manualmente por el organizador. Sólo estos ids ven la pantalla
+// de bloqueo (siguen en la clasificación; no se toca has_paid). Vaciar para
+// reactivar a alguien.
+const BLOCKED_USER_IDS = new Set([
+  'c5a30a3f-ec86-4679-adc7-3c1ea7afd8e9', // Bruno Jover
+])
 
 /* ============================
    PANTALLA DE LOGIN / REGISTRO
@@ -725,6 +733,11 @@ function AppLayout({ session }) {
     }
     checkProfile()
   }, [session.user.id])
+
+  // Acceso pausado por el organizador → pantalla de bloqueo, no ve nada más.
+  if (BLOCKED_USER_IDS.has(session.user.id)) {
+    return <AccessBlocked />
+  }
 
   // Mientras carga el perfil, mostrar loading
   if (hasPaid === null) {
