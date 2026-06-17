@@ -21,6 +21,10 @@
     {
       "source": "/((?!api/|assets/|.*\\..*).*)",
       "destination": "/index.html"
+    },
+    {
+      "source": "/assets/(.*\\.js)",
+      "destination": "/chunk-recover.js"
     }
   ]
 }
