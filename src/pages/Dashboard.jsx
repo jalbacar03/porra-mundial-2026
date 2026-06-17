@@ -35,7 +35,7 @@ export default function Dashboard({ session, demoMode }) {
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
-  const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: empiezan en <24h (banner pre)
+  const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: partidos "de hoy" incl. madrugada (banner pre)
   const [recentFinishedMatches, setRecentFinishedMatches] = useState([]) // Mundial: terminados hoy/ayer (banner final)
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
@@ -242,11 +242,16 @@ export default function Dashboard({ session, demoMode }) {
     const upcoming = allMatches?.filter(m => m.status !== 'finished' && m.status !== 'live' && new Date(m.match_date) > now).slice(0, 3) || []
     setNextMatches(upcoming)
 
-    // Banner PRE del Mundial: partidos que empiezan en las próximas 24h (verde + countdown).
-    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    // Banner PRE del Mundial: partidos "de hoy", contando la madrugada (los de EE.UU.
+    // de madrugada cuentan como de hoy aunque técnicamente sean del día siguiente).
+    // Corte: las próximas 9:00 de la mañana → entran esta tarde + esta madrugada,
+    // pero NO los de mañana por la tarde. De madrugada (antes de las 9) corta hoy a las 9.
+    const cutoff = new Date(now)
+    cutoff.setHours(9, 0, 0, 0)
+    if (cutoff <= now) cutoff.setDate(cutoff.getDate() + 1)
     const preMundial = (allMatchesData || [])
       .filter(m => m.status === 'scheduled' && m.stage !== 'friendly' && m.stage !== 'test'
-        && new Date(m.match_date) > now && new Date(m.match_date) <= in24h)
+        && new Date(m.match_date) > now && new Date(m.match_date) <= cutoff)
       .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
       .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
     setPreMundialMatches(preMundial)
