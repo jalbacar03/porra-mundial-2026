@@ -8,19 +8,38 @@ import ErrorBoundary from './components/ErrorBoundary'
 import PageTransition from './components/PageTransition'
 import Onboarding from './components/Onboarding'
 
-// Code splitting — lazy load pages
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const Predictions = lazy(() => import('./pages/Predictions/PredictionsPage'))
-const Leaderboard = lazy(() => import('./pages/Leaderboard'))
-const Admin = lazy(() => import('./pages/Admin'))
-const Stats = lazy(() => import('./pages/Stats'))
-const Rules = lazy(() => import('./pages/Rules'))
-const News = lazy(() => import('./pages/News'))
-const Forum = lazy(() => import('./pages/Forum'))
-const Announcements = lazy(() => import('./pages/Announcements'))
-const MatchDayLive = lazy(() => import('./pages/MatchDayLive'))
-const MatchDetail = lazy(() => import('./pages/MatchDetail'))
-const PreMundial = lazy(() => import('./pages/PreMundial'))
+// Code splitting — lazy load pages.
+// lazyWithReload: si el import del chunk falla (típico tras un deploy: el bundle
+// viejo en caché pide un chunk que ya no existe → 404), recarga la página UNA vez
+// para traer el bundle nuevo, en lugar de mostrar "Algo ha fallado".
+function lazyWithReload(factory) {
+  return lazy(() =>
+    factory().catch((err) => {
+      const KEY = 'chunk-reload-ts'
+      const last = Number(sessionStorage.getItem(KEY) || 0)
+      // Recarga solo si no lo hemos hecho en los últimos 10s (evita bucle).
+      if (Date.now() - last > 10000) {
+        sessionStorage.setItem(KEY, String(Date.now()))
+        window.location.reload()
+        return new Promise(() => {})   // suspende hasta que recargue
+      }
+      throw err
+    })
+  )
+}
+
+const Dashboard = lazyWithReload(() => import('./pages/Dashboard'))
+const Predictions = lazyWithReload(() => import('./pages/Predictions/PredictionsPage'))
+const Leaderboard = lazyWithReload(() => import('./pages/Leaderboard'))
+const Admin = lazyWithReload(() => import('./pages/Admin'))
+const Stats = lazyWithReload(() => import('./pages/Stats'))
+const Rules = lazyWithReload(() => import('./pages/Rules'))
+const News = lazyWithReload(() => import('./pages/News'))
+const Forum = lazyWithReload(() => import('./pages/Forum'))
+const Announcements = lazyWithReload(() => import('./pages/Announcements'))
+const MatchDayLive = lazyWithReload(() => import('./pages/MatchDayLive'))
+const MatchDetail = lazyWithReload(() => import('./pages/MatchDetail'))
+const PreMundial = lazyWithReload(() => import('./pages/PreMundial'))
 
 import PaymentWall from './components/PaymentWall'
 import AccessBlocked from './components/AccessBlocked'
