@@ -35,7 +35,7 @@ export default function Dashboard({ session, demoMode }) {
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
-  const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: empiezan en <5h (banner pre)
+  const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: empiezan en <24h (banner pre)
   const [recentFinishedMatches, setRecentFinishedMatches] = useState([]) // Mundial: terminados hoy/ayer (banner final)
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
@@ -242,11 +242,11 @@ export default function Dashboard({ session, demoMode }) {
     const upcoming = allMatches?.filter(m => m.status !== 'finished' && m.status !== 'live' && new Date(m.match_date) > now).slice(0, 3) || []
     setNextMatches(upcoming)
 
-    // Banner PRE del Mundial: partidos que empiezan en las próximas 5h (verde + countdown).
-    const in5h = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+    // Banner PRE del Mundial: partidos que empiezan en las próximas 24h (verde + countdown).
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
     const preMundial = (allMatchesData || [])
       .filter(m => m.status === 'scheduled' && m.stage !== 'friendly' && m.stage !== 'test'
-        && new Date(m.match_date) > now && new Date(m.match_date) <= in5h)
+        && new Date(m.match_date) > now && new Date(m.match_date) <= in24h)
       .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
       .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
     setPreMundialMatches(preMundial)
