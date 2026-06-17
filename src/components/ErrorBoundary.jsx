@@ -48,25 +48,6 @@ export default class ErrorBoundary extends Component {
           }}>
             Ha ocurrido un error inesperado. Recarga la página para continuar.
           </p>
-          {this.state.error && (
-            <details style={{
-              maxWidth: '340px', width: '100%', marginBottom: '18px',
-              textAlign: 'left', fontSize: '11px', color: 'var(--text-dim)'
-            }}>
-              <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Detalles del error
-              </summary>
-              <pre style={{
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '6px',
-                fontSize: '10.5px', lineHeight: '1.45', maxHeight: '220px', overflow: 'auto',
-                margin: 0
-              }}>
-                {String(this.state.error?.message || this.state.error)}
-                {this.state.error?.stack ? '\n\n' + this.state.error.stack : ''}
-              </pre>
-            </details>
-          )}
           <button
             onClick={() => {
               this.setState({ hasError: false, error: null })

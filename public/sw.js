@@ -1,4 +1,4 @@
-const CACHE_NAME = 'porra-mundial-v3'
+const CACHE_NAME = 'porra-mundial-v4'
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -41,17 +41,33 @@ self.addEventListener('notificationclick', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  // Network-first strategy: always try network, fall back to cache
+  const req = event.request
+  if (req.method !== 'GET') return
+
+  const url = new URL(req.url)
+  const isAsset = url.pathname.startsWith('/assets/')
+  const isNav = req.mode === 'navigate'
+
+  // HTML (navegación) y JS/CSS con hash (/assets/): NUNCA servir de caché viejo.
+  // Así un bundle obsoleto no deja la app referenciando chunks que ya no existen
+  // ("importing a module script failed"). Solo se usa la caché si estás OFFLINE.
+  if (isNav || isAsset) {
+    event.respondWith(
+      fetch(req).catch(() => caches.match(req).then((c) => c || caches.match('/index.html')))
+    )
+    return
+  }
+
+  // Resto (imágenes, iconos, fuentes): network-first con caché de respaldo.
   event.respondWith(
-    fetch(event.request)
+    fetch(req)
       .then((response) => {
-        // Cache successful GET requests
-        if (event.request.method === 'GET' && response.status === 200) {
+        if (response.status === 200) {
           const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone))
         }
         return response
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(req))
   )
 })
