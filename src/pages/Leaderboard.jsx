@@ -46,6 +46,8 @@ export default function Leaderboard({ demoMode }) {
       return next
     })
   }
+  // Buscador discreto: filtra la tabla por nombre (mantiene la posición real).
+  const [search, setSearch] = useState('')
   // La Liguilla (amistosos) ya terminó: su clasificación queda OCULTA en la app
   // (los datos se conservan en la BD / vistas, solo se retira de la UI).
   const onlyFriendly = false
@@ -547,12 +549,43 @@ export default function Leaderboard({ demoMode }) {
           subtitle="Se rellenará cuando empiecen los partidos del Mundial."
         />
       ) : (
+        <>
+        {/* Buscador discreto por nombre */}
+        <div style={{ position: 'relative', marginBottom: '10px' }}>
+          <span style={{
+            position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--text-dim)', fontSize: '13px', pointerEvents: 'none'
+          }}>🔍</span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar participante…"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '8px 30px 8px 32px', borderRadius: '8px',
+              border: '0.5px solid var(--border)', background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)', fontSize: '13px', outline: 'none'
+            }}
+          />
+          {search && (
+            <span
+              onClick={() => setSearch('')}
+              role="button" aria-label="Limpiar"
+              style={{
+                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                color: 'var(--text-dim)', fontSize: '14px', cursor: 'pointer', userSelect: 'none'
+              }}
+            >✕</span>
+          )}
+        </div>
+        {
         // Mismo render compacto SofaScore para ambas tabs — solo cambia el
         // theme (azul Liguilla / verde Mundial), el detail (friendlyDetail /
         // mundialDetail) y los extras (payment dot + H2H click solo Mundial).
         renderSofaScore({
           fullRankings, currentRankings, getTiedRank,
-          userId, tabHasLive,
+          userId, tabHasLive, search,
           theme: activeTab === 'friendly' ? 'friendly' : 'mundial',
           playedCount: activeTab === 'friendly' ? playedCounts.friendly : playedCounts.mundial,
           paymentConfirmed: activeTab === 'friendly' ? null : paymentConfirmed,
@@ -562,6 +595,8 @@ export default function Leaderboard({ demoMode }) {
           following: activeTab === 'friendly' ? null : following,
           onToggleFollow: activeTab === 'friendly' ? null : toggleFollow,
         })
+        }
+        </>
       )}
 
       {/* H2H Modal */}
@@ -635,7 +670,7 @@ function renderSofaScore({
   fullRankings, currentRankings, getTiedRank,
   userId, tabHasLive, theme = 'friendly',
   playedCount = 0, paymentConfirmed, onRowClick,
-  following = null, onToggleFollow = null,
+  following = null, onToggleFollow = null, search = '',
 }) {
   const isFriendly = theme === 'friendly'
   // Paleta — accent cambia con el theme; 3·/1· mantienen siempre azul/verde
@@ -671,6 +706,10 @@ function renderSofaScore({
   )
   const fav = (u) => canFollow && following && following.has(u.user_id) && u.user_id !== BOT365_ID
   const followed = canFollow ? fullRankings.filter(fav) : []
+
+  // Filtro del buscador (por nombre). Mantiene la posición real de cada fila.
+  const q = (search || '').trim().toLowerCase()
+  const shown = q ? fullRankings.filter(u => (u.full_name || '').toLowerCase().includes(q)) : fullRankings
 
   // Una fila. `pinned` = se pinta en la sección "Siguiendo" de arriba (no es la
   // posición real, solo un duplicado fijado). `last` controla el borde inferior.
@@ -778,8 +817,8 @@ function renderSofaScore({
       </div>
 
       {/* Sección fijada "Siguiendo" — duplica a los favoritos arriba; SIGUEN también
-          en su posición real más abajo. */}
-      {followed.length > 0 && (
+          en su posición real más abajo. Se oculta mientras se busca. */}
+      {!q && followed.length > 0 && (
         <>
           <div style={{
             padding: '5px 10px', fontSize: '9px', fontWeight: '800',
@@ -791,7 +830,12 @@ function renderSofaScore({
         </>
       )}
 
-      {fullRankings.map((u, idx) => Row(u, { last: idx === total - 1 }))}
+      {shown.map((u, idx) => Row(u, { last: idx === shown.length - 1 }))}
+      {shown.length === 0 && (
+        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+          Sin resultados para “{search}”.
+        </div>
+      )}
     </div>
   )
 }
