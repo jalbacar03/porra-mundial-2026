@@ -381,7 +381,8 @@ export default function Leaderboard({ demoMode }) {
 
     const redZone = bottomRedZone(
       currentRankings,
-      u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0)
+      u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0),
+      u => tabHasLive ? (u.display_exact ?? u.exact_hits ?? 0) : (u.exact_hits ?? 0)
     )
     const rows = currentRankings.map((u, i) => {
       const { rank, tied } = getTiedRank(i)
@@ -648,15 +649,19 @@ function compactName(name, maxLen = 18) {
 // con estrictamente menos puntos que él. Equivale a las últimas 3 POSICIONES por
 // competición, pero incluyendo a TODOS los empatados del borde — no se parte un
 // empate (si 5 empatan en el fondo, los 5 van en rojo; sin empates, salen 3).
-function bottomRedZone(rankings, ptsOf) {
+function bottomRedZone(rankings, ptsOf, exOf = () => 0) {
   const total = rankings.length
   if (total <= 6) return new Set()
-  const allPts = rankings.map(ptsOf)
-  const leaderPts = Math.max(...allPts)
+  const leaderPts = Math.max(...rankings.map(ptsOf))
+  // "Estrictamente por debajo" usa el MISMO criterio que el rango de competición:
+  // menos puntos, o mismos puntos pero menos exactos (desempate oficial). Sin esto,
+  // alguien con más exactos pero mismos puntos que el fondo entraba en rojo de más.
+  const below = (u) => rankings.filter(v =>
+    ptsOf(v) < ptsOf(u) || (ptsOf(v) === ptsOf(u) && exOf(v) < exOf(u))
+  ).length
   const ids = rankings.filter(u => {
-    const p = ptsOf(u)
-    if (p >= leaderPts) return false            // nadie con el máximo está en descenso
-    return allPts.filter(v => v < p).length < 3 // <3 personas estrictamente por debajo
+    if (ptsOf(u) >= leaderPts) return false     // nadie con el máximo está en descenso
+    return below(u) < 3                          // <3 personas estrictamente por debajo
   })
   // Anti-degenerado: si la zona abarca a más de la mitad (todos muy empatados,
   // p.ej. inicio del torneo), no marcamos a nadie.
@@ -702,7 +707,8 @@ function renderSofaScore({
 
   const redZone = bottomRedZone(
     fullRankings,
-    u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0)
+    u => tabHasLive ? (u.effective_points ?? u.total_points ?? 0) : (u.total_points ?? 0),
+    u => tabHasLive ? (u.display_exact ?? u.exact_hits ?? 0) : (u.exact_hits ?? 0)
   )
   const fav = (u) => canFollow && following && following.has(u.user_id) && u.user_id !== BOT365_ID
   const followed = canFollow ? fullRankings.filter(fav) : []

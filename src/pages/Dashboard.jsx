@@ -713,7 +713,7 @@ function formatDateShort(dateStr) {
 
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', marginBottom: '14px' }}>
           <span className={hasLiveMundial ? 'live-points' : ''} style={{ fontSize: '46px', fontWeight: '800', color: hasLiveMundial ? 'var(--red)' : '#fff', lineHeight: 1 }}>
-            {displayStats.rank}{typeof displayStats.rank === 'number' && <span>.<sup style={{ fontSize: '24px', fontWeight: '700' }}>º</sup></span>}
+            {displayStats.rank}{typeof displayStats.rank === 'number' && <sup style={{ fontSize: '24px', fontWeight: '700' }}>º</sup>}
           </span>
           <span style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', paddingBottom: '6px' }}>
             /{displayTotalUsers > 0 ? displayTotalUsers : '?'}

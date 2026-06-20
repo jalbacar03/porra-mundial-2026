@@ -57,17 +57,26 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
       const myBetPts = (myBets.data || []).reduce((s, e) => s + (e.points_awarded || 0), 0)
       const rivalBetPts = (rivalBets.data || []).reduce((s, e) => s + (e.points_awarded || 0), 0)
 
-      // Detalle por partido JUGADO (finished) — orden cronológico
+      // Puntos provisionales de un partido EN VIVO (3 exacto / 1 signo / 0).
+      const provPts = (pred, m) => {
+        if (!pred || pred.predicted_home == null) return 0
+        const h = m.home_score ?? 0, a = m.away_score ?? 0
+        if (pred.predicted_home === h && pred.predicted_away === a) return 3
+        return Math.sign(pred.predicted_home - pred.predicted_away) === Math.sign(h - a) ? 1 : 0
+      }
+
+      // Detalle por partido JUGADO o EN JUEGO — orden cronológico
       const played = (matchesRes.data || [])
-        .filter(m => m.status === 'finished' && m.home_score != null)
+        .filter(m => m.status === 'finished' || m.status === 'live')
         .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
 
       let myWins = 0, rivalWins = 0, draws = 0
       const rows = played.map(m => {
         const me = myMap[m.id]
         const them = rivalMap[m.id]
-        const myPts = me ? (me.points_earned || 0) : 0
-        const rivalPts = them ? (them.points_earned || 0) : 0
+        const isLive = m.status === 'live'
+        const myPts = isLive ? provPts(me, m) : (me ? (me.points_earned || 0) : 0)
+        const rivalPts = isLive ? provPts(them, m) : (them ? (them.points_earned || 0) : 0)
         if (me || them) {
           if (myPts > rivalPts) myWins++
           else if (rivalPts > myPts) rivalWins++
@@ -75,11 +84,12 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
         }
         return {
           id: m.id,
+          live: isLive,
           home: m.home_team?.name || '?',
           away: m.away_team?.name || '?',
           homeFlag: m.home_team?.flag_url,
           awayFlag: m.away_team?.flag_url,
-          real: `${m.home_score}-${m.away_score}`,
+          real: `${m.home_score ?? 0}-${m.away_score ?? 0}`,
           myPred: me && me.predicted_home != null ? `${me.predicted_home}-${me.predicted_away}` : null,
           rivalPred: them && them.predicted_home != null ? `${them.predicted_home}-${them.predicted_away}` : null,
           myPts, rivalPts,
@@ -184,8 +194,8 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
               display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '6px',
               fontSize: '13px', textAlign: 'center', marginBottom: '16px',
             }}>
-              <StatRow label="Partidos" myVal={data.myMatchPts} rivalVal={data.rivalMatchPts} />
-              <StatRow label="Especiales" myVal={data.myBetPts} rivalVal={data.rivalBetPts} />
+              <StatRow label="Pts partidos" myVal={data.myMatchPts} rivalVal={data.rivalMatchPts} />
+              <StatRow label="Pts especiales" myVal={data.myBetPts} rivalVal={data.rivalBetPts} />
             </div>
 
             {/* Detalle por partido jugado */}
@@ -206,10 +216,11 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
                       fontSize: '12px', color: 'var(--text-primary)', marginBottom: '5px', fontWeight: '600',
                     }}>
                       {r.homeFlag && <img src={r.homeFlag} alt="" style={{ width: '16px', height: '11px', borderRadius: '2px' }} />}
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '95px', textAlign: 'right' }}>{r.home}</span>
-                      <span style={{ fontWeight: '800', color: 'var(--text-primary)' }}>{r.real}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '95px', textAlign: 'left' }}>{r.away}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '88px', textAlign: 'right' }}>{r.home}</span>
+                      <span style={{ fontWeight: '800', color: r.live ? 'var(--red)' : 'var(--text-primary)' }}>{r.real}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '88px', textAlign: 'left' }}>{r.away}</span>
                       {r.awayFlag && <img src={r.awayFlag} alt="" style={{ width: '16px', height: '11px', borderRadius: '2px' }} />}
+                      {r.live && <span className="live-pulse" style={{ fontSize: '8px', fontWeight: '800', color: 'var(--red)', letterSpacing: '0.5px' }}>● LIVE</span>}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
                       <PredCell name={myName} pred={r.myPred} pts={r.myPts} win={r.myPts > r.rivalPts} align="flex-start" />
