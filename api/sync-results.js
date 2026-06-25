@@ -159,6 +159,23 @@ export default async function handler(req, res) {
       if (t.api_football_id) teamByApiId[t.api_football_id] = t.id
     })
 
+    // Empareja un fixture de la API con nuestro partido SIN depender del orden
+    // local/visitante. La FIFA/API a veces designan como local al equipo que
+    // nosotros tenemos como visitante (p.ej. Curaçao–Costa de Marfil estaba en
+    // nuestra BD como Costa de Marfil–Curaçao). Antes el matching exigía
+    // home===home && away===away, así que esos cruces NUNCA se sincronizaban y
+    // se quedaban atascados en 'scheduled'. Devuelve el partido y si la
+    // orientación está invertida respecto a la nuestra (para volcar los goles
+    // en nuestra orientación home/away, que es la que ven y predicen los users).
+    const findOurMatch = (homeTeamId, awayTeamId) => {
+      for (const m of ourMatches) {
+        if (m.status === 'finished') continue
+        if (m.home_team_id === homeTeamId && m.away_team_id === awayTeamId) return { ourMatch: m, swapped: false }
+        if (m.home_team_id === awayTeamId && m.away_team_id === homeTeamId) return { ourMatch: m, swapped: true }
+      }
+      return null
+    }
+
     // 3. Update finished match scores
     // IMPORTANT: Update any match that is NOT yet finished (includes live → finished transition)
     let updatedCount = 0
@@ -175,21 +192,24 @@ export default async function handler(req, res) {
 
       if (!homeTeamId || !awayTeamId) continue
 
-      const ourMatch = ourMatches.find(m =>
-        m.home_team_id === homeTeamId && m.away_team_id === awayTeamId &&
-        m.status !== 'finished' // Update any non-finished match (scheduled, live)
-      )
+      const found = findOurMatch(homeTeamId, awayTeamId)
 
-      if (ourMatch) {
+      if (found) {
+        const { ourMatch, swapped } = found
+        // Vuelca los goles en NUESTRA orientación (home/away tal y como predicen
+        // los usuarios), invirtiéndolos si la API lista el cruce al revés.
+        const ourHomeScore = swapped ? awayScore : homeScore
+        const ourAwayScore = swapped ? homeScore : awayScore
         const updateData = {
-          home_score: homeScore,
-          away_score: awayScore,
+          home_score: ourHomeScore,
+          away_score: ourAwayScore,
           status: 'finished',
           live_minute: null,
           live_status_short: null,
         }
 
-        // For knockout matches, determine winner_team_id
+        // For knockout matches, determine winner_team_id (orientación-independiente:
+        // homeTeamId/awayTeamId ya son IDs de nuestros equipos)
         if (ourMatch.stage !== 'group') {
           if (apiMatch.teams.home.winner) {
             updateData.winner_team_id = homeTeamId
@@ -205,12 +225,12 @@ export default async function handler(req, res) {
         updatedCount++
         newlyFinished.push({
           id: ourMatch.id,
-          home_score: homeScore,
-          away_score: awayScore,
-          home_team_id: homeTeamId,
-          away_team_id: awayTeamId
+          home_score: ourHomeScore,
+          away_score: ourAwayScore,
+          home_team_id: ourMatch.home_team_id,
+          away_team_id: ourMatch.away_team_id
         })
-        log.push(`   ✅ Match ${ourMatch.id}: ${homeScore}-${awayScore}${updateData.winner_team_id ? ` (winner: ${updateData.winner_team_id})` : ''}`)
+        log.push(`   ✅ Match ${ourMatch.id}: ${ourHomeScore}-${ourAwayScore}${swapped ? ' (orden API invertido)' : ''}${updateData.winner_team_id ? ` (winner: ${updateData.winner_team_id})` : ''}`)
       }
     }
     log.push(`📊 Updated ${updatedCount} match scores`)
@@ -232,23 +252,24 @@ export default async function handler(req, res) {
       const awayTeamId = teamByApiId[awayApiId]
       if (!homeTeamId || !awayTeamId) continue
 
-      const ourMatch = ourMatches.find(m =>
-        m.home_team_id === homeTeamId && m.away_team_id === awayTeamId
-      )
+      const found = findOurMatch(homeTeamId, awayTeamId)
 
-      if (ourMatch && ourMatch.status !== 'finished') {
+      if (found) {
+        const { ourMatch, swapped } = found
+        const ourHomeScore = swapped ? awayScore : homeScore
+        const ourAwayScore = swapped ? homeScore : awayScore
         await supaFetch(`/rest/v1/matches?id=eq.${ourMatch.id}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            home_score: homeScore,
-            away_score: awayScore,
+            home_score: ourHomeScore,
+            away_score: ourAwayScore,
             status: 'live',
             live_minute: apiMatch.fixture.status.elapsed ?? null,
             live_status_short: apiMatch.fixture.status.short ?? null,
           })
         })
         liveUpdated++
-        log.push(`   🔴 Live ${ourMatch.id}: ${homeScore}-${awayScore} (${apiMatch.fixture.status.short} ${apiMatch.fixture.status.elapsed || ''}')`)
+        log.push(`   🔴 Live ${ourMatch.id}: ${ourHomeScore}-${ourAwayScore}${swapped ? ' (orden API invertido)' : ''} (${apiMatch.fixture.status.short} ${apiMatch.fixture.status.elapsed || ''}')`)
       }
     }
     log.push(`🔴 Updated ${liveUpdated} live match scores`)
