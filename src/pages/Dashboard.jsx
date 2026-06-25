@@ -249,9 +249,16 @@ export default function Dashboard({ session, demoMode }) {
     const cutoff = new Date(now)
     cutoff.setHours(9, 0, 0, 0)
     if (cutoff <= now) cutoff.setDate(cutoff.getDate() + 1)
+    // Ventana de gracia: un partido que ya empezó (kickoff pasado) pero que el sync
+    // aún no ha marcado 'live' NO debe desaparecer del banner. Un partido en juego
+    // dura < 3,5h, así que mostramos los 'scheduled' cuyo kickoff cae en las últimas
+    // 3,5h como "EN JUEGO" (el MundialMatchBanner los pinta en rojo). Antes esto
+    // dejaba un hueco: ni live (status≠live) ni próximo (match_date < now) → invisible.
+    const STARTED_GRACE_MS = 3.5 * 60 * 60 * 1000
     const preMundial = (allMatchesData || [])
       .filter(m => m.status === 'scheduled' && m.stage !== 'friendly' && m.stage !== 'test'
-        && new Date(m.match_date) > now && new Date(m.match_date) <= cutoff)
+        && new Date(m.match_date) <= cutoff
+        && new Date(m.match_date) > new Date(now.getTime() - STARTED_GRACE_MS))
       .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
       .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
     setPreMundialMatches(preMundial)
@@ -1329,6 +1336,10 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
   const matchDate = new Date(match.match_date)
+  // Partido cuyo kickoff ya pasó pero el sync aún no lo marcó 'live' (lag).
+  // Lo tratamos como "en juego" para que no desaparezca de Inicio; el resultado
+  // se rellenará en la próxima sincronización.
+  const isStarted = !isLive && !isFinished && matchDate <= new Date()
   const cd = useCountdown(matchDate)
   const timeStr = matchDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
   const dateStr = matchDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Madrid' })
@@ -1338,14 +1349,14 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
       : `${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m ${String(cd.seconds).padStart(2, '0')}s`
   const liveMin = match.live_minute != null ? `${match.live_minute}'` : (match.live_status_short === 'HT' ? 'Descanso' : '')
   const pts = isFinished && hasPred ? (prediction.points_earned ?? null) : null
-  // Estilos por estado: live (rojo) · finalizado (gris neutro) · pre (verde)
-  const bg = isLive ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
+  // Estilos por estado: live/en juego (rojo) · finalizado (gris neutro) · pre (verde)
+  const bg = (isLive || isStarted) ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
     : isFinished ? 'linear-gradient(135deg, #1c1f29, #242833)'
       : 'linear-gradient(135deg, #0d2a1a, #123a23)'
-  const borderCol = isLive ? '1.5px solid rgba(226,75,74,0.5)'
+  const borderCol = (isLive || isStarted) ? '1.5px solid rgba(226,75,74,0.5)'
     : isFinished ? '1px solid rgba(255,255,255,0.1)'
       : '1px solid rgba(0,144,81,0.4)'
-  const accent = isLive ? 'var(--red)' : isFinished ? 'rgba(255,255,255,0.55)' : '#4ade80'
+  const accent = (isLive || isStarted) ? 'var(--red)' : isFinished ? 'rgba(255,255,255,0.55)' : '#4ade80'
   return (
     <div onClick={onClick} role="button" tabIndex={0} className="tap-scale"
       style={{
@@ -1356,10 +1367,11 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <span style={{ fontSize: '10px', fontWeight: '800', color: accent, letterSpacing: '1.4px', textTransform: 'uppercase' }}>
           {isLive ? `🔴 EN DIRECTO${liveMin ? ` · ${liveMin}` : ''}`
-            : isFinished ? '✓ FINALIZADO'
-              : `⚽ Próximo partido · ${cdStr}`}
+            : isStarted ? '🔴 EN JUEGO · actualizando…'
+              : isFinished ? '✓ FINALIZADO'
+                : `⚽ Próximo partido · ${cdStr}`}
         </span>
-        {isLive && <span className="live-dot" />}
+        {(isLive || isStarted) && <span className="live-dot" />}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
@@ -1378,7 +1390,7 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
         <div style={{ minWidth: 0 }}>
-          <div>{isLive ? 'En juego' : `${dateStr} · ${timeStr}`}</div>
+          <div>{isLive ? 'En juego' : isStarted ? 'En juego · actualizando resultado' : `${dateStr} · ${timeStr}`}</div>
           {match.city && (
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               📍 {match.city}
