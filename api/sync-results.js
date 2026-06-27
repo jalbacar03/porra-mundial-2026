@@ -428,18 +428,24 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
   const bets = await supaFetch('/rest/v1/pre_tournament_bets?select=*')
   const entries = await supaFetchAll('/rest/v1/pre_tournament_entries?select=*&is_resolved=eq.false')
 
-  // Get all finished group matches
-  const finishedGroups = ourMatches.filter(m => m.stage === 'group' && m.home_score !== null)
+  // Get all finished group matches.
+  // CRÍTICO: gatear por status==='finished', NO por home_score!=null. Un partido
+  // EN VIVO ya tiene home_score persistido (incluso 0-0), así que con home_score
+  // !=null la última jornada simultánea marcaría groupStageComplete=TRUE a mitad
+  // de partido y resolvería más/menos goleada con marcadores incompletos y de
+  // forma PERMANENTE (is_resolved=true no se revierte).
+  const finishedGroups = ourMatches.filter(m => m.stage === 'group' && m.status === 'finished')
   const totalGroupMatches = ourMatches.filter(m => m.stage === 'group').length
   const groupStageComplete = finishedGroups.length === totalGroupMatches && totalGroupMatches > 0
 
-  // R32 completion (needed for decepción resolution)
-  const finishedR32 = ourMatches.filter(m => m.stage === 'r32' && m.home_score !== null)
-  const totalR32Matches = ourMatches.filter(m => m.stage === 'r32').length
+  // R32 completion (needed for decepción resolution). La BD guarda el stage como
+  // 'Round of 32' (no 'r32') — ver syncKnockoutTeams.
+  const finishedR32 = ourMatches.filter(m => m.stage === 'Round of 32' && m.status === 'finished')
+  const totalR32Matches = ourMatches.filter(m => m.stage === 'Round of 32').length
   const r32StageComplete = finishedR32.length === totalR32Matches && totalR32Matches > 0
 
   // Get knockout results
-  const finishedKnockout = ourMatches.filter(m => m.stage !== 'group' && m.home_score !== null)
+  const finishedKnockout = ourMatches.filter(m => m.stage !== 'group' && m.status === 'finished')
 
   // Partido de la final (stage 'Final' o match_number 104) y si el torneo
   // terminó. OJO: usar `=== 'finished'` (no `?.home_score !== null`, que daba
@@ -500,9 +506,14 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       case 'most_goals_team': {
         if (groupStageComplete) {
           const goalsByTeam = calcGoalsByTeam(finishedGroups, 'scored')
-          const topTeam = Object.entries(goalsByTeam).sort((a, b) => b[1] - a[1])[0]
-          if (topTeam) {
-            correctAnswer = parseInt(topTeam[0]) // team_id
+          const vals = Object.values(goalsByTeam)
+          if (vals.length) {
+            const max = Math.max(...vals)
+            // EMPATE → puntúan TODOS los equipos con el máximo (regla del usuario:
+            // si varios empatan, todos sus acertantes suman). correctAnswer = array.
+            correctAnswer = Object.entries(goalsByTeam)
+              .filter(([, g]) => g === max)
+              .map(([id]) => parseInt(id))
             canResolve = true
           }
         }
@@ -513,9 +524,13 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       case 'least_conceded_groups_team': {
         if (groupStageComplete) {
           const goalsByTeam = calcGoalsByTeam(finishedGroups, 'conceded')
-          const bestTeam = Object.entries(goalsByTeam).sort((a, b) => a[1] - b[1])[0]
-          if (bestTeam) {
-            correctAnswer = parseInt(bestTeam[0]) // team_id
+          const vals = Object.values(goalsByTeam)
+          if (vals.length) {
+            const min = Math.min(...vals)
+            // EMPATE → puntúan TODOS los equipos menos goleados (p.ej. varios con 0).
+            correctAnswer = Object.entries(goalsByTeam)
+              .filter(([, g]) => g === min)
+              .map(([id]) => parseInt(id))
             canResolve = true
           }
         }
@@ -524,8 +539,8 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
       // === REVELACIÓN (llega a cuartos) ===
       case 'revelation': {
-        // Check if any QF matches are set
-        const qfMatches = ourMatches.filter(m => m.stage === 'quarter_final')
+        // Check if any QF matches are set. OJO: la BD guarda 'Quarter-finals'.
+        const qfMatches = ourMatches.filter(m => m.stage === 'Quarter-finals')
         if (qfMatches.length > 0) {
           const qfTeamIds = new Set()
           qfMatches.forEach(m => {
@@ -544,7 +559,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       case 'disappointment': {
         if (r32StageComplete) {
           const r16TeamIds = new Set()
-          ourMatches.filter(m => m.stage === 'r16').forEach(m => {
+          ourMatches.filter(m => m.stage === 'Round of 16').forEach(m => {
             if (m.home_team_id) r16TeamIds.add(m.home_team_id)
             if (m.away_team_id) r16TeamIds.add(m.away_team_id)
           })
@@ -673,8 +688,9 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       }
     }
 
-    // Resolve entries
-    if (canResolve && correctAnswer !== null) {
+    // Resolve entries. Un array vacío de respuestas correctas NO debe marcar
+    // entries como resueltas a 0 (defensa por si un case futuro lo produjera).
+    if (canResolve && correctAnswer !== null && (!Array.isArray(correctAnswer) || correctAnswer.length > 0)) {
       for (const entry of betEntries) {
         let points = 0
         // La respuesta del usuario vive en `value` (jsonb), NO en una columna
@@ -686,12 +702,16 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
           : (v.answer ?? v.team_id ?? v.player_name)
 
         if (Array.isArray(correctAnswer)) {
-          // For bets where correct is a set of team IDs (revelation, disappointment, players)
-          if (typeof answer === 'string') {
-            points = correctAnswer.includes(answer) ? bet.max_points : 0
-          } else if (typeof answer === 'number') {
-            points = correctAnswer.includes(answer) ? bet.max_points : 0
-          }
+          // Conjunto de respuestas correctas (revelación, decepción, y los empates
+          // de más goleadora / menos goleada). Comparación robusta a número/string:
+          // los team_id pueden venir como 17 o "17" según el jsonb.
+          const ansNum = parseInt(answer)
+          const ansStr = String(answer ?? '').toLowerCase().trim()
+          const inSet = correctAnswer.some(c =>
+            (typeof c === 'number' && !Number.isNaN(ansNum) && c === ansNum) ||
+            String(c).toLowerCase().trim() === ansStr
+          )
+          points = inSet ? bet.max_points : 0
         } else if (typeof correctAnswer === 'string') {
           // Exact string match (player names, yes/no)
           const normalizedAnswer = (answer || '').toString().toLowerCase().trim()

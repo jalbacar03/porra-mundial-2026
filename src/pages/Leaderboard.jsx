@@ -6,6 +6,7 @@ import { SkeletonLeaderboard } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
 import { displayName, formatRealName } from '../utils/nickname'
+import { KNOCKOUT_PREDICTIONS_OPEN } from '../hooks/useCountdown'
 import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
@@ -696,13 +697,18 @@ function renderSofaScore({
   // Col # ancha para que "T115" (4 caracteres) no se pegue al nombre.
   // Mundial añade columna ESP (puntos de predicciones especiales) entre 1X2 y PTS.
   const showEsp = !isFriendly
+  // CC (cuadro ciego) solo aparece cuando se resuelve la fase de grupos / abren
+  // las eliminatorias — antes no tiene sentido (todos a 0).
+  const showCC = showEsp && new Date() >= KNOCKOUT_PREDICTIONS_OPEN
   const canFollow = typeof onToggleFollow === 'function'
   // Estrella (seguir) = primera columna a la izquierda del todo.
   // Columnas de puntuación/ranking más estrechas → el nombre (1fr) gana ancho.
-  // Mundial: ESP (especiales) + CC (cuadro ciego = bracket_points) entre 1X2 y PTS.
-  const baseGrid = showEsp
-    ? '34px 1fr 18px 20px 24px 22px 22px 32px'
-    : '34px 1fr 20px 22px 26px 34px'
+  // Mundial: ESP (especiales) y, ya en eliminatorias, CC (cuadro ciego) entre 1X2 y PTS.
+  const baseGrid = !showEsp
+    ? '34px 1fr 20px 22px 26px 34px'                  // Liguilla
+    : showCC
+      ? '34px 1fr 18px 20px 24px 22px 22px 32px'      // Mundial + ESP + CC
+      : '34px 1fr 20px 22px 26px 24px 34px'           // Mundial + ESP (sin CC aún)
   const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 
@@ -792,7 +798,7 @@ function renderSofaScore({
           <span className={tabHasLive ? 'live-points' : ''}
             style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{esp}</span>
         )}
-        {showEsp && (
+        {showCC && (
           <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{cc}</span>
         )}
         <span className={tabHasLive ? 'live-points' : ''}
@@ -824,7 +830,7 @@ function renderSofaScore({
         <span title="Resultado exacto · 3 pts" style={{ textAlign: 'center' }}>RE</span>
         <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
         {showEsp && <span title="Puntos de predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>}
-        {showEsp && <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>}
+        {showCC && <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>}
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
       </div>
 

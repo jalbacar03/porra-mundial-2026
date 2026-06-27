@@ -3,11 +3,16 @@ import { supabase } from '../../../supabase'
 import { FootballSpinner } from '../../../components/Skeleton'
 import { KNOCKOUT_PREDICTIONS_DEADLINE } from '../../../hooks/useCountdown'
 
-const STAGE_ORDER = ['r32', 'r16', 'quarter_final', 'semi_final', 'final']
+// La BD guarda estos literales EXACTOS en matches.stage (los escribe
+// syncKnockoutTeams). NO usar 'r32'/'quarter_final' — no existen en la tabla y
+// dejarían el cuadro real sin partidos.
+const STAGE_ORDER = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Third place', 'Final']
 const STAGE_LABELS = {
-  r32: 'Dieciseisavos', r16: 'Octavos',
-  quarter_final: 'Cuartos', semi_final: 'Semifinales', final: 'Final'
+  'Round of 32': 'Dieciseisavos', 'Round of 16': 'Octavos',
+  'Quarter-finals': 'Cuartos', 'Semi-finals': 'Semifinales',
+  'Third place': '3er puesto', 'Final': 'Final'
 }
+const R32_STAGE = 'Round of 32'
 
 export default function BracketResults({ session }) {
   const [matches, setMatches] = useState([])
@@ -15,7 +20,7 @@ export default function BracketResults({ session }) {
   const [savedPredictions, setSavedPredictions] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState({})
-  const [activeRound, setActiveRound] = useState('r32')
+  const [activeRound, setActiveRound] = useState(R32_STAGE)
   const [now, setNow] = useState(new Date())
 
   const userId = session?.user?.id
@@ -63,9 +68,9 @@ export default function BracketResults({ session }) {
   // que empiece, como el cuadro ciego). R32 usa la constante fija (dom 20:00);
   // las rondas siguientes se calculan como primer-partido − 1h.
   const roundDeadline = useMemo(() => {
-    const map = { r32: KNOCKOUT_PREDICTIONS_DEADLINE }
+    const map = { [R32_STAGE]: KNOCKOUT_PREDICTIONS_DEADLINE }
     STAGE_ORDER.forEach(stage => {
-      if (stage === 'r32') return
+      if (stage === R32_STAGE) return
       const ms = matches.filter(m => m.stage === stage && m.match_date)
       if (ms.length) {
         const earliest = Math.min(...ms.map(m => new Date(m.match_date).getTime()))
