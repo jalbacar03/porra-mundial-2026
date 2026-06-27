@@ -7,15 +7,14 @@ os.makedirs(DESK, exist_ok=True)
 W = 380
 
 # ---- Datos del día ----
-DATE_LABEL = 'Martes 16 de junio'
-MATCHES = ['Francia–Senegal', 'Irak–Noruega', 'Argentina–Argelia', 'Austria–Jordania']
-CODES = ['FRA-SEN', 'IRK-NOR', 'ARG-ALG', 'AUT-JOR']
+DATE_LABEL = 'Sábado 27 de junio'
+MATCHES = ['Panamá–Inglaterra', 'Croacia–Ghana', 'Colombia–Portugal', 'RDCongo–Uzbek.', 'Argelia–Austria', 'Jordania–Argentina']
+CODES = ['PAN-ING', 'CRO-GHA', 'COL-POR', 'RDC-UZB', 'ALG-AUT', 'JOR-ARG']
 # Cada persona: rank, nombre, pts y predicciones alineadas con MATCHES
 PEOPLE = [
-    {'rank': 1, 'name': 'Pedro J. Albácar', 'pts': 23, 'preds': ['1-1', '1-3', '2-0', '2-0']},
-    {'rank': 2, 'name': 'Luis Alonso',      'pts': 20, 'preds': ['2-2', '0-3', '1-1', '2-0']},
-    {'rank': 3, 'name': 'Kike Sala-Vivé',   'pts': 18, 'preds': ['1-0', '0-2', '1-0', '3-0']},
-    {'rank': 3, 'name': 'Ramón Colomer',    'pts': 18, 'preds': ['1-1', '1-1', '3-0', '2-0']},
+    {'rank': 1, 'name': 'Javi Albácar',    'pts': 68, 'preds': ['0-2', '1-0', '1-2', '0-0', '1-3', '0-3']},
+    {'rank': 2, 'name': 'Mateo Sanllehi',  'pts': 68, 'preds': ['0-4', '2-2', '1-1', '2-0', '1-2', '0-3']},
+    {'rank': 3, 'name': 'César Rodríguez', 'pts': 67, 'preds': ['1-1', '1-0', '1-1', '3-2', '0-1', '0-2']},
 ]
 
 GOLD, SILVER, BRONZE = '#ffd24a', '#c9ccd4', '#d68a52'
@@ -30,7 +29,18 @@ def initials(name):
         return (parts[0][0] + parts[1][0]).upper()
     return parts[0][:2].upper() if parts else '?'
 
-CX = [186, 238, 290, 342]     # centros de las 4 columnas de predicción
+# Columnas de predicción adaptativas: empiezan tras el bloque de nombre y se
+# reparten hasta el borde. Con muchos partidos (5-6) se estrechan y la fuente baja.
+N = len(MATCHES)
+COLS_START = 150 if N >= 5 else 160
+COLS_END = 366
+COL_W = (COLS_END - COLS_START) / N
+CX = [COLS_START + COL_W * (i + 0.5) for i in range(N)]
+CODE_FS = 8.5 if N <= 4 else (7.5 if N == 5 else 7)
+NAME_FS_BIG = 11 if N <= 4 else 9.7
+NAME_FS_SM = 10 if N <= 4 else 9.2
+PRED_FS_FIRST = 14.5 if N <= 4 else (13 if N == 5 else 12)
+PRED_FS = 13 if N <= 4 else (12 if N == 5 else 11)
 HEAD_Y = 98
 ROWS_TOP = 112
 RH = 44
@@ -50,7 +60,7 @@ p.append('<text x="329" y="40" font-family="Helvetica, Arial, sans-serif" font-s
 # ---- Cabecera de columnas: códigos de partido ----
 p.append('<text x="18" y="{}" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="700" fill="#6f747f" letter-spacing="0.4">PARTICIPANTE</text>'.format(HEAD_Y))
 for cx, code in zip(CX, CODES):
-    p.append(f'<text x="{cx}" y="{HEAD_Y}" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#7d8290" text-anchor="middle" letter-spacing="0.3">{code}</text>')
+    p.append(f'<text x="{cx}" y="{HEAD_Y}" font-family="Helvetica, Arial, sans-serif" font-size="{CODE_FS}" font-weight="700" fill="#7d8290" text-anchor="middle" letter-spacing="0.2">{code}</text>')
 p.append(f'<line x1="14" y1="{HEAD_Y+7}" x2="366" y2="{HEAD_Y+7}" stroke="#2c303a" stroke-width="0.7"/>')
 
 # ---- Filas (una por persona) ----
@@ -72,18 +82,18 @@ for i, person in enumerate(PEOPLE):
     p.append(f'<text x="56" y="{cy+4}" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="800" fill="#ffffff" text-anchor="middle">{initials(person["name"])}</text>')
     # nombre + pts
     nm = person['name']
-    nfs = 11 if len(nm) <= 15 else 10
+    nfs = NAME_FS_BIG if len(nm) <= 15 else NAME_FS_SM
     p.append(f'<text x="76" y="{cy-2}" font-family="Helvetica, Arial, sans-serif" font-size="{nfs}" font-weight="{800 if first else 700}" fill="#ffffff">{nm}</text>')
     p.append(f'<text x="76" y="{cy+11}" font-family="Helvetica, Arial, sans-serif" font-size="8.8" font-weight="800" fill="{mc}">{person["pts"]} pts</text>')
     # predicciones
     for cx, pred in zip(CX, person['preds']):
         col = GOLD if first else '#ffffff'
-        fs = 14.5 if first else 13
+        fs = PRED_FS_FIRST if first else PRED_FS
         p.append(f'<text x="{cx}" y="{cy+4.5}" font-family="Helvetica, Arial, sans-serif" font-size="{fs}" font-weight="800" fill="{col}" text-anchor="middle">{pred}</text>')
 
 p.append(f'<text x="190" y="{H-8}" font-family="Helvetica, Arial, sans-serif" font-size="9.5" fill="#5f636e" text-anchor="middle">porra-mundial-2026 · lo que juega el top 3 hoy</text>')
 p.append('</svg>')
 
-out = os.path.join(DESK, 'podio_2026-06-16.png')
+out = os.path.join(DESK, 'podio_2026-06-27.png')
 cairosvg.svg2png(bytestring=''.join(p).encode('utf-8'), write_to=out, output_width=W * 3)
 print('->', out)

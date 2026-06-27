@@ -8,6 +8,16 @@ export const WORLD_CUP_START = new Date('2026-06-11T17:00:00Z')
 // and the RLS policies in the DB exactly. Keep these three in sync.
 export const PREDICTIONS_DEADLINE = new Date('2026-06-10T21:59:59Z')
 
+// Fase eliminatoria — "cambio de chip" a dieciseisavos (cuadro real).
+// Los grupos terminan el dom 28 jun ~06:00 Madrid (último partido a las 04:00).
+// OPEN: a partir de aquí la app cambia el chip (pestaña "Durante el Mundial" por
+//   defecto + banner en Inicio). Se da margen para que el sync rellene los
+//   equipos reales de R32 antes de que la gente empiece a predecir.
+// DEADLINE: cierre ÚNICO de los 16 dieciseisavos, 1h antes del primero
+//   (primer R32: dom 28 jun 21:00 Madrid → cierre 20:00 Madrid = 18:00 UTC).
+export const KNOCKOUT_PREDICTIONS_OPEN = new Date('2026-06-28T05:00:00Z')      // dom 28, 07:00 Madrid
+export const KNOCKOUT_PREDICTIONS_DEADLINE = new Date('2026-06-28T18:00:00Z')  // dom 28, 20:00 Madrid
+
 export function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(targetDate))
 

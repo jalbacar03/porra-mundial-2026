@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import { FootballSpinner } from '../../../components/Skeleton'
+import { KNOCKOUT_PREDICTIONS_DEADLINE } from '../../../hooks/useCountdown'
 
 const STAGE_ORDER = ['r32', 'r16', 'quarter_final', 'semi_final', 'final']
 const STAGE_LABELS = {
@@ -57,19 +58,39 @@ export default function BracketResults({ session }) {
     if (firstOpen) setActiveRound(firstOpen)
   }
 
-  // Deadline: 3h before match
-  function getDeadline(matchDate) {
-    return new Date(new Date(matchDate).getTime() - 3 * 60 * 60 * 1000)
+  // Cierre ÚNICO por ronda: toda la ronda se cierra de golpe 1h antes de su
+  // primer partido (decisión de producto: completar la ronda entera antes de
+  // que empiece, como el cuadro ciego). R32 usa la constante fija (dom 20:00);
+  // las rondas siguientes se calculan como primer-partido − 1h.
+  const roundDeadline = useMemo(() => {
+    const map = { r32: KNOCKOUT_PREDICTIONS_DEADLINE }
+    STAGE_ORDER.forEach(stage => {
+      if (stage === 'r32') return
+      const ms = matches.filter(m => m.stage === stage && m.match_date)
+      if (ms.length) {
+        const earliest = Math.min(...ms.map(m => new Date(m.match_date).getTime()))
+        map[stage] = new Date(earliest - 60 * 60 * 1000)
+      }
+    })
+    return map
+  }, [matches])
+
+  // ¿Equipos reales ya determinados? (antes del sorteo/sync son null → no se predice)
+  function teamsSet(match) {
+    return match.home_team_id != null && match.away_team_id != null
   }
 
   function isBettingOpen(match) {
     if (match.status === 'finished') return false
-    if (!match.match_date) return false
-    return now < getDeadline(match.match_date)
+    if (!teamsSet(match)) return false
+    const dl = roundDeadline[match.stage]
+    if (!dl) return false
+    return now < dl
   }
 
-  function formatCountdown(matchDate) {
-    const deadline = getDeadline(matchDate)
+  function formatCountdown(stage) {
+    const deadline = roundDeadline[stage]
+    if (!deadline) return null
     const diff = deadline - now
     if (diff <= 0) return null
     const days = Math.floor(diff / 86400000)
@@ -189,6 +210,15 @@ export default function BracketResults({ session }) {
   const activeRoundData = roundMatches.find(r => r.stage === activeRound)
   const hasAnyUnsaved = activeRoundData?.matches.some(m => hasUnsavedChanges(m.id) && isBettingOpen(m))
 
+  // Banner de cierre de la ronda activa (cierre único para toda la ronda)
+  const activeDeadline = roundDeadline[activeRound]
+  const activeAllFinished = activeRoundData?.matches.every(m => m.status === 'finished')
+  const activeTeamsSet = activeRoundData?.matches.some(m => teamsSet(m))
+  const deadlinePassed = activeDeadline && now >= activeDeadline
+  const deadlineStr = activeDeadline
+    ? activeDeadline.toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
+    : null
+
   return (
     <div>
       {/* Header */}
@@ -197,7 +227,7 @@ export default function BracketResults({ session }) {
           Cuadro de eliminatorias
         </h3>
         <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
-          Predice el resultado a 90 minutos. Predicciones cierran 3h antes del inicio.
+          Predice el resultado a 90 minutos. Toda la ronda cierra de golpe 1h antes de su primer partido.
         </p>
         <div style={{
           marginTop: '8px', display: 'flex', gap: '12px',
@@ -237,15 +267,35 @@ export default function BracketResults({ session }) {
         })}
       </div>
 
+      {/* Banner de cierre ÚNICO de la ronda activa */}
+      {activeRoundData && !activeAllFinished && activeDeadline && (
+        <div style={{
+          marginBottom: '12px', padding: '10px 12px', borderRadius: '8px',
+          background: deadlinePassed ? 'var(--red-bg)' : 'rgba(255,204,0,0.08)',
+          border: deadlinePassed ? '1px solid rgba(226,75,74,0.25)' : '1px solid rgba(255,204,0,0.2)',
+          fontSize: '11px', lineHeight: '1.5',
+          color: deadlinePassed ? 'var(--red)' : 'var(--text-muted)'
+        }}>
+          {!activeTeamsSet ? (
+            <span>⏳ <strong>Emparejamientos por confirmar.</strong> En cuanto se cierren los grupos aparecerán los rivales reales y podrás predecir.</span>
+          ) : deadlinePassed ? (
+            <span>🔒 <strong>{activeRoundData.label} cerrado.</strong> Ya no admite cambios.</span>
+          ) : (
+            <span>⏱ <strong>Cierre de {activeRoundData.label}:</strong> {deadlineStr} (faltan {formatCountdown(activeRound)}). Se cierran <strong>todos</strong> a la vez.</span>
+          )}
+        </div>
+      )}
+
       {/* Match cards */}
       {activeRoundData && (
         <div>
           {activeRoundData.matches.map(match => {
             const isFinished = match.status === 'finished'
+            const tset = teamsSet(match)
             const open = isBettingOpen(match)
             const pred = predictions[match.id] || {}
             const saved = savedPredictions[match.id]
-            const countdown = match.match_date ? formatCountdown(match.match_date) : null
+            const countdown = formatCountdown(match.stage)
             const isSaving = saving[match.id]
             const result = getMatchResult(match, saved)
             const unsaved = hasUnsavedChanges(match.id)
@@ -273,10 +323,13 @@ export default function BracketResults({ session }) {
                   {isFinished && (
                     <span style={{ fontSize: '9px', color: 'var(--green)', fontWeight: '600' }}>Finalizado</span>
                   )}
-                  {!isFinished && open && countdown && (
-                    <span style={{ fontSize: '9px', color: 'var(--gold)', fontWeight: '600' }}>⏱ {countdown}</span>
+                  {!isFinished && !tset && (
+                    <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: '600' }}>⏳ Por determinar</span>
                   )}
-                  {!isFinished && !open && (
+                  {!isFinished && tset && open && countdown && (
+                    <span style={{ fontSize: '9px', color: 'var(--gold)', fontWeight: '600' }}>⏱ Cierra en {countdown}</span>
+                  )}
+                  {!isFinished && tset && !open && (
                     <span style={{ fontSize: '9px', color: 'var(--red)', fontWeight: '600' }}>🔒 Cerrado</span>
                   )}
                 </div>

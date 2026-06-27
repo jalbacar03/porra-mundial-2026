@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCountdown, PREDICTIONS_DEADLINE, WORLD_CUP_START } from '../../hooks/useCountdown'
+import { useCountdown, PREDICTIONS_DEADLINE, WORLD_CUP_START, KNOCKOUT_PREDICTIONS_OPEN, KNOCKOUT_PREDICTIONS_DEADLINE } from '../../hooks/useCountdown'
 import GroupMatchPredictions from './BeforeWorldCup/GroupMatchPredictions'
 import PreTournamentBets from './BeforeWorldCup/PreTournamentBets'
 import DuringPlaceholder from './DuringWorldCup/DuringPlaceholder'
@@ -8,10 +8,14 @@ import BracketView from '../../components/bracket/BracketView'
 
 export default function PredictionsPage({ session, demoMode }) {
   const navigate = useNavigate()
-  const [activeBlock, setActiveBlock] = useState('before') // 'before' | 'during'
+  // Cambio de chip: cuando se abren las eliminatorias (grupos terminados),
+  // la pestaña por defecto pasa a "Durante el Mundial" (cuadro real).
+  const knockoutOpen = new Date() >= KNOCKOUT_PREDICTIONS_OPEN
+  const [activeBlock, setActiveBlock] = useState(knockoutOpen ? 'during' : 'before') // 'before' | 'during'
   const [activeTab, setActiveTab] = useState('matches')    // 'matches' | 'bets' | 'bracket'
   const realDeadline = useCountdown(PREDICTIONS_DEADLINE)
   const worldCupStart = useCountdown(WORLD_CUP_START)
+  const knockoutDeadline = useCountdown(KNOCKOUT_PREDICTIONS_DEADLINE)
 
   // In demo mode, pretend deadline has expired (tournament already started)
   const deadline = demoMode
@@ -24,7 +28,51 @@ export default function PredictionsPage({ session, demoMode }) {
     <div style={{ maxWidth: '500px', margin: '0 auto', padding: '16px' }}>
 
       {/* Countdown deadline */}
-      {demoMode ? (
+      {knockoutOpen ? (
+        knockoutDeadline.expired ? (
+          <div style={{
+            background: 'var(--red-bg)', border: '1px solid rgba(226,75,74,0.2)',
+            borderRadius: '10px', padding: '14px 18px', marginBottom: '16px',
+            textAlign: 'center', fontSize: '13px', color: 'var(--red)', fontWeight: '500'
+          }}>
+            🔒 El plazo para predecir los dieciseisavos ha finalizado
+          </div>
+        ) : (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255,204,0,0.10), rgba(255,204,0,0.03))',
+            border: '1px solid rgba(255,204,0,0.2)', borderRadius: '10px',
+            padding: '16px 18px', marginBottom: '16px', textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
+              letterSpacing: '1.2px', marginBottom: '8px', fontWeight: '700'
+            }}>
+              🏆 Cuadro real abierto · completa tus dieciseisavos
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '10px' }}>
+              {[
+                { value: knockoutDeadline.days, label: 'días' },
+                { value: knockoutDeadline.hours, label: 'horas' },
+                { value: knockoutDeadline.minutes, label: 'min' }
+              ].map((unit, i) => (
+                <div key={i} style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '24px', fontWeight: '700', color: 'var(--gold)', lineHeight: '1',
+                    fontVariantNumeric: 'tabular-nums', minWidth: '40px'
+                  }}>{String(unit.value).padStart(2, '0')}</div>
+                  <div style={{
+                    fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase',
+                    letterSpacing: '0.5px', marginTop: '3px'
+                  }}>{unit.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+              Cierre <span style={{ color: 'var(--gold)', fontWeight: '600' }}>único</span> de los 16 dieciseisavos: <span style={{ color: 'var(--gold)', fontWeight: '600' }}>domingo 20:00</span> (1h antes del primero)
+            </div>
+          </div>
+        )
+      ) : demoMode ? (
         <div style={{
           background: 'linear-gradient(135deg, rgba(0,122,69,0.12), rgba(0,122,69,0.04))',
           border: '1px solid rgba(0,122,69,0.2)',

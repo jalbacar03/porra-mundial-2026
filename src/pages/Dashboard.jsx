@@ -6,7 +6,7 @@ import { SkeletonDashboard, FootballSpinner } from '../components/Skeleton'
 import PointsChart from '../components/PointsChart'
 import Avatar from '../components/Avatar'
 import PWAInstallBanner from '../components/PWAInstallBanner'
-import { PREDICTIONS_DEADLINE, useCountdown } from '../hooks/useCountdown'
+import { PREDICTIONS_DEADLINE, KNOCKOUT_PREDICTIONS_OPEN, KNOCKOUT_PREDICTIONS_DEADLINE, useCountdown } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
@@ -41,6 +41,7 @@ export default function Dashboard({ session, demoMode }) {
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
   const { points: livePoints, matchCount: liveMatchCount } = useLivePoints(session?.user?.id)
   const hasLiveMundial = liveMatchCount > 0
+  const knockoutCd = useCountdown(KNOCKOUT_PREDICTIONS_DEADLINE)
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -550,6 +551,30 @@ function formatDateShort(dateStr) {
           </div>
         </div>
       </div>
+
+      {/* CAMBIO DE CHIP → dieciseisavos: CTA para rellenar el cuadro real.
+          Visible entre la apertura (grupos terminados) y el cierre (dom 20:00). */}
+      {!demoMode && new Date() >= KNOCKOUT_PREDICTIONS_OPEN && !knockoutCd.expired && (
+        <div onClick={() => navigate('/predictions')} role="button" tabIndex={0}
+          className="tap-scale"
+          style={{
+            marginBottom: '14px', padding: '14px 16px', borderRadius: '14px',
+            background: 'linear-gradient(135deg, #2a2410, #3a3110)',
+            border: '1.5px solid rgba(255,204,0,0.45)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '12px'
+          }}>
+          <span style={{ fontSize: '26px', lineHeight: 1, flexShrink: 0 }}>🏆</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--gold)', marginBottom: '2px' }}>
+              Rellena tus dieciseisavos
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4' }}>
+              Cuadro real abierto · cierra <strong>dom 20:00</strong> · faltan {knockoutCd.days > 0 ? `${knockoutCd.days}d ` : ''}{String(knockoutCd.hours).padStart(2, '0')}h {String(knockoutCd.minutes).padStart(2, '0')}m
+            </div>
+          </div>
+          <span style={{ fontSize: '20px', color: 'var(--gold)', flexShrink: 0 }}>›</span>
+        </div>
+      )}
 
       {/* PWA install prompt — only renders when applicable (not standalone, not dismissed) */}
       {!demoMode && <PWAInstallBanner />}

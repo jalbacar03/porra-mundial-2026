@@ -699,8 +699,9 @@ function renderSofaScore({
   const canFollow = typeof onToggleFollow === 'function'
   // Estrella (seguir) = primera columna a la izquierda del todo.
   // Columnas de puntuación/ranking más estrechas → el nombre (1fr) gana ancho.
+  // Mundial: ESP (especiales) + CC (cuadro ciego = bracket_points) entre 1X2 y PTS.
   const baseGrid = showEsp
-    ? '34px 1fr 20px 22px 26px 24px 34px'
+    ? '34px 1fr 18px 20px 24px 22px 22px 32px'
     : '34px 1fr 20px 22px 26px 34px'
   const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
@@ -734,6 +735,7 @@ function renderSofaScore({
     const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
     const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
     const esp = user.pre_tournament_points || 0
+    const cc = user.bracket_points || 0
     const pj = playedCount
     const pts = tabHasLive ? user.effective_points : user.total_points
     const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
@@ -790,6 +792,9 @@ function renderSofaScore({
           <span className={tabHasLive ? 'live-points' : ''}
             style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{esp}</span>
         )}
+        {showEsp && (
+          <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{cc}</span>
+        )}
         <span className={tabHasLive ? 'live-points' : ''}
           style={{ textAlign: 'right', fontWeight: 800, color: tabHasLive ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'), fontSize: '13px' }}>{pts}</span>
       </div>
@@ -819,6 +824,7 @@ function renderSofaScore({
         <span title="Resultado exacto · 3 pts" style={{ textAlign: 'center' }}>RE</span>
         <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
         {showEsp && <span title="Puntos de predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>}
+        {showEsp && <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>}
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
       </div>
 
