@@ -46,11 +46,11 @@ export default function Rules() {
 
       {/* ===== RESUMEN VISUAL (moved up for visibility) ===== */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(0,122,69,0.08), rgba(0,122,69,0.03))',
+        background: 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(37,99,235,0.03))',
         borderRadius: '10px',
         padding: '16px',
         marginBottom: '14px',
-        border: '1px solid rgba(0,122,69,0.15)'
+        border: '1px solid rgba(37,99,235,0.15)'
       }}>
         <div style={{
           fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)',
@@ -74,7 +74,7 @@ export default function Rules() {
                 <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '1px' }}>{row.detail}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: '11px', fontWeight: '600', color: '#4ade80' }}>{row.pts}</div>
+                <div style={{ fontSize: '11px', fontWeight: '600', color: '#60a5fa' }}>{row.pts}</div>
               </div>
               <span style={{
                 fontSize: '8px', padding: '2px 6px', borderRadius: '3px', fontWeight: '600',
@@ -102,8 +102,8 @@ export default function Rules() {
           Si es 0-0 → 0 puntos (fallaste el signo).
         </Highlight>
         <ItemTable items={[
-          { label: 'Resultado exacto', value: '+3 puntos', color: '#4ade80' },
-          { label: 'Signo correcto (1X2)', value: '+1 punto', color: '#4ade80' },
+          { label: 'Resultado exacto', value: '+3 puntos', color: '#60a5fa' },
+          { label: 'Signo correcto (1X2)', value: '+1 punto', color: '#60a5fa' },
           { label: 'Fallo', value: '0 puntos', color: 'var(--text-dim)' }
         ]} />
         <div style={{
@@ -124,11 +124,11 @@ export default function Rules() {
         <P last>Aquí no predices marcadores, solo quién gana cada cruce (es decir, quién pasa de ronda). Estar en una ronda no puntúa; puntúa ganar el partido de esa ronda.</P>
         <ItemTable items={[
           { label: 'Llegar a 16avos (desde grupos)', value: '0 pts', color: 'var(--text-dim)' },
-          { label: 'Ganar en 16avos → octavos (×16)', value: '+1 pt', color: '#4ade80' },
-          { label: 'Ganar en octavos → cuartos (×8)', value: '+1 pt', color: '#4ade80' },
-          { label: 'Ganar en cuartos → semis (×4)', value: '+2 pts', color: '#4ade80' },
-          { label: 'Ganar en semis → final (×2)', value: '+4 pts', color: '#4ade80' },
-          { label: 'Ganar la final (campeón) (×1)', value: '+8 pts', color: '#4ade80' }
+          { label: 'Ganar en 16avos → octavos (×16)', value: '+1 pt', color: '#60a5fa' },
+          { label: 'Ganar en octavos → cuartos (×8)', value: '+1 pt', color: '#60a5fa' },
+          { label: 'Ganar en cuartos → semis (×4)', value: '+2 pts', color: '#60a5fa' },
+          { label: 'Ganar en semis → final (×2)', value: '+4 pts', color: '#60a5fa' },
+          { label: 'Ganar la final (campeón) (×1)', value: '+8 pts', color: '#60a5fa' }
         ]} />
         <Highlight>
           Si clavas toda la cadena de tu campeón (gana en 16avos, octavos, cuartos, semis y final), sumas 1+1+2+4+8 = 16 puntos. Máximo del cuadro: 48 pts.
@@ -143,31 +143,31 @@ export default function Rules() {
           Jugadores
         </div>
         <ItemTable items={[
-          { label: 'MVP del torneo', value: '+5 pts', color: '#4ade80' },
-          { label: 'Bota de Oro (máximo goleador)', value: '+3 pts', color: '#4ade80' },
-          { label: 'Máximo asistente', value: '+3 pts', color: '#4ade80' },
-          { label: 'Guante de Oro (mejor portero)', value: '+3 pts', color: '#4ade80' }
+          { label: 'MVP del torneo', value: '+5 pts', color: '#60a5fa' },
+          { label: 'Bota de Oro (máximo goleador)', value: '+3 pts', color: '#60a5fa' },
+          { label: 'Máximo asistente', value: '+3 pts', color: '#60a5fa' },
+          { label: 'Guante de Oro (mejor portero)', value: '+3 pts', color: '#60a5fa' }
         ]} />
 
         <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '14px 0 6px' }}>
           Selecciones
         </div>
         <ItemTable items={[
-          { label: 'Selección revelación (llega a cuartos)', value: '+3 pts', color: '#4ade80' },
-          { label: 'Selección decepción (no pasa de 16avos)', value: '+3 pts', color: '#4ade80' },
-          { label: 'Selección más goleadora en grupos', value: '+2 pts', color: '#4ade80' },
-          { label: 'Selección menos goleada en grupos', value: '+2 pts', color: '#4ade80' }
+          { label: 'Selección revelación (llega a cuartos)', value: '+3 pts', color: '#60a5fa' },
+          { label: 'Selección decepción (no pasa de 16avos)', value: '+3 pts', color: '#60a5fa' },
+          { label: 'Selección más goleadora en grupos', value: '+2 pts', color: '#60a5fa' },
+          { label: 'Selección menos goleada en grupos', value: '+2 pts', color: '#60a5fa' }
         ]} />
 
         <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '14px 0 6px' }}>
           ¿Sí o No?
         </div>
         <ItemTable items={[
-          { label: '¿Habrá hat-trick en el torneo?', value: '+1 pt', color: '#4ade80' },
-          { label: '¿Goleada por 5+ goles de diferencia?', value: '+1 pt', color: '#4ade80' },
-          { label: '¿La final se decidirá en penaltis?', value: '+1 pt', color: '#4ade80' },
-          { label: '¿El país campeón será europeo?', value: '+1 pt', color: '#4ade80' },
-          { label: '¿Ambos equipos verán roja en un mismo partido?', value: '+1 pt', color: '#4ade80' }
+          { label: '¿Habrá hat-trick en el torneo?', value: '+1 pt', color: '#60a5fa' },
+          { label: '¿Goleada por 5+ goles de diferencia?', value: '+1 pt', color: '#60a5fa' },
+          { label: '¿La final se decidirá en penaltis?', value: '+1 pt', color: '#60a5fa' },
+          { label: '¿El país campeón será europeo?', value: '+1 pt', color: '#60a5fa' },
+          { label: '¿Ambos equipos verán roja en un mismo partido?', value: '+1 pt', color: '#60a5fa' }
         ]} />
       </Section>
 
@@ -183,15 +183,15 @@ export default function Rules() {
           Puedes predecir un empate (ej: 1-1) aunque sea eliminatoria — el partido se resuelve en prórroga/penaltis, pero tú predices el marcador de los 90'.
         </Highlight>
         <ItemTable items={[
-          { label: 'Resultado exacto', value: '+3 puntos', color: '#4ade80' },
-          { label: 'Signo correcto (1X2)', value: '+1 punto', color: '#4ade80' },
+          { label: 'Resultado exacto', value: '+3 puntos', color: '#60a5fa' },
+          { label: 'Signo correcto (1X2)', value: '+1 punto', color: '#60a5fa' },
           { label: 'Fallo', value: '0 puntos', color: 'var(--text-dim)' }
         ]} />
         <P style={{ marginTop: '10px' }}>El deadline es antes de que empiece cada ronda (ej: debes predecir los octavos antes de que se juegue el primer octavo).</P>
 
         <div style={{
           marginTop: '10px', padding: '10px 12px',
-          background: 'rgba(0,122,69,0.06)', border: '0.5px solid rgba(0,122,69,0.15)',
+          background: 'rgba(37,99,235,0.06)', border: '0.5px solid rgba(37,99,235,0.15)',
           borderRadius: '6px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5'
         }}>
           <strong style={{ color: 'var(--text-primary)' }}>¿Se solapan cuadro ciego y cuadro real?</strong><br />
@@ -211,7 +211,7 @@ export default function Rules() {
         <ItemTable items={[
           { label: 'Deadline predicciones pre-torneo', value: '10 de junio, 23:59h', color: '#ff8a8a' },
           { label: 'Inicio del Mundial', value: '11 de junio de 2026', color: 'var(--text-primary)' },
-          { label: 'Final del Mundial', value: '19 de julio de 2026', color: '#4ade80' }
+          { label: 'Final del Mundial', value: '19 de julio de 2026', color: '#60a5fa' }
         ]} />
       </Section>
 

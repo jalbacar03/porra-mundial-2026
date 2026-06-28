@@ -25,9 +25,9 @@ export default function BracketResults({ session }) {
 
   const userId = session?.user?.id
 
-  // Tick every minute
+  // Tick cada segundo (para el timer único del bloque)
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60000)
+    const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
@@ -93,17 +93,17 @@ export default function BracketResults({ session }) {
     return now < dl
   }
 
-  function formatCountdown(stage) {
+  // Cuenta atrás del bloque (d/h/m/s) hasta el cierre único de la ronda.
+  function countdownParts(stage) {
     const deadline = roundDeadline[stage]
     if (!deadline) return null
-    const diff = deadline - now
+    let diff = deadline - now
     if (diff <= 0) return null
-    const days = Math.floor(diff / 86400000)
-    const hours = Math.floor((diff % 86400000) / 3600000)
-    const mins = Math.floor((diff % 3600000) / 60000)
-    if (days > 0) return `${days}d ${hours}h`
-    if (hours > 0) return `${hours}h ${mins}m`
-    return `${mins}m`
+    const d = Math.floor(diff / 86400000); diff -= d * 86400000
+    const h = Math.floor(diff / 3600000); diff -= h * 3600000
+    const m = Math.floor(diff / 60000); diff -= m * 60000
+    const s = Math.floor(diff / 1000)
+    return { d, h, m, s }
   }
 
   function updatePrediction(matchId, field, value) {
@@ -223,6 +223,8 @@ export default function BracketResults({ session }) {
   const deadlineStr = activeDeadline
     ? activeDeadline.toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
     : null
+  const cp = countdownParts(activeRound)
+  const pad = (n) => String(n).padStart(2, '0')
 
   return (
     <div>
@@ -232,13 +234,13 @@ export default function BracketResults({ session }) {
           Cuadro de eliminatorias
         </h3>
         <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
-          Predice el resultado a 90 minutos. Toda la ronda cierra de golpe 1h antes de su primer partido.
+          Predice el resultado a 90 minutos. Toda la ronda cierra de golpe 30 min antes de su primer partido.
         </p>
         <div style={{
           marginTop: '8px', display: 'flex', gap: '12px',
           fontSize: '10px', color: 'var(--text-dim)'
         }}>
-          <span><strong style={{ color: '#4ade80' }}>3 pts</strong> exacto</span>
+          <span><strong style={{ color: '#60a5fa' }}>3 pts</strong> exacto</span>
           <span><strong style={{ color: 'var(--gold)' }}>1 pt</strong> signo 1X2</span>
           <span><strong style={{ color: 'var(--text-dim)' }}>0</strong> fallo</span>
         </div>
@@ -272,21 +274,38 @@ export default function BracketResults({ session }) {
         })}
       </div>
 
-      {/* Banner de cierre ÚNICO de la ronda activa */}
+      {/* Banner de cierre ÚNICO de la ronda — un solo timer para todo el bloque */}
       {activeRoundData && !activeAllFinished && activeDeadline && (
         <div style={{
-          marginBottom: '12px', padding: '10px 12px', borderRadius: '8px',
+          marginBottom: '12px', padding: '12px 14px', borderRadius: '10px',
           background: deadlinePassed ? 'var(--red-bg)' : 'rgba(255,204,0,0.08)',
-          border: deadlinePassed ? '1px solid rgba(226,75,74,0.25)' : '1px solid rgba(255,204,0,0.2)',
-          fontSize: '11px', lineHeight: '1.5',
+          border: deadlinePassed ? '1px solid rgba(226,75,74,0.25)' : '1px solid rgba(255,204,0,0.22)',
+          fontSize: '11px', lineHeight: '1.45',
           color: deadlinePassed ? 'var(--red)' : 'var(--text-muted)'
         }}>
           {!activeTeamsSet ? (
             <span>⏳ <strong>Emparejamientos por confirmar.</strong> En cuanto se cierren los grupos aparecerán los rivales reales y podrás predecir.</span>
           ) : deadlinePassed ? (
-            <span>🔒 <strong>{activeRoundData.label} cerrado.</strong> Ya no admite cambios.</span>
+            <span>🔒 <strong>{activeRoundData.label} cerrados.</strong> Ya no admiten cambios.</span>
           ) : (
-            <span>⏱ <strong>Cierre de {activeRoundData.label}:</strong> {deadlineStr} (faltan {formatCountdown(activeRound)}). Se cierran <strong>todos</strong> a la vez.</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  Cierran los {activeRoundData.matches.length} {activeRoundData.label.toLowerCase()} a la vez
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px', textTransform: 'capitalize' }}>
+                  {deadlineStr}
+                </div>
+              </div>
+              {cp && (
+                <div style={{
+                  fontSize: '20px', fontWeight: '800', color: 'var(--gold)',
+                  fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0
+                }}>
+                  {cp.d > 0 ? `${cp.d}d ` : ''}{cp.h}:{pad(cp.m)}:{pad(cp.s)}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -300,7 +319,6 @@ export default function BracketResults({ session }) {
             const open = isBettingOpen(match)
             const pred = predictions[match.id] || {}
             const saved = savedPredictions[match.id]
-            const countdown = formatCountdown(match.stage)
             const isSaving = saving[match.id]
             const result = getMatchResult(match, saved)
             const unsaved = hasUnsavedChanges(match.id)
@@ -316,7 +334,7 @@ export default function BracketResults({ session }) {
                   : isFinished ? '3px solid var(--green)' : '3px solid var(--border)',
                 border: result
                   ? result.type === 'exact' ? '1px solid rgba(255,204,0,0.3)'
-                  : result.type === 'sign' ? '1px solid rgba(0,122,69,0.2)'
+                  : result.type === 'sign' ? '1px solid rgba(37,99,235,0.2)'
                   : '1px solid rgba(231,76,60,0.2)'
                   : '0.5px solid var(--border)'
               }}>
@@ -331,8 +349,8 @@ export default function BracketResults({ session }) {
                   {!isFinished && !tset && (
                     <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: '600' }}>⏳ Por determinar</span>
                   )}
-                  {!isFinished && tset && open && countdown && (
-                    <span style={{ fontSize: '9px', color: 'var(--gold)', fontWeight: '600' }}>⏱ Cierra en {countdown}</span>
+                  {!isFinished && tset && open && (
+                    <span style={{ fontSize: '9px', color: '#60a5fa', fontWeight: '600' }}>Abierto</span>
                   )}
                   {!isFinished && tset && !open && (
                     <span style={{ fontSize: '9px', color: 'var(--red)', fontWeight: '600' }}>🔒 Cerrado</span>
@@ -438,7 +456,7 @@ export default function BracketResults({ session }) {
                     <span style={{
                       marginLeft: '8px', fontWeight: '600',
                       color: result.type === 'exact' ? 'var(--gold)' :
-                             result.type === 'sign' ? '#4ade80' : '#e74c3c'
+                             result.type === 'sign' ? '#60a5fa' : '#e74c3c'
                     }}>
                       {result.type === 'exact' ? `¡Exacto! +${result.points}` :
                        result.type === 'sign' ? `Signo OK +${result.points}` :

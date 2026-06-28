@@ -74,14 +74,14 @@ export default function PredictionsPage({ session, demoMode }) {
         )
       ) : demoMode ? (
         <div style={{
-          background: 'linear-gradient(135deg, rgba(0,122,69,0.12), rgba(0,122,69,0.04))',
-          border: '1px solid rgba(0,122,69,0.2)',
+          background: 'linear-gradient(135deg, rgba(37,99,235,0.12), rgba(37,99,235,0.04))',
+          border: '1px solid rgba(37,99,235,0.2)',
           borderRadius: '10px',
           padding: '14px 18px',
           marginBottom: '16px',
           textAlign: 'center',
           fontSize: '13px',
-          color: '#4ade80',
+          color: '#60a5fa',
           fontWeight: '500'
         }}>
           ⚽ Mundial en curso — Jornada 2 de fase de grupos. Tus predicciones ya estan registradas.

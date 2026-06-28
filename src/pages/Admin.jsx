@@ -920,7 +920,7 @@ export default function Admin({ session }) {
         <>
           {/* Hero summary */}
           <div style={{
-            background: 'linear-gradient(135deg, #00392a, #005e3a)',
+            background: 'linear-gradient(135deg, #102a4d, #16356b)',
             borderRadius: '12px', padding: '16px', marginBottom: '14px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1037,7 +1037,7 @@ export default function Admin({ session }) {
                       {profile.has_paid && (
                         <span style={{
                           padding: '1px 7px', borderRadius: '20px', fontSize: '10px',
-                          background: profile.payment_confirmed ? 'rgba(0,144,81,0.15)' : 'rgba(226,75,74,0.15)',
+                          background: profile.payment_confirmed ? 'rgba(37,99,235,0.15)' : 'rgba(226,75,74,0.15)',
                           color: profile.payment_confirmed ? 'var(--green)' : '#e74c3c',
                           fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'
                         }}>

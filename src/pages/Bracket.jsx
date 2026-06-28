@@ -76,7 +76,7 @@ export default function Bracket() {
       {/* ===== FINAL HERO ===== */}
       {finalMatch && (
         <div style={{
-          background: 'linear-gradient(135deg, #22252f, #1a2520)',
+          background: 'linear-gradient(135deg, #22252f, #161f2e)',
           borderRadius: '12px',
           padding: '20px',
           marginBottom: '18px',
@@ -323,7 +323,7 @@ export default function Bracket() {
                   <div style={{
                     flex: 1, display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '8px 10px', borderRadius: '6px',
-                    background: homeWon ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
+                    background: homeWon ? 'rgba(37,99,235,0.1)' : 'var(--bg-input)',
                     border: homeWon ? '0.5px solid var(--green)' : '0.5px solid transparent'
                   }}>
                     {match.home_team?.flag_url && (
@@ -357,7 +357,7 @@ export default function Bracket() {
                   <div style={{
                     flex: 1, display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '8px 10px', borderRadius: '6px',
-                    background: awayWon ? 'rgba(0,122,69,0.1)' : 'var(--bg-input)',
+                    background: awayWon ? 'rgba(37,99,235,0.1)' : 'var(--bg-input)',
                     border: awayWon ? '0.5px solid var(--green)' : '0.5px solid transparent'
                   }}>
                     {match.away_team?.flag_url && (

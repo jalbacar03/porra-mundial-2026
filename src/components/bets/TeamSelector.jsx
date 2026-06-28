@@ -12,9 +12,9 @@ const SOURCE_LABELS = {
 const SOURCE_COLORS = {
   champion: { bg: 'rgba(255,204,0,0.15)', border: 'var(--gold)', text: 'var(--gold)' },
   finalists: { bg: 'rgba(255,204,0,0.10)', border: 'rgba(255,204,0,0.5)', text: 'var(--gold)' },
-  semi_finalists: { bg: 'rgba(0,122,69,0.10)', border: 'var(--green)', text: 'var(--green)' },
-  quarter_finalists: { bg: 'rgba(0,122,69,0.08)', border: 'rgba(0,122,69,0.4)', text: 'var(--green)' },
-  round_of_16: { bg: 'rgba(0,122,69,0.05)', border: 'rgba(0,122,69,0.3)', text: 'var(--green)' }
+  semi_finalists: { bg: 'rgba(37,99,235,0.10)', border: 'var(--green)', text: 'var(--green)' },
+  quarter_finalists: { bg: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.4)', text: 'var(--green)' },
+  round_of_16: { bg: 'rgba(37,99,235,0.05)', border: 'rgba(37,99,235,0.3)', text: 'var(--green)' }
 }
 
 export default function TeamSelector({ value, onChange, disabled, config = {}, multi = false, lockedTeams = [] }) {

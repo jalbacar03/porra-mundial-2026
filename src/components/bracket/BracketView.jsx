@@ -563,7 +563,7 @@ export default function BracketView({ session, targetUserId, persist }) {
                   padding: '12px 14px', borderRadius: '8px',
                   cursor: clickable ? 'pointer' : 'default',
                   background: isChampion ? 'var(--gold)'
-                    : isAdvancing ? 'rgba(0,122,69,0.20)'
+                    : isAdvancing ? 'rgba(37,99,235,0.20)'
                     : 'var(--bg-secondary)',
                   border: isChampion ? '1.5px solid var(--gold)'
                     : isAdvancing ? '1.5px solid var(--green)'
@@ -667,8 +667,8 @@ export default function BracketView({ session, targetUserId, persist }) {
               groupings.map((group, gIdx) => (
                 <div key={`${col.key}-grp-${gIdx}`} style={{
                   marginTop: gIdx === 0 ? '4px' : '16px',
-                  background: 'rgba(0,122,69,0.04)',
-                  border: '1px solid rgba(0,122,69,0.15)',
+                  background: 'rgba(37,99,235,0.04)',
+                  border: '1px solid rgba(37,99,235,0.15)',
                   borderRadius: '10px',
                   padding: '4px 10px 8px'
                 }}>
@@ -681,7 +681,7 @@ export default function BracketView({ session, targetUserId, persist }) {
                       padding: '8px 4px',
                       background: 'transparent',
                       border: 'none',
-                      borderBottom: '1px dashed rgba(0,122,69,0.25)',
+                      borderBottom: '1px dashed rgba(37,99,235,0.25)',
                       cursor: 'pointer',
                       marginBottom: '4px'
                     }}

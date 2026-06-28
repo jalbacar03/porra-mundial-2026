@@ -83,7 +83,7 @@ function TeamButton({ team, isSelected, onClick, disabled, sourceLabel }) {
       disabled={disabled}
       style={{
         flex: 1, padding: '10px', borderRadius: '6px',
-        background: isSelected ? 'rgba(0,122,69,0.2)' : 'var(--bg-primary)',
+        background: isSelected ? 'rgba(37,99,235,0.2)' : 'var(--bg-primary)',
         border: isSelected ? '2px solid var(--green)' : '2px solid transparent',
         cursor: disabled ? 'default' : 'pointer',
         textAlign: 'center',

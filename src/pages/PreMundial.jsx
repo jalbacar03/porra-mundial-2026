@@ -24,7 +24,7 @@ const LIGUILLA = {
   primaryDim: 'rgba(37,99,235,0.15)',
   borderSoft: 'rgba(37,99,235,0.25)',
   gold:       '#ffcc00',
-  green:      '#4ade80',
+  green:      '#60a5fa',
   red:        '#ff6b6b',
 }
 

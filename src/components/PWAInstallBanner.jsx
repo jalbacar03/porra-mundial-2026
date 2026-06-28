@@ -77,8 +77,8 @@ export default function PWAInstallBanner() {
         marginBottom: '12px',
         padding: '12px 14px',
         borderRadius: '10px',
-        background: 'linear-gradient(135deg, rgba(0,122,69,0.12), rgba(0,122,69,0.04))',
-        border: '1px solid rgba(0,144,81,0.25)',
+        background: 'linear-gradient(135deg, rgba(37,99,235,0.12), rgba(37,99,235,0.04))',
+        border: '1px solid rgba(37,99,235,0.25)',
         display: 'flex', alignItems: 'center', gap: '12px'
       }}>
         <span style={{ fontSize: '22px', flexShrink: 0 }}>📱</span>

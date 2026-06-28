@@ -416,8 +416,8 @@ export default function Forum({ session }) {
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '3px',
                 padding: '2px 6px', borderRadius: '10px', border: 'none',
-                background: iReacted ? 'rgba(0,122,69,0.2)' : 'rgba(42,45,56,0.6)',
-                color: iReacted ? '#007a45' : '#9da3b0',
+                background: iReacted ? 'rgba(37,99,235,0.2)' : 'rgba(42,45,56,0.6)',
+                color: iReacted ? '#2563eb' : '#9da3b0',
                 fontSize: '12px', cursor: 'pointer',
                 transition: 'all 0.15s ease'
               }}
@@ -445,14 +445,14 @@ export default function Forum({ session }) {
       <div style={{
         padding: '4px 8px',
         marginBottom: '4px',
-        borderLeft: '2px solid #007a45',
+        borderLeft: '2px solid #2563eb',
         borderRadius: '0 4px 4px 0',
-        background: 'rgba(0,122,69,0.08)',
+        background: 'rgba(37,99,235,0.08)',
         fontSize: '11px',
         color: '#6b7080',
         lineHeight: '1.3'
       }}>
-        <span style={{ fontWeight: '600', color: '#007a45', fontSize: '10px' }}>{originalName}</span>
+        <span style={{ fontWeight: '600', color: '#2563eb', fontSize: '10px' }}>{originalName}</span>
         <div style={{ marginTop: '1px' }}>{preview}</div>
       </div>
     )
@@ -665,7 +665,7 @@ export default function Forum({ session }) {
                         : (isLastInGroup ? '16px 16px 16px 4px' : '4px 16px 16px 4px'),
                     background: isAnnouncement
                       ? 'linear-gradient(135deg, rgba(192,160,80,0.1), rgba(192,160,80,0.05))'
-                      : (isMine ? '#007a45' : '#22252f'),
+                      : (isMine ? '#2563eb' : '#22252f'),
                     border: isAnnouncement
                       ? '0.5px solid rgba(255,204,0,0.2)'
                       : 'none',
@@ -733,7 +733,7 @@ export default function Forum({ session }) {
                             onClick={(e) => { e.stopPropagation(); handleToggleMute(msg.user_id) }}
                             style={{
                               background: 'none', border: 'none', padding: '2px 4px',
-                              fontSize: '11px', color: mutedUsers[msg.user_id] ? '#4ade80' : '#e74c3c',
+                              fontSize: '11px', color: mutedUsers[msg.user_id] ? '#60a5fa' : '#e74c3c',
                               cursor: 'pointer', opacity: 0.7
                             }}
                           >
@@ -795,7 +795,7 @@ export default function Forum({ session }) {
                                   key={emoji}
                                   onClick={() => toggleReaction(msg.id, emoji)}
                                   style={{
-                                    background: iReacted ? 'rgba(0,122,69,0.2)' : 'transparent',
+                                    background: iReacted ? 'rgba(37,99,235,0.2)' : 'transparent',
                                     border: 'none',
                                     borderRadius: '8px',
                                     padding: '4px 8px',
@@ -834,15 +834,15 @@ export default function Forum({ session }) {
           <div style={{
             flex: 1,
             padding: '6px 10px',
-            borderLeft: '2px solid #007a45',
+            borderLeft: '2px solid #2563eb',
             borderRadius: '0 4px 4px 0',
-            background: 'rgba(0,122,69,0.06)',
+            background: 'rgba(37,99,235,0.06)',
             fontSize: '12px',
             color: '#6b7080',
             lineHeight: '1.3',
             overflow: 'hidden'
           }}>
-            <div style={{ fontWeight: '600', color: '#007a45', fontSize: '10px', marginBottom: '1px' }}>
+            <div style={{ fontWeight: '600', color: '#2563eb', fontSize: '10px', marginBottom: '1px' }}>
               {profiles[replyTo.user_id]?.name || 'Usuario'}
             </div>
             <div style={{
@@ -922,7 +922,7 @@ export default function Forum({ session }) {
               height: '40px',
               borderRadius: '50%',
               border: 'none',
-              background: newMessage.trim() ? (activeTab === 'announcements' ? '#c0a050' : '#007a45') : '#13151c',
+              background: newMessage.trim() ? (activeTab === 'announcements' ? '#c0a050' : '#2563eb') : '#13151c',
               color: newMessage.trim() ? '#fff' : '#4a4f5e',
               cursor: newMessage.trim() ? 'pointer' : 'default',
               display: 'flex',

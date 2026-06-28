@@ -39,7 +39,7 @@ function getMatchProgress(matchDate) {
 function getPointsStatus(pred, match) {
   if (!pred || match.home_score === null) return null
   const exactMatch = pred.predicted_home === match.home_score && pred.predicted_away === match.away_score
-  if (exactMatch) return { points: 3, label: 'Exacto', color: 'var(--green)', bg: 'rgba(0,122,69,0.15)' }
+  if (exactMatch) return { points: 3, label: 'Exacto', color: 'var(--green)', bg: 'rgba(37,99,235,0.15)' }
   const predSign = Math.sign(pred.predicted_home - pred.predicted_away)
   const realSign = Math.sign(match.home_score - match.away_score)
   if (predSign === realSign) return { points: 1, label: 'Signo', color: 'var(--gold)', bg: 'rgba(255,204,0,0.1)' }
@@ -367,10 +367,10 @@ export default function MatchDayLive({ session }) {
           <div key={match.id} className={live ? 'live-match-card' : 'stats-card'} style={{
             ...(live ? {
               border: '1px solid rgba(226,75,74,0.3)',
-              background: 'linear-gradient(160deg, rgba(226,75,74,0.06) 0%, var(--bg-secondary) 40%, rgba(0,122,69,0.04) 100%)',
+              background: 'linear-gradient(160deg, rgba(226,75,74,0.06) 0%, var(--bg-secondary) 40%, rgba(37,99,235,0.04) 100%)',
             } : finished ? {
-              border: '1px solid rgba(0,122,69,0.2)',
-              background: 'linear-gradient(135deg, rgba(0,122,69,0.04) 0%, var(--bg-secondary) 100%)',
+              border: '1px solid rgba(37,99,235,0.2)',
+              background: 'linear-gradient(135deg, rgba(37,99,235,0.04) 0%, var(--bg-secondary) 100%)',
             } : {}),
             position: 'relative', overflow: 'hidden'
           }}>
@@ -381,7 +381,7 @@ export default function MatchDayLive({ session }) {
                 position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
                 background: live
                   ? 'linear-gradient(90deg, var(--red), rgba(226,75,74,0.3))'
-                  : 'linear-gradient(90deg, var(--green), rgba(0,122,69,0.2))'
+                  : 'linear-gradient(90deg, var(--green), rgba(37,99,235,0.2))'
               }} />
             )}
 
@@ -445,7 +445,7 @@ export default function MatchDayLive({ session }) {
                     fontSize: '28px', fontWeight: '900', letterSpacing: '4px',
                     color: live ? 'var(--text-primary)' : '#fff',
                     fontFamily: 'SF Mono, Monaco, monospace',
-                    boxShadow: finished ? '0 2px 8px rgba(0,122,69,0.3)' : 'none',
+                    boxShadow: finished ? '0 2px 8px rgba(37,99,235,0.3)' : 'none',
                     border: live ? '1px solid rgba(226,75,74,0.3)' : 'none'
                   }}>
                     {match.home_score}-{match.away_score}
@@ -543,7 +543,7 @@ export default function MatchDayLive({ session }) {
               <div style={{ marginTop: pred ? 0 : '14px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
                   {[
-                    { label: '1', pct: consensus.homePct, color: '#00c464', bg: 'rgba(0,122,69,0.12)' },
+                    { label: '1', pct: consensus.homePct, color: '#00c464', bg: 'rgba(37,99,235,0.12)' },
                     { label: 'X', pct: consensus.drawPct, color: 'var(--text-secondary)', bg: 'rgba(74,79,94,0.25)' },
                     { label: '2', pct: consensus.awayPct, color: '#ffcc00', bg: 'rgba(255,204,0,0.1)' }
                   ].map(({ label, pct, color, bg }) => {

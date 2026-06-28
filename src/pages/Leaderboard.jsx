@@ -683,11 +683,11 @@ function renderSofaScore({
   // de la Liguilla (cambio de chip visual). La Liguilla ya era azul de siempre.
   const useBlue = isFriendly || new Date() >= KNOCKOUT_PREDICTIONS_OPEN
   const C = {
-    accent:      useBlue ? '#2563eb' : '#16a34a',
-    accentLight: useBlue ? '#60a5fa' : '#4ade80',
+    accent:      useBlue ? '#2563eb' : '#2563eb',
+    accentLight: useBlue ? '#60a5fa' : '#60a5fa',
     accentBgRGB: useBlue ? '37,99,235' : '22,163,74',
     blue: '#2563eb',
-    green: '#4ade80',
+    green: '#60a5fa',
     gold: '#ffd700',
     silver: '#c0c0c0',
     bronze: '#cd7f32',

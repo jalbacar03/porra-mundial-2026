@@ -98,7 +98,7 @@ export default function BetCard({ bet, entry, onSave, disabled, cascadeInfo }) {
         ? `1px solid ${points > 0 ? 'var(--green)' : 'var(--border)'}`
         : isSaved
         ? '0.5px solid var(--border)'
-        : '1px solid rgba(0,122,69,0.3)',
+        : '1px solid rgba(37,99,235,0.3)',
       borderRadius: '10px',
       padding: '16px',
       marginBottom: '10px',

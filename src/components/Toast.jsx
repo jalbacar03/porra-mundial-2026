@@ -9,7 +9,7 @@ export function useToast() {
 }
 
 const COLORS = {
-  success: { bg: 'rgba(0,122,69,0.95)', border: 'var(--green)', icon: '✓' },
+  success: { bg: 'rgba(37,99,235,0.95)', border: 'var(--green)', icon: '✓' },
   error: { bg: 'rgba(226,75,74,0.95)', border: 'var(--red)', icon: '✕' },
   info: { bg: 'rgba(34,37,47,0.95)', border: 'var(--border)', icon: 'ℹ' },
 }
