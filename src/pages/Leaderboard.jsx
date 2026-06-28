@@ -707,7 +707,7 @@ function renderSofaScore({
   // Mundial: ESP (especiales) y, ya en eliminatorias, CC (cuadro ciego) entre 1X2 y PTS.
   const baseGrid = !showEsp
     ? '34px 1fr 20px 22px 26px 34px'                  // Liguilla (PJ RE 1X2)
-    : '34px 1fr 22px 20px 20px 20px 22px 32px'        // Mundial (FG RE QP CC ESP)
+    : '30px 1fr 18px 20px 18px 18px 18px 20px 30px'   // Mundial (PJ FG RE QA CC ESP)
   const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 
@@ -743,7 +743,7 @@ function renderSofaScore({
     const cc = user.bracket_points || 0
     const fg = user.fg_points || 0          // fase de grupos (puntos)
     const re = user.ko_result_points || 0   // resultado exacto 90' eliminatorias (+2)
-    const qp = user.ko_advancer_points || 0 // quién pasa de ronda (+1)
+    const qa = user.ko_advancer_points || 0 // quién avanza de ronda (+1)
     const pj = playedCount
     const pts = tabHasLive ? user.effective_points : user.total_points
     const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
@@ -791,8 +791,8 @@ function renderSofaScore({
           )}
         </span>
         {showEsp ? (
-          // Mundial: FG · RE · QP · CC · ESP (valores resueltos, sin live)
-          [fg, re, qp, cc, esp].map((v, i) => (
+          // Mundial: PJ · FG · RE · QA · CC · ESP (valores resueltos, sin live)
+          [pj, fg, re, qa, cc, esp].map((v, i) => (
             <span key={i} style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{v}</span>
           ))
         ) : (
@@ -833,9 +833,10 @@ function renderSofaScore({
         <span>Participante</span>
         {showEsp ? (
           <>
+            <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
             <span title="Fase de grupos (puntos)" style={{ textAlign: 'center' }}>FG</span>
             <span title="Resultado exacto a 90' en eliminatorias · +2" style={{ textAlign: 'center' }}>RE</span>
-            <span title="Acertar quién pasa de ronda · +1" style={{ textAlign: 'center' }}>QP</span>
+            <span title="Acertar quién avanza de ronda · +1" style={{ textAlign: 'center' }}>QA</span>
             <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>
             <span title="Predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>
           </>
@@ -867,6 +868,15 @@ function renderSofaScore({
       {shown.length === 0 && (
         <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
           Sin resultados para “{search}”.
+        </div>
+      )}
+      {showEsp && (
+        <div style={{
+          padding: '7px 10px', fontSize: '9px', lineHeight: '1.5',
+          color: 'var(--text-dim)', textAlign: 'center',
+          borderTop: `1px solid rgba(${C.accentBgRGB},0.12)`
+        }}>
+          PJ partidos · FG fase de grupos · RE resultado 90' · QA quién avanza · CC cuadro ciego · ESP especiales
         </div>
       )}
     </div>
