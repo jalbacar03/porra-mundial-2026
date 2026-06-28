@@ -547,15 +547,18 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
       // === REVELACIÓN (llega a cuartos) ===
       case 'revelation': {
-        // Check if any QF matches are set. OJO: la BD guarda 'Quarter-finals'.
+        // OJO: la BD guarda 'Quarter-finals'. Las filas de cuartos existen desde
+        // el principio con equipos NULL → NO resolver hasta que TODOS los cuartos
+        // tengan equipos reales (si no, resolvería en vacío y todos fallarían).
         const qfMatches = ourMatches.filter(m => m.stage === 'Quarter-finals')
-        if (qfMatches.length > 0) {
+        const qfReady = qfMatches.length > 0 && qfMatches.every(m => m.home_team_id && m.away_team_id)
+        if (qfReady) {
           const qfTeamIds = new Set()
           qfMatches.forEach(m => {
             qfTeamIds.add(m.home_team_id)
             qfTeamIds.add(m.away_team_id)
           })
-          correctAnswer = [...qfTeamIds] // array of team IDs that reached QF
+          correctAnswer = [...qfTeamIds] // equipos que llegaron a cuartos
           canResolve = true
         }
         break
@@ -565,9 +568,13 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       // Válido si el equipo no aparece en ningún partido de R16 (octavos).
       // Cubre tanto caer en grupos como caer en 16avos.
       case 'disappointment': {
-        if (r32StageComplete) {
+        // Solo cuando los 16avos están TODOS terminados Y los equipos de octavos
+        // ya están rellenos (si no, 'reached R16' saldría vacío y resolvería mal).
+        const r16Matches = ourMatches.filter(m => m.stage === 'Round of 16')
+        const r16Ready = r16Matches.length > 0 && r16Matches.every(m => m.home_team_id && m.away_team_id)
+        if (r32StageComplete && r16Ready) {
           const r16TeamIds = new Set()
-          ourMatches.filter(m => m.stage === 'Round of 16').forEach(m => {
+          r16Matches.forEach(m => {
             if (m.home_team_id) r16TeamIds.add(m.home_team_id)
             if (m.away_team_id) r16TeamIds.add(m.away_team_id)
           })
