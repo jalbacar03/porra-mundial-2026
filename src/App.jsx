@@ -43,6 +43,7 @@ const PreMundial = lazyWithReload(() => import('./pages/PreMundial'))
 
 import PaymentWall from './components/PaymentWall'
 import AccessBlocked from './components/AccessBlocked'
+import MaintenanceScreen from './components/MaintenanceScreen'
 import RulesPopup from './components/RulesPopup'
 import NicknameModal from './components/NicknameModal'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
@@ -53,6 +54,9 @@ import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
 const BLOCKED_USER_IDS = new Set([
   'c5a30a3f-ec86-4679-adc7-3c1ea7afd8e9', // Bruno Jover
 ])
+
+// Admin: bypasea el modo mantenimiento para poder revisar mientras está cerrado.
+const ADMIN_ID = 'e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'
 
 /* ============================
    PANTALLA DE LOGIN / REGISTRO
@@ -831,10 +835,17 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [recovery, setRecovery] = useState(false)
+  const [config, setConfig] = useState(null) // app_config: { maintenance_mode, maintenance_message }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    Promise.all([
+      supabase.auth.getSession(),
+      // Fail-open: si la lectura falla, NO se bloquea la app (objeto vacío).
+      supabase.from('app_config').select('maintenance_mode, maintenance_message').eq('id', 1).maybeSingle()
+        .then(r => r, () => ({ data: null })),
+    ]).then(([sess, cfg]) => {
+      setSession(sess?.data?.session ?? null)
+      setConfig(cfg?.data || {})
       setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -844,6 +855,14 @@ export default function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  // Modo mantenimiento: bloquea a todos menos al admin (o con ?staff=1, para que
+  // el admin pueda llegar al login si está deslogueado). Toggle por SQL en
+  // app_config.maintenance_mode — sin redeploy.
+  const staffBypass = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('staff') === '1'
+  const isAdmin = session?.user?.id === ADMIN_ID
+  const inMaintenance = !loading && config?.maintenance_mode === true && !isAdmin && !staffBypass
 
   if (loading) {
     return (
@@ -858,6 +877,7 @@ export default function App() {
     )
   }
 
+  if (inMaintenance) return <MaintenanceScreen message={config?.maintenance_message} />
   if (recovery) return <ResetPassword onDone={() => setRecovery(false)} />
   if (!session) return <Auth />
 
