@@ -581,6 +581,14 @@ export default function Leaderboard({ demoMode }) {
             >✕</span>
           )}
         </div>
+        {activeTab === 'mundial' && (
+          <div style={{
+            fontSize: '9px', lineHeight: '1.5', color: 'var(--text-dim)',
+            textAlign: 'center', marginBottom: '8px'
+          }}>
+            PJ partidos · FG fase de grupos · RE resultado 90' · QA quién avanza · CC cuadro ciego · ESP especiales
+          </div>
+        )}
         {
         // Mismo render compacto SofaScore para ambas tabs — solo cambia el
         // theme (azul Liguilla / verde Mundial), el detail (friendlyDetail /
@@ -707,7 +715,7 @@ function renderSofaScore({
   // Mundial: ESP (especiales) y, ya en eliminatorias, CC (cuadro ciego) entre 1X2 y PTS.
   const baseGrid = !showEsp
     ? '34px 1fr 20px 22px 26px 34px'                  // Liguilla (PJ RE 1X2)
-    : '30px 1fr 18px 20px 18px 18px 18px 20px 30px'   // Mundial (PJ FG RE QA CC ESP)
+    : '36px 1fr 18px 20px 18px 18px 18px 20px 28px'   // Mundial (PJ FG RE QA CC ESP)
   const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 
@@ -868,15 +876,6 @@ function renderSofaScore({
       {shown.length === 0 && (
         <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
           Sin resultados para “{search}”.
-        </div>
-      )}
-      {showEsp && (
-        <div style={{
-          padding: '7px 10px', fontSize: '9px', lineHeight: '1.5',
-          color: 'var(--text-dim)', textAlign: 'center',
-          borderTop: `1px solid rgba(${C.accentBgRGB},0.12)`
-        }}>
-          PJ partidos · FG fase de grupos · RE resultado 90' · QA quién avanza · CC cuadro ciego · ESP especiales
         </div>
       )}
     </div>
