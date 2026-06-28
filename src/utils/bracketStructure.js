@@ -57,13 +57,17 @@ export const FINAL_MATCH = [
   { matchNumber: 104, homeMatch: 101, awayMatch: 102 }
 ]
 
-// All rounds in order
+// All rounds in order.
+// pointsPerWin = puntos por acertar el ganador del cruce (= que tu equipo siga
+// en pie). FUENTE DE LA VERDAD: ROUND_POINTS en api/sync-results.js (1-1-2-4-8).
+// Mantener en sync. (Tener equipo en octavos 1, cuartos 1, semis 2, final 4,
+// campeón 8 → cadena 16, máx cuadro 48.)
 export const ROUNDS = [
-  { key: 'r32', label: 'Dieciseisavos', matches: R32_MATCHES, pointsPerWin: 0 },
+  { key: 'r32', label: 'Dieciseisavos', matches: R32_MATCHES, pointsPerWin: 1 },
   { key: 'r16', label: 'Octavos', matches: R16_MATCHES, pointsPerWin: 1 },
   { key: 'qf', label: 'Cuartos', matches: QF_MATCHES, pointsPerWin: 2 },
   { key: 'sf', label: 'Semis', matches: SF_MATCHES, pointsPerWin: 4 },
-  { key: 'final', label: 'Final', matches: FINAL_MATCH, pointsPerWin: 5 }
+  { key: 'final', label: 'Final', matches: FINAL_MATCH, pointsPerWin: 8 }
 ]
 
 /**

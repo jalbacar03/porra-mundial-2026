@@ -121,17 +121,17 @@ export default function Rules() {
       <Section icon="🏆" title="2. Cuadro ciego" badge="Pre-torneo">
         <P>Antes del Mundial, montas tu cuadro eliminatorio completo: desde dieciseisavos hasta el campeón.</P>
         <P>Los dieciseisavos se forman desde tus predicciones de grupo (1º y 2º de cada grupo + 8 mejores terceros). A partir de ahí, eliges quién gana cada eliminatoria.</P>
-        <P last>Aquí no predices marcadores, solo quién gana cada cruce (es decir, quién pasa de ronda). Estar en una ronda no puntúa; puntúa ganar el partido de esa ronda.</P>
+        <P last>Aquí no predices marcadores, solo qué equipos van avanzando. Llegar a dieciseisavos desde la fase de grupos no puntúa; a partir de ahí, cada ronda en la que siga tu equipo suma.</P>
         <ItemTable items={[
-          { label: 'Llegar a 16avos (desde grupos)', value: '0 pts', color: 'var(--text-dim)' },
-          { label: 'Ganar en 16avos → octavos (×16)', value: '+1 pt', color: '#60a5fa' },
-          { label: 'Ganar en octavos → cuartos (×8)', value: '+1 pt', color: '#60a5fa' },
-          { label: 'Ganar en cuartos → semis (×4)', value: '+2 pts', color: '#60a5fa' },
-          { label: 'Ganar en semis → final (×2)', value: '+4 pts', color: '#60a5fa' },
-          { label: 'Ganar la final (campeón) (×1)', value: '+8 pts', color: '#60a5fa' }
+          { label: 'Tener equipo en dieciseisavos', value: '0 pts', color: 'var(--text-dim)' },
+          { label: 'Tener equipo en octavos (×16)', value: '+1 pt', color: '#60a5fa' },
+          { label: 'Tener equipo en cuartos (×8)', value: '+1 pt', color: '#60a5fa' },
+          { label: 'Tener equipo en semis (×4)', value: '+2 pts', color: '#60a5fa' },
+          { label: 'Tener equipo en la final (×2)', value: '+4 pts', color: '#60a5fa' },
+          { label: 'Que tu equipo sea campeón (×1)', value: '+8 pts', color: '#60a5fa' }
         ]} />
         <Highlight>
-          Si clavas toda la cadena de tu campeón (gana en 16avos, octavos, cuartos, semis y final), sumas 1+1+2+4+8 = 16 puntos. Máximo del cuadro: 48 pts.
+          Si tu campeón aguanta toda la cadena (octavos, cuartos, semis, final y título), sumas 1+1+2+4+8 = 16 puntos. Máximo del cuadro: 48 pts.
         </Highlight>
       </Section>
 
