@@ -17,7 +17,7 @@ const ADMIN_ID = 'e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'
 // Comunicado a enviar (push corto; el texto completo vive en Avisos).
 const PUSH = {
   title: 'Cambio en la puntuación',
-  body: 'Cambia cómo puntúan las eliminatorias. Si pusiste empates, entra a elegir quién avanza antes de las 20:30.',
+  body: 'Cambia cómo puntúan las eliminatorias. Si pusiste empates, entra a elegir quién avanza antes de las 20:55.',
   url: '/predictions',
 }
 

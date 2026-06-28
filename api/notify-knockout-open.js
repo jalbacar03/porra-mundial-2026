@@ -23,7 +23,7 @@ const ADMIN_ID = 'e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'
 
 // Mantener en sync con src/hooks/useCountdown.js
 const KNOCKOUT_OPEN = new Date('2026-06-28T05:00:00Z')
-const KNOCKOUT_DEADLINE = new Date('2026-06-28T18:30:00Z')
+const KNOCKOUT_DEADLINE = new Date('2026-06-28T18:55:00Z')
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
 
   const payload = JSON.stringify({
     title: '🏆 Cuadro real abierto',
-    body: 'Ya se conocen los dieciseisavos. Rellena tus predicciones antes del domingo 20:30.',
+    body: 'Ya se conocen los dieciseisavos. Rellena tus predicciones antes del domingo 20:55.',
     url: '/predictions',
   })
 

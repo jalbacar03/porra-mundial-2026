@@ -250,7 +250,7 @@ export default function BracketResults({ session }) {
           Cuadro de eliminatorias
         </h3>
         <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
-          Predice el resultado a 90 minutos. Toda la ronda cierra de golpe 30 min antes de su primer partido.
+          Predice el resultado a 90 minutos. Toda la ronda cierra de golpe poco antes de su primer partido.
         </p>
         <div style={{
           marginTop: '8px', display: 'flex', gap: '12px',
