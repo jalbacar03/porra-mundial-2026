@@ -216,6 +216,14 @@ export default async function handler(req, res) {
           } else if (apiMatch.teams.away.winner) {
             updateData.winner_team_id = awayTeamId
           }
+          // Marcador a 90' (regulación) para el +2 del cuadro real — distinto del
+          // final si hubo prórroga. API: score.fulltime; si falta, usa el final.
+          const ftH = apiMatch.score?.fulltime?.home
+          const ftA = apiMatch.score?.fulltime?.away
+          const regH = (ftH != null) ? ftH : homeScore
+          const regA = (ftA != null) ? ftA : awayScore
+          updateData.reg_home_score = swapped ? regA : regH
+          updateData.reg_away_score = swapped ? regH : regA
         }
 
         await supaFetch(`/rest/v1/matches?id=eq.${ourMatch.id}`, {

@@ -63,7 +63,7 @@ export default function Rules() {
             { label: '1. Fase de grupos', detail: '72 partidos', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'antes' },
             { label: '2. Cuadro ciego', detail: 'Quién avanza cada ronda', pts: 'Hasta +16 pts (cadena campeón)', phase: 'antes' },
             { label: '3. Predicciones especiales', detail: '14 apuestas en 3 bloques', pts: 'Hasta +29 pts', phase: 'antes' },
-            { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: 'Exacto +3 / Signo +1 / Fallo 0', phase: 'durante' }
+            { label: '4. Cuadro real', detail: '31 partidos eliminatorias', pts: '+1 quién pasa / +2 resultado 90\'', phase: 'durante' }
           ].map((row, i) => (
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: '8px',
@@ -177,16 +177,17 @@ export default function Rules() {
       {/* ===== 4. CUADRO REAL ===== */}
       <Section icon="⚡" title="4. Cuadro real" badge="31 partidos">
         <P>Cuando termine la fase de grupos y se conozca el cuadro real, se abre una nueva ronda de predicciones.</P>
-        <P>Ahora predices el resultado exacto a 90 minutos de cada partido eliminatorio (igual que en grupos).</P>
+        <P>Predices el marcador a 90 minutos de cada eliminatoria, y además quién pasa de ronda.</P>
         <Highlight>
-          Importante: predices el resultado a los 90 minutos, no quién pasa de ronda.{'\n'}
-          Puedes predecir un empate (ej: 1-1) aunque sea eliminatoria — el partido se resuelve en prórroga/penaltis, pero tú predices el marcador de los 90'.
+          Si pones un marcador decisivo (gana uno), quién pasa se entiende solo.{'\n'}
+          Si pones empate (ej: 1-1), eliges además quién pasa en prórroga/penaltis.
         </Highlight>
         <ItemTable items={[
-          { label: 'Resultado exacto', value: '+3 puntos', color: '#60a5fa' },
-          { label: 'Signo correcto (1X2)', value: '+1 punto', color: '#60a5fa' },
-          { label: 'Fallo', value: '0 puntos', color: 'var(--text-dim)' }
+          { label: 'Acertar quién pasa (penaltis incl.)', value: '+1 punto', color: '#60a5fa' },
+          { label: "Acertar el resultado exacto a 90'", value: '+2 puntos', color: '#60a5fa' },
+          { label: 'Máximo por partido', value: '3 puntos', color: 'var(--text-dim)' }
         ]} />
+        <P style={{ marginTop: '10px' }}>Ejemplo: pones 1-1 y que pasa España. Si a 90' quedan 1-1 y pasa España → 3 (2 del resultado + 1 de quién pasa). Si quedan 1-1 pero pasa el rival → 2 (solo el resultado). Si quedan 2-2 y pasa España → 1 (solo quién pasa).</P>
         <P style={{ marginTop: '10px' }}>El deadline es antes de que empiece cada ronda (ej: debes predecir los octavos antes de que se juegue el primer octavo).</P>
 
         <div style={{

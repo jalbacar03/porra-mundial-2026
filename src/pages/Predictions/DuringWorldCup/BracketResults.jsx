@@ -36,11 +36,11 @@ export default function BracketResults({ session }) {
   async function fetchData() {
     const [matchesRes, predsRes] = await Promise.all([
       supabase.from('matches')
-        .select('id, stage, status, home_score, away_score, match_date, home_team_id, away_team_id, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
+        .select('id, stage, status, home_score, away_score, reg_home_score, reg_away_score, winner_team_id, match_date, home_team_id, away_team_id, home_team:teams!matches_home_team_id_fkey(id, name, flag_url), away_team:teams!matches_away_team_id_fkey(id, name, flag_url)')
         .neq('stage', 'group')
         .order('id', { ascending: true }),
       userId ? supabase.from('predictions')
-        .select('match_id, predicted_home, predicted_away')
+        .select('match_id, predicted_home, predicted_away, predicted_advancer_id')
         .eq('user_id', userId)
         .gte('match_id', 73) : { data: [] }
     ])
@@ -50,7 +50,7 @@ export default function BracketResults({ session }) {
     const predMap = {}
     ;(predsRes.data || []).forEach(p => {
       if (p.predicted_home !== null && p.predicted_away !== null) {
-        predMap[p.match_id] = { home: p.predicted_home, away: p.predicted_away }
+        predMap[p.match_id] = { home: p.predicted_home, away: p.predicted_away, advancer: p.predicted_advancer_id ?? null }
       }
     })
     setPredictions(predMap)
@@ -108,20 +108,34 @@ export default function BracketResults({ session }) {
 
   function updatePrediction(matchId, field, value) {
     if (value !== '' && (isNaN(value) || parseInt(value) < 0 || parseInt(value) > 99)) return
-    setPredictions(prev => ({
-      ...prev,
-      [matchId]: {
-        ...prev[matchId],
-        [field]: value === '' ? '' : parseInt(value)
+    setPredictions(prev => {
+      const next = { ...prev[matchId], [field]: value === '' ? '' : parseInt(value) }
+      // Si el marcador pasa a ser decisivo (gana uno), "quién pasa" es implícito
+      // → se limpia el selector. Solo se conserva el advancer en empates.
+      if (next.home !== '' && next.home != null && next.away !== '' && next.away != null && next.home !== next.away) {
+        next.advancer = null
       }
-    }))
+      return { ...prev, [matchId]: next }
+    })
+  }
+
+  // Selector "¿quién pasa?" (solo aparece en empates).
+  function setAdvancer(matchId, teamId) {
+    setPredictions(prev => ({ ...prev, [matchId]: { ...prev[matchId], advancer: teamId } }))
+  }
+
+  // Una predicción está COMPLETA si tiene marcador y, en caso de empate, también
+  // quién pasa (prórroga/penaltis).
+  function predComplete(p) {
+    if (!p || p.home === '' || p.home == null || p.away === '' || p.away == null) return false
+    if (p.home === p.away) return p.advancer != null
+    return true
   }
 
   const handleSave = useCallback(async (matchId) => {
     if (!userId) return
     const pred = predictions[matchId]
-    if (!pred || pred.home === '' || pred.home === undefined ||
-        pred.away === '' || pred.away === undefined) return
+    if (!predComplete(pred)) return
 
     setSaving(s => ({ ...s, [matchId]: true }))
 
@@ -129,7 +143,8 @@ export default function BracketResults({ session }) {
       user_id: userId,
       match_id: matchId,
       predicted_home: pred.home,
-      predicted_away: pred.away
+      predicted_away: pred.away,
+      predicted_advancer_id: pred.home === pred.away ? pred.advancer : null
     }, { onConflict: 'user_id,match_id' })
 
     if (!error) {
@@ -147,13 +162,13 @@ export default function BracketResults({ session }) {
 
     for (const match of roundMatches) {
       const pred = predictions[match.id]
-      if (pred && pred.home !== '' && pred.home !== undefined &&
-          pred.away !== '' && pred.away !== undefined && isBettingOpen(match)) {
+      if (predComplete(pred) && isBettingOpen(match)) {
         toSave.push({
           user_id: userId,
           match_id: match.id,
           predicted_home: pred.home,
-          predicted_away: pred.away
+          predicted_away: pred.away,
+          predicted_advancer_id: pred.home === pred.away ? pred.advancer : null
         })
       }
     }
@@ -168,35 +183,36 @@ export default function BracketResults({ session }) {
     if (!error) {
       const newSaved = { ...savedPredictions }
       toSave.forEach(p => {
-        newSaved[p.match_id] = { home: p.predicted_home, away: p.predicted_away }
+        newSaved[p.match_id] = { home: p.predicted_home, away: p.predicted_away, advancer: p.predicted_advancer_id }
       })
       setSavedPredictions(newSaved)
     }
     setSaving(s => ({ ...s, round: false }))
   }, [userId, matches, predictions, activeRound, savedPredictions])
 
-  // Scoring helpers
+  // Scoring helper (post-partido): +1 por acertar quién pasa, +2 por el resultado
+  // exacto a 90' (reg_*). Quién pasa predicho = ganador del marcador si decisivo,
+  // o el advancer elegido si empate.
   function getMatchResult(match, pred) {
     if (!match || match.status !== 'finished' || !pred) return null
-    if (match.home_score === null || match.away_score === null) return null
-    if (pred.home === '' || pred.home === undefined) return null
+    if (match.winner_team_id == null || match.reg_home_score == null || match.reg_away_score == null) return null
+    if (pred.home === '' || pred.home == null) return null
 
-    const isExact = pred.home === match.home_score && pred.away === match.away_score
-    const realSign = match.home_score > match.away_score ? '1' : match.home_score < match.away_score ? '2' : 'X'
-    const predSign = pred.home > pred.away ? '1' : pred.home < pred.away ? '2' : 'X'
-    const isSign = realSign === predSign
-
-    if (isExact) return { type: 'exact', points: 3 }
-    if (isSign) return { type: 'sign', points: 1 }
-    return { type: 'fallo', points: 0 }
+    const predAdv = pred.home > pred.away ? match.home_team_id
+      : pred.home < pred.away ? match.away_team_id : pred.advancer
+    const advOk = predAdv != null && predAdv === match.winner_team_id
+    const resOk = pred.home === match.reg_home_score && pred.away === match.reg_away_score
+    const points = (advOk ? 1 : 0) + (resOk ? 2 : 0)
+    return { points, advOk, resOk }
   }
 
   function hasUnsavedChanges(matchId) {
     const current = predictions[matchId]
     const saved = savedPredictions[matchId]
-    if (!current || current.home === '' || current.home === undefined) return false
+    if (!predComplete(current)) return false
     if (!saved) return true
-    return current.home !== saved.home || current.away !== saved.away
+    return current.home !== saved.home || current.away !== saved.away ||
+      (current.advancer ?? null) !== (saved.advancer ?? null)
   }
 
   if (loading) {
@@ -240,9 +256,9 @@ export default function BracketResults({ session }) {
           marginTop: '8px', display: 'flex', gap: '12px',
           fontSize: '10px', color: 'var(--text-dim)'
         }}>
-          <span><strong style={{ color: '#60a5fa' }}>3 pts</strong> exacto</span>
-          <span><strong style={{ color: 'var(--gold)' }}>1 pt</strong> signo 1X2</span>
-          <span><strong style={{ color: 'var(--text-dim)' }}>0</strong> fallo</span>
+          <span><strong style={{ color: '#60a5fa' }}>+1</strong> quién pasa</span>
+          <span><strong style={{ color: 'var(--gold)' }}>+2</strong> resultado a 90'</span>
+          <span><strong style={{ color: 'var(--text-dim)' }}>máx 3</strong></span>
         </div>
       </div>
 
@@ -328,13 +344,13 @@ export default function BracketResults({ session }) {
                 background: 'var(--bg-secondary)', borderRadius: '10px', padding: '12px 14px',
                 marginBottom: '8px',
                 borderLeft: result
-                  ? result.type === 'exact' ? '3px solid var(--gold)'
-                  : result.type === 'sign' ? '3px solid var(--green)'
+                  ? result.points === 3 ? '3px solid var(--gold)'
+                  : result.points > 0 ? '3px solid #2563eb'
                   : '3px solid var(--red)'
-                  : isFinished ? '3px solid var(--green)' : '3px solid var(--border)',
+                  : '3px solid var(--border)',
                 border: result
-                  ? result.type === 'exact' ? '1px solid rgba(255,204,0,0.3)'
-                  : result.type === 'sign' ? '1px solid rgba(37,99,235,0.2)'
+                  ? result.points === 3 ? '1px solid rgba(255,204,0,0.3)'
+                  : result.points > 0 ? '1px solid rgba(37,99,235,0.2)'
                   : '1px solid rgba(231,76,60,0.2)'
                   : '0.5px solid var(--border)'
               }}>
@@ -445,25 +461,53 @@ export default function BracketResults({ session }) {
                   </div>
                 </div>
 
-                {/* Result feedback for finished matches */}
-                {isFinished && saved && result && (
-                  <div style={{
-                    marginTop: '8px', textAlign: 'center', fontSize: '10px'
-                  }}>
-                    <span style={{ color: 'var(--text-dim)' }}>
-                      Tu prediccion: {saved.home}-{saved.away}
-                    </span>
-                    <span style={{
-                      marginLeft: '8px', fontWeight: '600',
-                      color: result.type === 'exact' ? 'var(--gold)' :
-                             result.type === 'sign' ? '#60a5fa' : '#e74c3c'
+                {/* ¿Quién pasa? — SOLO en empates (en marcador decisivo es implícito) */}
+                {!isFinished && open && pred.home !== '' && pred.home != null &&
+                  pred.away !== '' && pred.away != null && pred.home === pred.away && (
+                  <div style={{ marginTop: '10px' }}>
+                    <div style={{
+                      fontSize: '10px', textAlign: 'center', marginBottom: '6px',
+                      color: pred.advancer == null ? 'var(--gold)' : 'var(--text-dim)',
+                      fontWeight: pred.advancer == null ? '700' : '400'
                     }}>
-                      {result.type === 'exact' ? `¡Exacto! +${result.points}` :
-                       result.type === 'sign' ? `Signo OK +${result.points}` :
-                       'Fallo'}
-                    </span>
+                      Empate — ¿quién pasa? (prórroga/penaltis)
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {[match.home_team, match.away_team].map(t => t && (
+                        <button key={t.id} onClick={() => setAdvancer(match.id, t.id)} style={{
+                          flex: 1, padding: '7px 6px', borderRadius: '6px', cursor: 'pointer',
+                          border: pred.advancer === t.id ? '1.5px solid #60a5fa' : '1px solid var(--border)',
+                          background: pred.advancer === t.id ? 'rgba(37,99,235,0.15)' : 'var(--bg-input)',
+                          color: pred.advancer === t.id ? '#60a5fa' : 'var(--text-muted)',
+                          fontSize: '11px', fontWeight: pred.advancer === t.id ? '700' : '500',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                        }}>
+                          {pred.advancer === t.id ? '✓ ' : ''}{t.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
+
+                {/* Result feedback for finished matches */}
+                {isFinished && saved && result && (() => {
+                  const advName = saved.advancer === match.home_team_id ? match.home_team?.name
+                    : saved.advancer === match.away_team_id ? match.away_team?.name : null
+                  const parts = [result.advOk ? 'quién pasa' : null, result.resOk ? 'resultado' : null].filter(Boolean)
+                  return (
+                    <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '10px' }}>
+                      <span style={{ color: 'var(--text-dim)' }}>
+                        Tu predicción: {saved.home}-{saved.away}{saved.home === saved.away && advName ? ` (pasa ${advName})` : ''}
+                      </span>
+                      <span style={{
+                        marginLeft: '8px', fontWeight: '600',
+                        color: result.points === 3 ? 'var(--gold)' : result.points > 0 ? '#60a5fa' : '#e74c3c'
+                      }}>
+                        {result.points > 0 ? `+${result.points}${parts.length ? ` (${parts.join(' + ')})` : ''}` : 'Fallo'}
+                      </span>
+                    </div>
+                  )
+                })()}
                 {isFinished && !saved && (
                   <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '10px', color: 'var(--text-dim)' }}>
                     No predijiste este partido
@@ -471,11 +515,15 @@ export default function BracketResults({ session }) {
                 )}
 
                 {/* Saved indicator */}
-                {!isFinished && saved && !unsaved && (
-                  <div style={{ marginTop: '6px', textAlign: 'center', fontSize: '10px', color: 'var(--green)', fontWeight: '600' }}>
-                    ✓ Guardado ({saved.home}-{saved.away})
-                  </div>
-                )}
+                {!isFinished && saved && !unsaved && (() => {
+                  const advName = saved.advancer === match.home_team_id ? match.home_team?.name
+                    : saved.advancer === match.away_team_id ? match.away_team?.name : null
+                  return (
+                    <div style={{ marginTop: '6px', textAlign: 'center', fontSize: '10px', color: 'var(--green)', fontWeight: '600' }}>
+                      ✓ Guardado ({saved.home}-{saved.away}{saved.home === saved.away && advName ? `, pasa ${advName}` : ''})
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}
