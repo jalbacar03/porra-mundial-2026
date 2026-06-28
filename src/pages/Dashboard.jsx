@@ -569,7 +569,7 @@ function formatDateShort(dateStr) {
               Rellena tus dieciseisavos
             </div>
             <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4' }}>
-              Cuadro real abierto · cierra <strong>dom 20:55</strong> · faltan {knockoutCd.days > 0 ? `${knockoutCd.days}d ` : ''}{String(knockoutCd.hours).padStart(2, '0')}h {String(knockoutCd.minutes).padStart(2, '0')}m
+              Cuadro real abierto · cierra <strong>dom 20:59</strong> · faltan {knockoutCd.days > 0 ? `${knockoutCd.days}d ` : ''}{String(knockoutCd.hours).padStart(2, '0')}h {String(knockoutCd.minutes).padStart(2, '0')}m
             </div>
           </div>
           <span style={{ fontSize: '20px', color: 'var(--gold)', flexShrink: 0 }}>›</span>
