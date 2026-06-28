@@ -68,7 +68,7 @@ export default function PredictionsPage({ session, demoMode }) {
               ))}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Cierre <span style={{ color: 'var(--gold)', fontWeight: '600' }}>único</span> de los 16 dieciseisavos: <span style={{ color: 'var(--gold)', fontWeight: '600' }}>domingo 20:00</span> (1h antes del primero)
+              Cierre <span style={{ color: 'var(--gold)', fontWeight: '600' }}>único</span> de los 16 dieciseisavos: <span style={{ color: 'var(--gold)', fontWeight: '600' }}>domingo 20:30</span> (30 min antes del primero)
             </div>
           </div>
         )

@@ -679,12 +679,13 @@ function renderSofaScore({
   following = null, onToggleFollow = null, search = '',
 }) {
   const isFriendly = theme === 'friendly'
-  // Paleta — accent cambia con el theme; 3·/1· mantienen siempre azul/verde
-  // (consistente con el código de color de los puntos: azul=exacto, verde=signo)
+  // A partir de la fase eliminatoria, la clasificación del Mundial adopta el azul
+  // de la Liguilla (cambio de chip visual). La Liguilla ya era azul de siempre.
+  const useBlue = isFriendly || new Date() >= KNOCKOUT_PREDICTIONS_OPEN
   const C = {
-    accent:      isFriendly ? '#2563eb' : '#16a34a',
-    accentLight: isFriendly ? '#60a5fa' : '#4ade80',
-    accentBgRGB: isFriendly ? '37,99,235' : '22,163,74',
+    accent:      useBlue ? '#2563eb' : '#16a34a',
+    accentLight: useBlue ? '#60a5fa' : '#4ade80',
+    accentBgRGB: useBlue ? '37,99,235' : '22,163,74',
     blue: '#2563eb',
     green: '#4ade80',
     gold: '#ffd700',

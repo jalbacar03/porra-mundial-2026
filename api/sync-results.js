@@ -819,6 +819,17 @@ async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, 
     )
   }
 
+  // Parejas de equipos ya asignadas a algún slot de eliminatoria (en cualquier
+  // ronda). Evita duplicar el mismo cruce en varios slots — el bug que dejó
+  // 'EE.UU.-Bosnia' en 6 dieciseisavos por fechas-placeholder agrupadas / fixtures
+  // repetidos en la API.
+  const pairKey = (h, a) => [h, a].sort((x, y) => x - y).join('-')
+  const assignedPairs = new Set(
+    ourMatches
+      .filter(m => m.stage !== 'group' && m.home_team_id && m.away_team_id)
+      .map(m => pairKey(m.home_team_id, m.away_team_id))
+  )
+
   // For each round, match API fixtures to our DB matches by date order
   for (const [roundName, mapping] of Object.entries(roundMapping)) {
     const apiFixtures = fixturesByRound[roundName]
@@ -831,13 +842,17 @@ async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, 
       (!m.home_team_id || !m.away_team_id)
     ).sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
 
-    // Match by date proximity
+    // Match by date proximity, ignorando fixtures cuya pareja ya esté asignada
+    // a otro slot (anti-duplicado) o sin mapeo de equipos.
     for (const ourMatch of ourKnockoutMatches) {
       const ourDate = new Date(ourMatch.match_date).getTime()
-      // Find closest API fixture by date
       let bestFix = null
       let bestDiff = Infinity
       for (const fix of apiFixtures) {
+        const h = teamByApiId[fix.teams.home.id]
+        const a = teamByApiId[fix.teams.away.id]
+        if (!h || !a) continue
+        if (assignedPairs.has(pairKey(h, a))) continue
         const diff = Math.abs(new Date(fix.fixture.date).getTime() - ourDate)
         if (diff < bestDiff) {
           bestDiff = diff
@@ -850,21 +865,20 @@ async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, 
         const homeTeamId = teamByApiId[bestFix.teams.home.id]
         const awayTeamId = teamByApiId[bestFix.teams.away.id]
 
-        if (homeTeamId && awayTeamId) {
-          await supaFetch(`/rest/v1/matches?id=eq.${ourMatch.id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({
-              home_team_id: homeTeamId,
-              away_team_id: awayTeamId,
-              match_date: bestFix.fixture.date // also update exact time from API
-            })
+        await supaFetch(`/rest/v1/matches?id=eq.${ourMatch.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            home_team_id: homeTeamId,
+            away_team_id: awayTeamId,
+            match_date: bestFix.fixture.date // also update exact time from API
           })
-          updated++
-          log.push(`   🏆 ${mapping.stage} match ${ourMatch.id}: teams set`)
-          // Remove used fixture to prevent double-matching
-          const fixIdx = apiFixtures.indexOf(bestFix)
-          if (fixIdx > -1) apiFixtures.splice(fixIdx, 1)
-        }
+        })
+        updated++
+        assignedPairs.add(pairKey(homeTeamId, awayTeamId))
+        log.push(`   🏆 ${mapping.stage} match ${ourMatch.id}: teams set`)
+        // Remove used fixture to prevent double-matching
+        const fixIdx = apiFixtures.indexOf(bestFix)
+        if (fixIdx > -1) apiFixtures.splice(fixIdx, 1)
       }
     }
   }
