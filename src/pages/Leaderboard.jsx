@@ -706,10 +706,8 @@ function renderSofaScore({
   // Columnas de puntuación/ranking más estrechas → el nombre (1fr) gana ancho.
   // Mundial: ESP (especiales) y, ya en eliminatorias, CC (cuadro ciego) entre 1X2 y PTS.
   const baseGrid = !showEsp
-    ? '34px 1fr 20px 22px 26px 34px'                  // Liguilla
-    : showCC
-      ? '34px 1fr 18px 20px 24px 22px 22px 32px'      // Mundial + ESP + CC
-      : '34px 1fr 20px 22px 26px 24px 34px'           // Mundial + ESP (sin CC aún)
+    ? '34px 1fr 20px 22px 26px 34px'                  // Liguilla (PJ RE 1X2)
+    : '34px 1fr 22px 20px 20px 20px 22px 32px'        // Mundial (FG RE QP CC ESP)
   const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 
@@ -743,6 +741,9 @@ function renderSofaScore({
     const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
     const esp = user.pre_tournament_points || 0
     const cc = user.bracket_points || 0
+    const fg = user.fg_points || 0          // fase de grupos (puntos)
+    const re = user.ko_result_points || 0   // resultado exacto 90' eliminatorias (+2)
+    const qp = user.ko_advancer_points || 0 // quién pasa de ronda (+1)
     const pj = playedCount
     const pts = tabHasLive ? user.effective_points : user.total_points
     const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
@@ -789,18 +790,21 @@ function renderSofaScore({
             <span title="No pagado" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#c2362b', flexShrink: 0 }} />
           )}
         </span>
-        <span className={tabHasLive ? 'live-points' : ''}
-          style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{pj}</span>
-        <span className={tabHasLive ? 'live-points' : ''}
-          style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{ex}</span>
-        <span className={tabHasLive ? 'live-points' : ''}
-          style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{si}</span>
-        {showEsp && (
-          <span className={tabHasLive ? 'live-points' : ''}
-            style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{esp}</span>
-        )}
-        {showCC && (
-          <span style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{cc}</span>
+        {showEsp ? (
+          // Mundial: FG · RE · QP · CC · ESP (valores resueltos, sin live)
+          [fg, re, qp, cc, esp].map((v, i) => (
+            <span key={i} style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{v}</span>
+          ))
+        ) : (
+          // Liguilla: PJ · RE · 1X2
+          <>
+            <span className={tabHasLive ? 'live-points' : ''}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{pj}</span>
+            <span className={tabHasLive ? 'live-points' : ''}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{ex}</span>
+            <span className={tabHasLive ? 'live-points' : ''}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{si}</span>
+          </>
         )}
         <span className={tabHasLive ? 'live-points' : ''}
           style={{ textAlign: 'right', fontWeight: 800, color: tabHasLive ? 'var(--red)' : (isMe ? C.accentLight : 'var(--text-primary)'), fontSize: '13px' }}>{pts}</span>
@@ -827,11 +831,21 @@ function renderSofaScore({
         {canFollow && <span />}
         <span style={{ textAlign: 'center' }}>#</span>
         <span>Participante</span>
-        <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
-        <span title="Resultado exacto · 3 pts" style={{ textAlign: 'center' }}>RE</span>
-        <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
-        {showEsp && <span title="Puntos de predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>}
-        {showCC && <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>}
+        {showEsp ? (
+          <>
+            <span title="Fase de grupos (puntos)" style={{ textAlign: 'center' }}>FG</span>
+            <span title="Resultado exacto a 90' en eliminatorias · +2" style={{ textAlign: 'center' }}>RE</span>
+            <span title="Acertar quién pasa de ronda · +1" style={{ textAlign: 'center' }}>QP</span>
+            <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>
+            <span title="Predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>
+          </>
+        ) : (
+          <>
+            <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
+            <span title="Resultado exacto · 3 pts" style={{ textAlign: 'center' }}>RE</span>
+            <span title="Signo 1X2 · 1 pt" style={{ textAlign: 'center' }}>1X2</span>
+          </>
+        )}
         <span title="Puntos totales" style={{ textAlign: 'right' }}>PTS</span>
       </div>
 
