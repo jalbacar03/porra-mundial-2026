@@ -47,7 +47,7 @@ export default function PredictionsPage({ session, demoMode }) {
               fontSize: '10px', color: 'var(--gold)', textTransform: 'uppercase',
               letterSpacing: '1.2px', marginBottom: '8px', fontWeight: '700'
             }}>
-              🏆 Cuadro real abierto · completa tus dieciseisavos
+              🏆 Reabierto · completa los 15 dieciseisavos que faltan
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '10px' }}>
               {[
@@ -68,7 +68,7 @@ export default function PredictionsPage({ session, demoMode }) {
               ))}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-              Cierre <span style={{ color: 'var(--gold)', fontWeight: '600' }}>único</span> de los 16 dieciseisavos: <span style={{ color: 'var(--gold)', fontWeight: '600' }}>domingo 20:59</span> (1 min antes del primero)
+              Reabierto para los <span style={{ color: 'var(--gold)', fontWeight: '600' }}>15 que faltan</span>: cierre <span style={{ color: 'var(--gold)', fontWeight: '600' }}>hoy 18:00</span> (1 h antes del primero). El de ayer ya no se toca.
             </div>
           </div>
         )
