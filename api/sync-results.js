@@ -910,40 +910,63 @@ async function syncKnockoutTeams(apiMatches, ourMatches, ourTeams, teamByApiId, 
  */
 async function scoreBracketPicks(log) {
   const ROUND_POINTS = { r32: 1, r16: 1, qf: 2, sf: 4, final: 8 }
+  const STAGE_TO_ROUND = {
+    'Round of 32': 'r32', 'Round of 16': 'r16',
+    'Quarter-finals': 'qf', 'Semi-finals': 'sf', 'Final': 'final'
+  }
 
-  // Get all finished knockout matches with a winner
-  const knockoutMatches = await supaFetch(
-    '/rest/v1/matches?select=id,match_number,stage,winner_team_id,status' +
-    '&status=eq.finished&winner_team_id=not.is.null&stage=neq.group'
+  // CC se puntúa POR EQUIPO, no por slot: si predijiste que un equipo avanza de
+  // una ronda y ese equipo avanza (gana su partido de esa ronda), suma —
+  // independientemente del cruce del cuadro ciego donde lo pusieras. La regla del
+  // proyecto es "tener el equipo en la ronda", no acertar el cruce físico.
+  const koMatches = await supaFetch(
+    '/rest/v1/matches?select=stage,status,winner_team_id&stage=neq.group'
   )
+  if (!koMatches || koMatches.length === 0) return 0
 
-  if (!knockoutMatches || knockoutMatches.length === 0) return 0
-
-  // Get all bracket picks that haven't been scored yet (paginado: >1000 picks)
-  const unscoredPicks = await supaFetchAll(
-    '/rest/v1/bracket_picks?select=id,user_id,match_number,round,predicted_winner_id' +
-    '&points_awarded=is.null'
-  )
-
-  if (!unscoredPicks || unscoredPicks.length === 0) return 0
-
-  // Build lookup: match_number → winner_team_id
-  const winnerByMatchNumber = {}
-  knockoutMatches.forEach(m => {
-    if (m.match_number && m.winner_team_id) {
-      winnerByMatchNumber[m.match_number] = m.winner_team_id
+  // Por ronda: equipos que YA avanzaron (ganadores finished) + si la ronda está completa
+  const advancedByRound = {}   // roundKey → Set(team_id)
+  const totalByRound = {}
+  const finishedByRound = {}
+  koMatches.forEach(m => {
+    const rk = STAGE_TO_ROUND[m.stage]
+    if (!rk) return
+    totalByRound[rk] = (totalByRound[rk] || 0) + 1
+    if (m.status === 'finished') {
+      finishedByRound[rk] = (finishedByRound[rk] || 0) + 1
+      if (m.winner_team_id != null) {
+        if (!advancedByRound[rk]) advancedByRound[rk] = new Set()
+        advancedByRound[rk].add(Number(m.winner_team_id))
+      }
     }
   })
+  const roundComplete = {}
+  Object.keys(totalByRound).forEach(rk => {
+    roundComplete[rk] = totalByRound[rk] > 0 && finishedByRound[rk] === totalByRound[rk]
+  })
+
+  // Picks sin puntuar (null). El default de la columna es null (ver migración
+  // bracket_picks_points_default_null); imprescindible para que esto las recoja.
+  const unscoredPicks = await supaFetchAll(
+    '/rest/v1/bracket_picks?select=id,user_id,round,predicted_winner_id' +
+    '&points_awarded=is.null'
+  )
+  if (!unscoredPicks || unscoredPicks.length === 0) return 0
 
   let scored = 0
   for (const pick of unscoredPicks) {
-    const actualWinner = winnerByMatchNumber[pick.match_number]
-    if (!actualWinner) continue // Match not finished yet
+    const rk = pick.round
+    const advanced = advancedByRound[rk]
+    const teamAdvanced = advanced && advanced.has(Number(pick.predicted_winner_id))
 
-    const roundKey = pick.round // 'r32', 'r16', 'qf', 'sf', 'final'
-    const basePoints = ROUND_POINTS[roundKey] || 0
-    const isCorrect = pick.predicted_winner_id === actualWinner
-    const pointsAwarded = isCorrect ? basePoints : 0
+    let pointsAwarded
+    if (teamAdvanced) {
+      pointsAwarded = ROUND_POINTS[rk] || 0   // tu equipo avanzó → suma
+    } else if (roundComplete[rk]) {
+      pointsAwarded = 0                         // ronda terminada y tu equipo no avanzó → 0
+    } else {
+      continue                                  // pendiente: tu equipo aún puede avanzar
+    }
 
     await supaFetch(`/rest/v1/bracket_picks?id=eq.${pick.id}`, {
       method: 'PATCH',
@@ -951,8 +974,8 @@ async function scoreBracketPicks(log) {
     })
     scored++
 
-    if (isCorrect && pointsAwarded > 0) {
-      log.push(`   ✅ Bracket: user ${pick.user_id.slice(0,8)}... match ${pick.match_number} → +${pointsAwarded} pts`)
+    if (pointsAwarded > 0) {
+      log.push(`   ✅ CC: user ${pick.user_id.slice(0,8)}... ${rk} equipo ${pick.predicted_winner_id} avanza → +${pointsAwarded}`)
     }
   }
 
