@@ -586,7 +586,7 @@ export default function Leaderboard({ demoMode }) {
             fontSize: '9px', lineHeight: '1.5', color: 'var(--text-dim)',
             textAlign: 'center', marginBottom: '8px'
           }}>
-            PJ partidos · RE resultados exactos (grupos+elim) · 1X2 acertar ganador (signo grupos + quién avanza elim) · CC cuadro ciego · ESP especiales
+            PJ partidos jugados · RE resultados exactos (grupos+eliminatorias) · 1X2 acertar ganador (signo grupos + quién avanza eliminatorias) · CC cuadro ciego pre-mundial · ESP especiales
           </div>
         )}
         {
