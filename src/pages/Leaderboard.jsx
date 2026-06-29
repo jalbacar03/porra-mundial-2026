@@ -586,7 +586,7 @@ export default function Leaderboard({ demoMode }) {
             fontSize: '9px', lineHeight: '1.5', color: 'var(--text-dim)',
             textAlign: 'center', marginBottom: '8px'
           }}>
-            PJ partidos · RE resultados exactos (grupos+elim, desempate) · QA quién avanza · CC cuadro ciego · ESP especiales
+            PJ partidos · RE resultados exactos (grupos+elim) · 1X2 acertar ganador (signo grupos + quién avanza elim) · CC cuadro ciego · ESP especiales
           </div>
         )}
         {
@@ -750,6 +750,8 @@ function renderSofaScore({
     const esp = user.pre_tournament_points || 0
     const cc = user.bracket_points || 0
     const qa = user.ko_advancer_points || 0 // quién avanza de ronda (+1)
+    // 1X2 unificado: acertar SOLO el ganador (sin marcador) — signo en grupos + quién avanza en elim
+    const sg = si + qa
     const pj = playedCount
     const pts = tabHasLive ? user.effective_points : user.total_points
     const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
@@ -797,8 +799,8 @@ function renderSofaScore({
           )}
         </span>
         {showEsp ? (
-          // Mundial: PJ · RE · QA · CC · ESP (RE = exactos grupos+elim, desempate)
-          [pj, ex, qa, cc, esp].map((v, i) => (
+          // Mundial: PJ · RE · 1X2 · CC · ESP (RE = exactos; 1X2 = solo ganador, grupos+elim)
+          [pj, ex, sg, cc, esp].map((v, i) => (
             <span key={i} style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{v}</span>
           ))
         ) : (
@@ -841,7 +843,7 @@ function renderSofaScore({
           <>
             <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
             <span title="Resultados exactos (grupos + eliminatorias) · desempate" style={{ textAlign: 'center' }}>RE</span>
-            <span title="Acertar quién avanza de ronda · +1" style={{ textAlign: 'center' }}>QA</span>
+            <span title="Acertar el ganador sin el marcador: signo (grupos) + quién avanza (elim)" style={{ textAlign: 'center' }}>1X2</span>
             <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>
             <span title="Predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>
           </>
