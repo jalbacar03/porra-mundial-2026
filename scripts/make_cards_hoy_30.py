@@ -34,9 +34,9 @@ CARDS = [
 
 def render(c):
     BASE=c['total']; CT=256; RH=21; N=len(c['scores'])
-    y0 = CT + N*RH + 12
-    y1 = y0 + 50; y2 = y1 + 50
-    yend = y2 + len(c['special'])*20 + 6
+    y0 = CT + N*RH + 16
+    y1 = y0 + 58; y2 = y1 + 58
+    yend = y2 + len(c['special'])*30 + 6
     H = yend + 20
     img = Image.new('RGB',(380*S,H*S),'#1a1d26'); d=ImageDraw.Draw(img)
     def rr(x,y,w,h,r,fill,outline=None,ow=0): d.rounded_rectangle([x*S,y*S,(x+w)*S,(y+h)*S],radius=r*S,fill=fill,outline=outline,width=max(1,ow*S) if outline else 1)
@@ -63,21 +63,26 @@ def render(c):
         top=CT+i*RH; lead=(i==0); col=BLUEL if lead else WHITE; barcol=BLUE if lead else '#2f9e63'
         tx(26,top+13,sc,12,col,True); rr(76,top+6,180,8,4,'#2c303a'); rr(76,top+6,max(3,round(n/mx*180)),8,4,barcol)
         tx(300,top+13,str(round(n/BASE*100,1))+'%',10,MUT,anchor='ra'); tx(356,top+13,str(n),12,col,True,anchor='ra')
-    # Split bars
-    def split(y,title,hn,hv,an,av,col=BLUE):
-        tx(24,y,title,10,MUT,True); total=max(1,hv+av); bw=332; hwid=max(2,round(hv/total*bw)) if hv else 0; by=y+13
-        rr(24,by,bw,15,7,GREEN)
-        if hwid>0: rr(24,by,hwid,15,7,col)
-        tx(24,by+27,hn+' '+str(hv),11,BLUEL,True,anchor='lm'); tx(356,by+27,str(av)+' '+an,11,GREENL,True,anchor='rm')
-    split(y0,'QUIÉN AVANZA · cuadro real (+1)',*c['adv'])
-    split(y1,'EN OCTAVOS · cuadro ciego CC (+1)',*c['cc'])
-    # Especiales (decepción/revelación)
+    # Secciones inferiores: encabezado claro + explicación en cristiano + barra de color propio
+    def section(y,title,sub,hn,hv,an,av):
+        tx(24,y,title,11,WHITE,True)
+        tx(24,y+13,sub,8.5,DIM)
+        total=max(1,hv+av); bw=332; by=y+25
+        hwid=round(hv/total*bw)
+        rr(24,by,bw,13,6.5,GREEN)                       # visitante (verde, todo el ancho)
+        if hwid>4: rr(24,by,hwid,13,6.5,BLUE)           # local (azul, su parte por la izquierda)
+        tx(24,by+24,hn+': '+str(hv),11,BLUEL,True,anchor='lm'); tx(356,by+24,an+': '+str(av),11,GREENL,True,anchor='rm')
+    section(y0,'QUIÉN PASA A OCTAVOS','Lo que pronostica la peña para este partido (hoy)',c['adv'][0],c['adv'][1],c['adv'][2],c['adv'][3])
+    section(y1,'SU CUADRO CIEGO','A quién metieron en octavos ANTES del Mundial',c['cc'][0],c['cc'][1],c['cc'][2],c['cc'][3])
+    # Especiales (decepción/revelación) — callout claro
     for i,(kind,txt1,note) in enumerate(c['special']):
-        yy=y2+i*20
+        yy=y2+i*30
         chipcol = '#e0533a' if kind=='DECEPCIÓN' else PURP
+        rr(24,yy,332,26,8,'#22252f')
         chipw=tw(kind,8,True)+14
-        rr(24,yy,chipw,15,7,chipcol); tx(24+chipw/2,yy+8,kind,8,WHITE,True,anchor='mm')
-        tx(24+chipw+8,yy+8,txt1+('  ·  '+note if note else ''),10,MUT,anchor='lm')
+        rr(34,yy+6,chipw,14,7,chipcol); tx(34+chipw/2,yy+13,kind,8,WHITE,True,anchor='mm')
+        tx(34+chipw+10,yy+9,txt1,10.5,WHITE,True,anchor='lm')
+        if note: tx(34+chipw+10,yy+20,note,8.5,MUT,anchor='lm')
     tx(190,H-12,'porra-mundial-2026 · dieciseisavos',9,DIM,anchor='ma')
     out=os.path.join(DESK,c['file']); img.save(out); print('->',out)
 
