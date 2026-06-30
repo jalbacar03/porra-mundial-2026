@@ -19,17 +19,17 @@ CARDS = [
    'x1':[('1 · C.MARFIL',8,'10',False),('X · EMPATE',21,'25',False),('2 · NORUEGA',70,'83',True)],
    'scores':[('1-2',54),('1-1',16),('0-1',9),('1-3',8),('2-2',8),('2-1',8),('2-3',4),('0-2',4),('0-3',3),('3-2',1),('1-4',1),('0-0',1),('1-0',1)],
    'adv':('Costa de Marfil',18,'Noruega',100),'cc':('Costa de Marfil',15,'Noruega',53),
-   'special':[('REVELACIÓN','Noruega 26 lo ven revelación','+3 si llega a cuartos'),('REVELACIÓN','Costa de Marfil: 3','')]},
+   'special':[('REVELACIÓN','Noruega: 26 la eligieron como revelación','+3 si llega a cuartos'),('REVELACIÓN','Costa de Marfil: 3 la eligieron','')]},
   {'file':'hoy30_francia_suecia.png','hora':'HOY 23:00','home':'Francia','away':'Suecia','total':118,
    'x1':[('1 · FRANCIA',99,'117',True),('X · EMPATE',1,'1',False),('2 · SUECIA',0,'0',False)],
    'scores':[('3-1',42),('3-0',30),('4-1',17),('2-0',13),('4-0',4),('2-1',3),('4-2',3),('3-2',2),('1-0',2),('2-2',1),('5-1',1)],
    'adv':('Francia',118,'Suecia',0),'cc':('Francia',119,'Suecia',2),
-   'special':[('DECEPCIÓN','Francia: 2 la tienen','¡+3 para ellos si cae hoy!')]},
+   'special':[('DECEPCIÓN','Francia: 2 la eligieron como decepción','+3 si cae hoy')]},
   {'file':'hoy30_mexico_ecuador.png','hora':'HOY 03:00','home':'México','away':'Ecuador','total':118,
    'x1':[('1 · MÉXICO',35,'41',False),('X · EMPATE',36,'42',True),('2 · ECUADOR',30,'35',False)],
    'scores':[('1-1',35),('1-2',22),('2-1',19),('1-0',13),('0-1',10),('2-0',6),('0-0',4),('0-2',3),('3-1',3),('2-2',3)],
    'adv':('México',72,'Ecuador',46),'cc':('México',97,'Ecuador',60),
-   'special':[('REVELACIÓN','Ecuador: 16 lo ven revelación','+3 si llega a cuartos')]},
+   'special':[('REVELACIÓN','Ecuador: 16 lo eligieron como revelación','+3 si llega a cuartos')]},
 ]
 
 def render(c):
@@ -45,7 +45,7 @@ def render(c):
     # Header
     rr(0,0,380,84,16,'#21242e'); d.rectangle([0,82*S,380*S,84*S],fill=BLUE)
     tx(24,20,'PORRA MUNDIAL ',18,WHITE,True); tx(24+tw('PORRA MUNDIAL ',18,True),20,"'26",18,GOLD,True)
-    tx(24,48,'Dieciseisavos · cuadro real · '+str(BASE)+' porras',11,MUT)
+    tx(24,48,'Dieciseisavos · '+str(BASE)+' participantes',11,MUT)
     bw=tw(c['hora'],11,True)+26; rr(360-bw,18,bw,28,14,'#1f3a63'); tx(360-bw/2,32,c['hora'],11,BLUEL,True,anchor='mm')
     # Partido
     tx(24,116,c['home'],18,WHITE,True); wh=tw(c['home'],18,True)
@@ -72,8 +72,8 @@ def render(c):
         rr(24,by,bw,13,6.5,GREEN)                       # visitante (verde, todo el ancho)
         if hwid>4: rr(24,by,hwid,13,6.5,BLUE)           # local (azul, su parte por la izquierda)
         tx(24,by+24,hn+': '+str(hv),11,BLUEL,True,anchor='lm'); tx(356,by+24,an+': '+str(av),11,GREENL,True,anchor='rm')
-    section(y0,'QUIÉN PASA A OCTAVOS','Lo que pronostica la peña para este partido (hoy)',c['adv'][0],c['adv'][1],c['adv'][2],c['adv'][3])
-    section(y1,'SU CUADRO CIEGO','A quién metieron en octavos ANTES del Mundial',c['cc'][0],c['cc'][1],c['cc'][2],c['cc'][3])
+    section(y0,'QUIÉN PASA A OCTAVOS','Pronóstico de los participantes para este partido',c['adv'][0],c['adv'][1],c['adv'][2],c['adv'][3])
+    section(y1,'SU CUADRO CIEGO','A quién pusieron en octavos antes del Mundial',c['cc'][0],c['cc'][1],c['cc'][2],c['cc'][3])
     # Especiales (decepción/revelación) — callout claro
     for i,(kind,txt1,note) in enumerate(c['special']):
         yy=y2+i*30
