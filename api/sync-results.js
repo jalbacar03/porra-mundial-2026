@@ -546,21 +546,38 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
         break
       }
 
-      // === REVELACIÓN (llega a cuartos) ===
+      // === REVELACIÓN (no-favorita que llega a cuartos) ===
+      // Resolución INCREMENTAL por equipo, igual que decepción:
+      //   - llegó a cuartos (aparece en un partido de Quarter-finals) → +max
+      //   - eliminado antes de cuartos (perdió un KO ya jugado, o no llegó a 16avos) → 0
+      //   - sigue vivo en eliminatorias sin llegar aún a cuartos → PENDIENTE
       case 'revelation': {
-        // OJO: la BD guarda 'Quarter-finals'. Las filas de cuartos existen desde
-        // el principio con equipos NULL → NO resolver hasta que TODOS los cuartos
-        // tengan equipos reales (si no, resolvería en vacío y todos fallarían).
-        const qfMatches = ourMatches.filter(m => m.stage === 'Quarter-finals')
-        const qfReady = qfMatches.length > 0 && qfMatches.every(m => m.home_team_id && m.away_team_id)
-        if (qfReady) {
-          const qfTeamIds = new Set()
-          qfMatches.forEach(m => {
-            qfTeamIds.add(m.home_team_id)
-            qfTeamIds.add(m.away_team_id)
+        const r32Matches = ourMatches.filter(m => m.stage === 'Round of 32')
+        const r32TeamsSet = r32Matches.length === 16 && r32Matches.every(m => m.home_team_id && m.away_team_id)
+        if (r32TeamsSet) {
+          const inR32 = new Set()
+          r32Matches.forEach(m => {
+            if (m.home_team_id) inR32.add(Number(m.home_team_id))
+            if (m.away_team_id) inR32.add(Number(m.away_team_id))
           })
-          correctAnswer = [...qfTeamIds] // equipos que llegaron a cuartos
-          canResolve = true
+          const qfTeams = new Set()
+          ourMatches.filter(m => m.stage === 'Quarter-finals').forEach(m => {
+            if (m.home_team_id) qfTeams.add(Number(m.home_team_id))
+            if (m.away_team_id) qfTeams.add(Number(m.away_team_id))
+          })
+          const eliminatedKO = new Set()
+          ourMatches.filter(m => m.stage !== 'group' && m.status === 'finished' && m.winner_team_id).forEach(m => {
+            const loser = Number(m.winner_team_id) === Number(m.home_team_id) ? m.away_team_id : m.home_team_id
+            if (loser) eliminatedKO.add(Number(loser))
+          })
+          entryResolver = (teamId) => {
+            const t = parseInt(teamId)
+            if (Number.isNaN(t)) return null
+            if (qfTeams.has(t)) return bet.max_points  // llegó a cuartos → revelación correcta
+            if (!inR32.has(t)) return 0                // no llegó a 16avos → fallida
+            if (eliminatedKO.has(t)) return 0          // eliminado en eliminatorias → fallida
+            return null                                 // sigue vivo, sin llegar a cuartos → pendiente
+          }
         }
         break
       }
