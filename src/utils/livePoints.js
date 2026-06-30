@@ -33,3 +33,26 @@ export function matchPredictionPoints(pred, match) {
   }
   return pts
 }
+
+const ROUND_POINTS = { r32: 1, r16: 1, qf: 2, sf: 4, final: 8 }
+const STAGE_TO_ROUND = {
+  'Round of 32': 'r32', 'Round of 16': 'r16',
+  'Quarter-finals': 'qf', 'Semi-finals': 'sf', 'Final': 'final',
+}
+
+// CC (cuadro ciego) que aporta UN partido de eliminatoria al usuario: si el equipo
+// que gana ese cruce (o va ganando, en vivo) es uno que el usuario predijo avanzar
+// en esa ronda de su cuadro ciego — POR EQUIPO, en cualquier rama — suma los puntos
+// de la ronda (1·1·2·4·8). Devuelve 0 si empate/sin ganador o si no lo tenía.
+export function matchCCPoints(userBracketPicks, match) {
+  if (!userBracketPicks || !userBracketPicks.length || !match) return 0
+  const rk = STAGE_TO_ROUND[match.stage]
+  if (!rk) return 0
+  const h = match.home_score ?? 0, a = match.away_score ?? 0
+  let winner = null
+  if (match.status === 'finished' && match.winner_team_id != null) winner = match.winner_team_id
+  else if (match.status === 'live' && h !== a) winner = h > a ? match.home_team_id : match.away_team_id
+  if (winner == null) return 0
+  const has = userBracketPicks.some(bp => bp.round === rk && Number(bp.predicted_winner_id) === Number(winner))
+  return has ? (ROUND_POINTS[rk] || 0) : 0
+}

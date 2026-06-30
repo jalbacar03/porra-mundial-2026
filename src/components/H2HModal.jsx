@@ -26,7 +26,7 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
 
   async function fetchH2H() {
     try {
-      const [myPreds, rivalPreds, profileRes, matchesRes, myBets, rivalBets] = await Promise.all([
+      const [myPreds, rivalPreds, profileRes, matchesRes, myBets, rivalBets, myBracketRes, rivalBracketRes] = await Promise.all([
         supabase.from('predictions').select('match_id, predicted_home, predicted_away, predicted_advancer_id, points_earned').eq('user_id', userId),
         supabase.from('predictions').select('match_id, predicted_home, predicted_away, predicted_advancer_id, points_earned').eq('user_id', rivalId),
         supabase.from('profiles').select('full_name').eq('id', userId).single(),
@@ -35,7 +35,11 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
           .neq('stage', 'friendly').neq('stage', 'test'),
         supabase.from('pre_tournament_entries').select('points_awarded').eq('user_id', userId).eq('is_resolved', true),
         supabase.from('pre_tournament_entries').select('points_awarded').eq('user_id', rivalId).eq('is_resolved', true),
+        supabase.from('bracket_picks').select('round, predicted_winner_id').eq('user_id', userId),
+        supabase.from('bracket_picks').select('round, predicted_winner_id').eq('user_id', rivalId),
       ])
+      const myBracket = myBracketRes.data || []
+      const rivalBracket = rivalBracketRes.data || []
 
       if (profileRes.data) {
         setMyName(formatRealName(profileRes.data.full_name) || 'Tú')
@@ -74,9 +78,12 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
         const isLive = m.status === 'live'
         const myPts = isLive ? provPts(me, m) : (me ? (me.points_earned || 0) : 0)
         const rivalPts = isLive ? provPts(them, m) : (them ? (them.points_earned || 0) : 0)
+        const myCC = matchCCPoints(myBracket, m)
+        const rivalCC = matchCCPoints(rivalBracket, m)
         if (me || them) {
-          if (myPts > rivalPts) myWins++
-          else if (rivalPts > myPts) rivalWins++
+          const myTot = myPts + myCC, rivalTot = rivalPts + rivalCC
+          if (myTot > rivalTot) myWins++
+          else if (rivalTot > myTot) rivalWins++
           else draws++
         }
         return {
@@ -89,7 +96,7 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
           real: `${m.home_score ?? 0}-${m.away_score ?? 0}`,
           myPred: me && me.predicted_home != null ? `${me.predicted_home}-${me.predicted_away}` : null,
           rivalPred: them && them.predicted_home != null ? `${them.predicted_home}-${them.predicted_away}` : null,
-          myPts, rivalPts,
+          myPts, rivalPts, myCC, rivalCC,
         }
       })
 
@@ -220,8 +227,8 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
                       {r.live && <span className="live-pulse" style={{ fontSize: '8px', fontWeight: '800', color: 'var(--red)', letterSpacing: '0.5px' }}>● LIVE</span>}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                      <PredCell name={myName} pred={r.myPred} pts={r.myPts} win={r.myPts > r.rivalPts} align="flex-start" />
-                      <PredCell name={rivalName} pred={r.rivalPred} pts={r.rivalPts} win={r.rivalPts > r.myPts} align="flex-end" />
+                      <PredCell name={myName} pred={r.myPred} pts={r.myPts} cc={r.myCC} win={(r.myPts + r.myCC) > (r.rivalPts + r.rivalCC)} align="flex-start" />
+                      <PredCell name={rivalName} pred={r.rivalPred} pts={r.rivalPts} cc={r.rivalCC} win={(r.rivalPts + r.rivalCC) > (r.myPts + r.myCC)} align="flex-end" />
                     </div>
                   </div>
                 ))}
@@ -283,7 +290,7 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
   )
 }
 
-function PredCell({ name, pred, pts, win, align }) {
+function PredCell({ name, pred, pts, cc, win, align }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: align, gap: '1px', flex: 1, minWidth: 0 }}>
       <span style={{ fontSize: '9px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{name}</span>
@@ -291,7 +298,8 @@ function PredCell({ name, pred, pts, win, align }) {
         fontSize: '12px', fontWeight: '700',
         color: pred ? (win ? 'var(--gold)' : 'var(--text-primary)') : 'var(--text-dim)',
       }}>
-        {pred || '—'} {pred && pts != null ? <span style={{ fontSize: '10px', fontWeight: '600', color: pts === 3 ? 'var(--green)' : pts === 1 ? 'var(--gold)' : 'var(--text-dim)' }}>+{pts}</span> : null}
+        {pred || '—'} {pred && pts != null ? <span style={{ fontSize: '10px', fontWeight: '600', color: pts >= 2 ? 'var(--green)' : pts === 1 ? 'var(--gold)' : 'var(--text-dim)' }}>+{pts}</span> : null}
+        {cc > 0 ? <span style={{ fontSize: '10px', fontWeight: '700', color: '#c084fc', marginLeft: '3px' }}>CC+{cc}</span> : null}
       </span>
     </div>
   )

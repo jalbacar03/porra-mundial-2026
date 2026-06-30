@@ -10,7 +10,7 @@ import { PREDICTIONS_DEADLINE, KNOCKOUT_PREDICTIONS_OPEN, KNOCKOUT_PREDICTIONS_D
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
-import { matchPredictionPoints } from '../utils/livePoints'
+import { matchPredictionPoints, matchCCPoints } from '../utils/livePoints'
 import { isFriendlyVisible } from '../config/featureFlags'
 import NicknameModal from '../components/NicknameModal'
 
@@ -36,6 +36,7 @@ export default function Dashboard({ session, demoMode }) {
   const [postMatchReport, setPostMatchReport] = useState(null)
   const [liveMatches, setLiveMatches] = useState([])
   const [livePredictions, setLivePredictions] = useState({})
+  const [myBracketPicks, setMyBracketPicks] = useState([])   // CC por partido (cuadro ciego)
   const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: partidos "de hoy" incl. madrugada (banner pre)
   const [recentFinishedMatches, setRecentFinishedMatches] = useState([]) // Mundial: terminados hoy/ayer (banner final)
   const [loading, setLoading] = useState(true)
@@ -166,6 +167,13 @@ export default function Dashboard({ session, demoMode }) {
       .from('predictions')
       .select('*')
       .eq('user_id', session.user.id)
+
+    // Bracket picks del usuario (cuadro ciego) — para el CC por partido en los cards
+    const { data: bpData } = await supabase
+      .from('bracket_picks')
+      .select('round, predicted_winner_id')
+      .eq('user_id', session.user.id)
+    setMyBracketPicks(bpData || [])
 
     // El widget "Tu posición" es SOLO del Mundial. Excluimos friendly/test del
     // cálculo de puntos/exactos/signos — si no, los amistosos de La Liguilla
@@ -859,7 +867,7 @@ function formatDateShort(dateStr) {
         ]
         return items.map(({ m, pred }, i) => (
           <MundialMatchBanner
-            key={m.id} match={m} prediction={pred}
+            key={m.id} match={m} prediction={pred} bracketPicks={myBracketPicks}
             isLast={i === items.length - 1}
             onClick={() => navigate('/matchday')}
           />
@@ -965,6 +973,7 @@ function formatDateShort(dateStr) {
           {liveMatches.slice(0, 1).map(m => {
             const pred = livePredictions[m.id]
             const livePts = pred ? calcLivePts(pred, m) : 0
+            const liveCCPts = matchCCPoints(myBracketPicks, m)
             return (
               <div key={m.id} style={{
                 background: 'var(--bg-secondary)', borderRadius: '12px',
@@ -997,11 +1006,16 @@ function formatDateShort(dateStr) {
                       {livePts === 3 && <span style={{ marginLeft: '4px', color: 'var(--gold)' }}>✓</span>}
                       {livePts === 1 && <span style={{ marginLeft: '4px', color: 'var(--green)' }}>~</span>}
                     </span>
-                    <span style={{
-                      fontSize: '13px', fontWeight: '700',
-                      color: livePts > 0 ? 'var(--gold)' : 'var(--text-dim)'
-                    }}>
-                      {livePts > 0 ? `+${livePts} pts` : '0 pts'}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{
+                        fontSize: '13px', fontWeight: '700',
+                        color: livePts > 0 ? 'var(--gold)' : 'var(--text-dim)'
+                      }}>
+                        {livePts > 0 ? `+${livePts} pts` : '0 pts'}
+                      </span>
+                      {liveCCPts > 0 && (
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: '#c084fc' }}>CC +{liveCCPts}</span>
+                      )}
                     </span>
                   </div>
                 )}
@@ -1356,7 +1370,7 @@ function formatDateShort(dateStr) {
 }
 
 // Banner de partido del Mundial: live (rojo) o pre (verde + countdown hasta el inicio).
-function MundialMatchBanner({ match, prediction, isLast, onClick }) {
+function MundialMatchBanner({ match, prediction, bracketPicks, isLast, onClick }) {
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
   const matchDate = new Date(match.match_date)
@@ -1373,6 +1387,9 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
       : `${cd.hours}h ${String(cd.minutes).padStart(2, '0')}m ${String(cd.seconds).padStart(2, '0')}s`
   const liveMin = match.live_minute != null ? `${match.live_minute}'` : (match.live_status_short === 'HT' ? 'Descanso' : '')
   const pts = isFinished && hasPred ? (prediction.points_earned ?? null) : null
+  // CC (cuadro ciego) que aporta este cruce: +1/+2/+4/+8 si tu equipo del cuadro
+  // ciego es el que gana (o va ganando, en vivo). Se muestra en live y finalizado.
+  const ccPts = (isLive || isFinished) ? matchCCPoints(bracketPicks, match) : 0
   // Estilos por estado: live/en juego (rojo) · finalizado (gris neutro) · pre (verde)
   const bg = (isLive || isStarted) ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
     : isFinished ? 'linear-gradient(135deg, #1c1f29, #242833)'
@@ -1432,6 +1449,14 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
               color: pts >= 2 ? '#60a5fa' : pts === 1 ? 'var(--gold)' : '#e74c3c'
             }}>
               {pts > 0 ? `+${pts}` : '0'}
+            </span>
+          )}
+          {ccPts > 0 && (
+            <span title="Cuadro ciego: tu equipo avanza" style={{
+              padding: '2px 9px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
+              background: 'rgba(168,85,247,0.18)', color: '#c084fc'
+            }}>
+              CC +{ccPts}
             </span>
           )}
         </div>

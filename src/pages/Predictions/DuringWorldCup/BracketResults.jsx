@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../../supabase'
 import { FootballSpinner } from '../../../components/Skeleton'
 import { KNOCKOUT_PREDICTIONS_DEADLINE } from '../../../hooks/useCountdown'
+import { matchCCPoints } from '../../../utils/livePoints'
 
 // La BD guarda estos literales EXACTOS en matches.stage (los escribe
 // syncKnockoutTeams). NO usar 'r32'/'quarter_final' — no existen en la tabla y
@@ -22,6 +23,7 @@ export default function BracketResults({ session }) {
   const [saving, setSaving] = useState({})
   const [activeRound, setActiveRound] = useState(R32_STAGE)
   const [now, setNow] = useState(new Date())
+  const [bracketPicks, setBracketPicks] = useState([])   // cuadro ciego → CC por partido
 
   const userId = session?.user?.id
 
@@ -56,6 +58,13 @@ export default function BracketResults({ session }) {
     setPredictions(predMap)
     setSavedPredictions(predMap)
     setLoading(false)
+
+    // Cuadro ciego del usuario → para el CC por partido
+    if (userId) {
+      const { data: bp } = await supabase.from('bracket_picks')
+        .select('round, predicted_winner_id').eq('user_id', userId)
+      setBracketPicks(bp || [])
+    }
 
     // Auto-select most relevant round
     const m = matchesRes.data || []
@@ -505,6 +514,12 @@ export default function BracketResults({ session }) {
                       }}>
                         {result.points > 0 ? `+${result.points}${parts.length ? ` (${parts.join(' + ')})` : ''}` : 'Fallo'}
                       </span>
+                      {(() => {
+                        const cc = matchCCPoints(bracketPicks, match)
+                        return cc > 0
+                          ? <span style={{ marginLeft: '6px', fontWeight: '700', color: '#c084fc' }}>· CC +{cc}</span>
+                          : null
+                      })()}
                     </div>
                   )
                 })()}
