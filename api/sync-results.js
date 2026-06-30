@@ -481,6 +481,7 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
 
     let correctAnswer = null
     let canResolve = false
+    let entryResolver = null   // resolución POR ENTRADA (decepción incremental): fn(teamId) → puntos | null(pendiente)
 
     switch (bet.slug) {
       // === GOLEADOR ===
@@ -564,23 +565,35 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
         break
       }
 
-      // === DECEPCIÓN (no pasa de 16avos) ===
-      // Válido si el equipo no aparece en ningún partido de R16 (octavos).
-      // Cubre tanto caer en grupos como caer en 16avos.
+      // === DECEPCIÓN (favorita que NO pasa de 16avos) ===
+      // Resolución INCREMENTAL por equipo, en cuanto su suerte está decidida (NO
+      // espera a que terminen todos los 16avos). Por equipo elegido:
+      //   - cayó en grupos (no está en el cuadro de R32) → +max (decepción correcta)
+      //   - jugó su R32 y NO lo ganó (eliminado en 16avos) → +max (correcta)
+      //   - ganó su R32 (pasó a octavos) → 0 (fallida)
+      //   - su R32 aún sin jugar → PENDIENTE (no se resuelve todavía)
       case 'disappointment': {
-        // Solo cuando los 16avos están TODOS terminados Y los equipos de octavos
-        // ya están rellenos (si no, 'reached R16' saldría vacío y resolvería mal).
-        const r16Matches = ourMatches.filter(m => m.stage === 'Round of 16')
-        const r16Ready = r16Matches.length > 0 && r16Matches.every(m => m.home_team_id && m.away_team_id)
-        if (r32StageComplete && r16Ready) {
-          const r16TeamIds = new Set()
-          r16Matches.forEach(m => {
-            if (m.home_team_id) r16TeamIds.add(m.home_team_id)
-            if (m.away_team_id) r16TeamIds.add(m.away_team_id)
+        const r32Matches = ourMatches.filter(m => m.stage === 'Round of 32')
+        const r32TeamsSet = r32Matches.length === 16 && r32Matches.every(m => m.home_team_id && m.away_team_id)
+        if (r32TeamsSet) {
+          const inR32 = new Set(), decided = new Set(), passed = new Set()
+          r32Matches.forEach(m => {
+            if (m.home_team_id) inR32.add(Number(m.home_team_id))
+            if (m.away_team_id) inR32.add(Number(m.away_team_id))
+            if (m.status === 'finished') {
+              if (m.home_team_id) decided.add(Number(m.home_team_id))
+              if (m.away_team_id) decided.add(Number(m.away_team_id))
+              if (m.winner_team_id) passed.add(Number(m.winner_team_id))
+            }
           })
-          const allTeamIds = new Set(ourTeams.map(t => t.id))
-          correctAnswer = [...allTeamIds].filter(id => !r16TeamIds.has(id))
-          canResolve = true
+          entryResolver = (teamId) => {
+            const t = parseInt(teamId)
+            if (Number.isNaN(t)) return null
+            if (!inR32.has(t)) return bet.max_points  // cayó en grupos → decepción correcta
+            if (passed.has(t)) return 0               // pasó a octavos → fallida
+            if (decided.has(t)) return bet.max_points // eliminado en 16avos → correcta
+            return null                                // su 16avos aún sin jugar → pendiente
+          }
         }
         break
       }
@@ -703,9 +716,25 @@ async function resolvePreTournamentBets(apiMatches, topScorers, topAssists, ourM
       }
     }
 
+    // Resolución POR ENTRADA (decepción incremental): cada entry se resuelve sólo
+    // cuando la suerte de su equipo está decidida; las pendientes quedan intactas.
+    if (entryResolver) {
+      for (const entry of betEntries) {
+        const v = entry.value || {}
+        const answer = v.team_id ?? v.answer ?? v.player_name
+        const pts = entryResolver(answer)
+        if (pts == null) continue   // pendiente → no tocar
+        await supaFetch(`/rest/v1/pre_tournament_entries?id=eq.${entry.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ is_resolved: true, points_awarded: pts })
+        })
+        resolved++
+      }
+      log.push(`   ✅ Resolved (incremental): ${bet.slug}`)
+    }
     // Resolve entries. Un array vacío de respuestas correctas NO debe marcar
     // entries como resueltas a 0 (defensa por si un case futuro lo produjera).
-    if (canResolve && correctAnswer !== null && (!Array.isArray(correctAnswer) || correctAnswer.length > 0)) {
+    else if (canResolve && correctAnswer !== null && (!Array.isArray(correctAnswer) || correctAnswer.length > 0)) {
       for (const entry of betEntries) {
         let points = 0
         // La respuesta del usuario vive en `value` (jsonb), NO en una columna

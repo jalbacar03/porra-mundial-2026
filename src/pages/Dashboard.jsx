@@ -1428,10 +1428,10 @@ function MundialMatchBanner({ match, prediction, isLast, onClick }) {
           {pts != null && (
             <span style={{
               padding: '2px 9px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
-              background: pts === 3 ? 'rgba(37,99,235,0.2)' : pts === 1 ? 'rgba(255,204,0,0.15)' : 'rgba(226,75,74,0.15)',
-              color: pts === 3 ? '#60a5fa' : pts === 1 ? 'var(--gold)' : '#e74c3c'
+              background: pts >= 2 ? 'rgba(37,99,235,0.2)' : pts === 1 ? 'rgba(255,204,0,0.15)' : 'rgba(226,75,74,0.15)',
+              color: pts >= 2 ? '#60a5fa' : pts === 1 ? 'var(--gold)' : '#e74c3c'
             }}>
-              {pts === 3 ? '+3' : pts === 1 ? '+1' : '0'}
+              {pts > 0 ? `+${pts}` : '0'}
             </span>
           )}
         </div>
