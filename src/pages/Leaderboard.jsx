@@ -586,7 +586,7 @@ export default function Leaderboard({ demoMode }) {
             fontSize: '9px', lineHeight: '1.5', color: 'var(--text-dim)',
             textAlign: 'center', marginBottom: '8px'
           }}>
-            PJ partidos jugados · RE resultados exactos (grupos+eliminatorias) · 1X2 acertar ganador (signo grupos + quién avanza eliminatorias) · CC cuadro ciego pre-mundial · ESP especiales
+            Cada columna son PUNTOS que suman al total (RE + 1X2 + CC + ESP = PTS). · PJ partidos jugados · RE puntos por resultado exacto · 1X2 puntos por acertar el ganador · CC puntos del cuadro ciego · ESP especiales
           </div>
         )}
         {
@@ -750,8 +750,12 @@ function renderSofaScore({
     const esp = user.pre_tournament_points || 0
     const cc = user.bracket_points || 0
     const qa = user.ko_advancer_points || 0 // quién avanza de ronda (+1)
-    // 1X2 unificado: acertar SOLO el ganador (sin marcador) — signo en grupos + quién avanza en elim
-    const sg = si + qa
+    // Mundial: columnas en PUNTOS que suman EXACTO al total (RE + 1X2 + CC + ESP = PTS).
+    //   RE  = puntos por resultado exacto = grupos ×3 + elim ×2 = (fg_points − sign_hits) + ko_result_points
+    //   1X2 = puntos por acertar solo el ganador = signo grupos ×1 + quién avanza elim ×1 = sign_hits + ko_advancer_points
+    // (valores resueltos; el live solo mueve el PTS total, como hasta ahora)
+    const re = ((user.fg_points || 0) - (user.sign_hits || 0)) + (user.ko_result_points || 0)
+    const sg = (user.sign_hits || 0) + qa
     const pj = playedCount
     const pts = tabHasLive ? user.effective_points : user.total_points
     const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
@@ -799,17 +803,17 @@ function renderSofaScore({
           )}
         </span>
         {showEsp ? (
-          // Mundial: PJ · RE · 1X2 · CC · ESP (RE = exactos; 1X2 = solo ganador, grupos+elim)
-          [pj, ex, sg, cc, esp].map((v, i) => (
+          // Mundial: PJ · RE · 1X2 · CC · ESP — todas en PUNTOS, suman al PTS total
+          [pj, re, sg, cc, esp].map((v, i) => (
             <span key={i} style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{v}</span>
           ))
         ) : (
-          // Liguilla: PJ · RE · 1X2
+          // Liguilla: PJ · RE · 1X2 (RE = exactos ×3, 1X2 = signos ×1 → suman al total)
           <>
             <span className={tabHasLive ? 'live-points' : ''}
               style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{pj}</span>
             <span className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{ex}</span>
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{ex * 3}</span>
             <span className={tabHasLive ? 'live-points' : ''}
               style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{si}</span>
           </>
@@ -842,9 +846,9 @@ function renderSofaScore({
         {showEsp ? (
           <>
             <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
-            <span title="Resultados exactos (grupos + eliminatorias) · desempate" style={{ textAlign: 'center' }}>RE</span>
-            <span title="Acertar el ganador sin el marcador: signo (grupos) + quién avanza (elim)" style={{ textAlign: 'center' }}>1X2</span>
-            <span title="Cuadro ciego · quién avanza de ronda (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>
+            <span title="Puntos por resultado exacto (grupos ×3 + eliminatorias ×2)" style={{ textAlign: 'center' }}>RE</span>
+            <span title="Puntos por acertar el ganador sin el marcador (signo grupos ×1 + quién avanza elim ×1)" style={{ textAlign: 'center' }}>1X2</span>
+            <span title="Puntos del cuadro ciego (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>
             <span title="Predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>
           </>
         ) : (
