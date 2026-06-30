@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../supabase'
 import { SkeletonDashboard } from '../components/Skeleton'
+import { matchPredictionPoints } from '../utils/livePoints'
 
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
@@ -38,12 +39,21 @@ function getMatchProgress(matchDate) {
 
 function getPointsStatus(pred, match) {
   if (!pred || match.home_score === null) return null
-  const exactMatch = pred.predicted_home === match.home_score && pred.predicted_away === match.away_score
-  if (exactMatch) return { points: 3, label: 'Exacto', color: 'var(--green)', bg: 'rgba(37,99,235,0.15)' }
-  const predSign = Math.sign(pred.predicted_home - pred.predicted_away)
-  const realSign = Math.sign(match.home_score - match.away_score)
-  if (predSign === realSign) return { points: 1, label: 'Signo', color: 'var(--gold)', bg: 'rgba(255,204,0,0.1)' }
-  return { points: 0, label: 'Fallo', color: 'var(--red)', bg: 'rgba(226,75,74,0.1)' }
+  const pts = matchPredictionPoints(pred, match)
+  const isKnockout = match.stage && !['group', 'friendly', 'test'].includes(match.stage)
+  const GREEN = { color: 'var(--green)', bg: 'rgba(37,99,235,0.15)' }
+  const GOLD = { color: 'var(--gold)', bg: 'rgba(255,204,0,0.1)' }
+  const RED = { color: 'var(--red)', bg: 'rgba(226,75,74,0.1)' }
+  if (isKnockout) {
+    // +2 resultado a 90' · +1 quién avanza · (sin "+1 por signo")
+    if (pts >= 3) return { points: pts, label: 'Pleno', ...GREEN }
+    if (pts === 2) return { points: 2, label: 'Resultado', ...GREEN }
+    if (pts === 1) return { points: 1, label: 'Quién pasa', ...GOLD }
+    return { points: 0, label: 'Fallo', ...RED }
+  }
+  if (pts === 3) return { points: 3, label: 'Exacto', ...GREEN }
+  if (pts === 1) return { points: 1, label: 'Signo', ...GOLD }
+  return { points: 0, label: 'Fallo', ...RED }
 }
 
 function formatTime(dateStr) {
@@ -95,10 +105,10 @@ export default function MatchDayLive({ session }) {
 
     const [predsRes, allPredsRes, lbRes, profilesRes] = await Promise.all([
       userId ? supabase.from('predictions')
-        .select('match_id, predicted_home, predicted_away, points_earned')
+        .select('match_id, predicted_home, predicted_away, predicted_advancer_id, points_earned')
         .eq('user_id', userId) : Promise.resolve({ data: [] }),
       relevantIds.length > 0
-        ? supabase.from('predictions').select('match_id, predicted_home, predicted_away, user_id').in('match_id', relevantIds)
+        ? supabase.from('predictions').select('match_id, predicted_home, predicted_away, predicted_advancer_id, user_id').in('match_id', relevantIds)
         : Promise.resolve({ data: [] }),
       supabase.from('leaderboard').select('*'),
       supabase.from('profiles').select('id, full_name, has_paid')
@@ -517,7 +527,7 @@ export default function MatchDayLive({ session }) {
                     <div style={{
                       fontSize: '28px', fontWeight: '900', color: status.color, lineHeight: 1
                     }}>
-                      {status.points === 3 ? '✓' : status.points === 1 ? '~' : '✗'}
+                      {status.points >= 2 ? '✓' : status.points === 1 ? '~' : '✗'}
                     </div>
                     <div style={{ fontSize: '12px', fontWeight: '800', color: status.color, marginTop: '2px' }}>
                       +{status.points}

@@ -40,30 +40,14 @@ export function useLivePoints(userId) {
         return
       }
 
-      const { data: preds } = await supabase
-        .from('predictions')
-        .select('match_id, predicted_home, predicted_away')
-        .eq('user_id', userId)
-        .in('match_id', liveMatches.map(m => m.id))
+      // Provisional por el MISMO RPC que la Clasificación. Imprescindible para no
+      // divergir: en GRUPOS es 3/1, pero en ELIMINATORIAS es +2 resultado a 90' +
+      // +1 quién avanza (equipo que va ganando) + CC — NO el "+1 por signo" de
+      // grupos (un empate en vivo no suma nada hasta que alguien va por delante).
+      const { data: provRows } = await supabase.rpc('live_provisional_points')
+      const mine = (provRows || []).find(r => r.user_id === userId && r.scope === 'mundial')
 
-      let pts = 0
-      preds?.forEach(p => {
-        const m = liveMatches.find(x => x.id === p.match_id)
-        if (!m) return
-        // Tratar scores null como 0: al kickoff de un partido live sin gol,
-        // el marcador "real" es 0-0 aunque sync aún no haya escrito eso.
-        const home = m.home_score ?? 0
-        const away = m.away_score ?? 0
-        if (p.predicted_home === home && p.predicted_away === away) {
-          pts += 3
-        } else {
-          const ps = Math.sign(p.predicted_home - p.predicted_away)
-          const rs = Math.sign(home - away)
-          if (ps === rs) pts += 1
-        }
-      })
-
-      if (mounted) setState({ points: pts, matchCount: liveMatches.length })
+      if (mounted) setState({ points: mine?.provisional || 0, matchCount: liveMatches.length })
     }
 
     refresh()

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { FootballSpinner } from './Skeleton'
 import { formatRealName } from '../utils/nickname'
+import { matchPredictionPoints } from '../utils/livePoints'
 
 /**
  * Head-to-head comparison modal between current user and a rival.
@@ -26,11 +27,11 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
   async function fetchH2H() {
     try {
       const [myPreds, rivalPreds, profileRes, matchesRes, myBets, rivalBets] = await Promise.all([
-        supabase.from('predictions').select('match_id, predicted_home, predicted_away, points_earned').eq('user_id', userId),
-        supabase.from('predictions').select('match_id, predicted_home, predicted_away, points_earned').eq('user_id', rivalId),
+        supabase.from('predictions').select('match_id, predicted_home, predicted_away, predicted_advancer_id, points_earned').eq('user_id', userId),
+        supabase.from('predictions').select('match_id, predicted_home, predicted_away, predicted_advancer_id, points_earned').eq('user_id', rivalId),
         supabase.from('profiles').select('full_name').eq('id', userId).single(),
         supabase.from('matches')
-          .select('id, home_score, away_score, status, match_date, stage, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
+          .select('id, home_score, away_score, status, match_date, stage, home_team_id, away_team_id, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)')
           .neq('stage', 'friendly').neq('stage', 'test'),
         supabase.from('pre_tournament_entries').select('points_awarded').eq('user_id', userId).eq('is_resolved', true),
         supabase.from('pre_tournament_entries').select('points_awarded').eq('user_id', rivalId).eq('is_resolved', true),
@@ -57,13 +58,9 @@ export default function H2HModal({ userId, rivalId, rivalName, onClose }) {
       const myBetPts = (myBets.data || []).reduce((s, e) => s + (e.points_awarded || 0), 0)
       const rivalBetPts = (rivalBets.data || []).reduce((s, e) => s + (e.points_awarded || 0), 0)
 
-      // Puntos provisionales de un partido EN VIVO (3 exacto / 1 signo / 0).
-      const provPts = (pred, m) => {
-        if (!pred || pred.predicted_home == null) return 0
-        const h = m.home_score ?? 0, a = m.away_score ?? 0
-        if (pred.predicted_home === h && pred.predicted_away === a) return 3
-        return Math.sign(pred.predicted_home - pred.predicted_away) === Math.sign(h - a) ? 1 : 0
-      }
+      // Puntos provisionales de un partido EN VIVO. Grupos 3/1; eliminatorias +2
+      // resultado / +1 quién avanza (sin el "+1 por signo", que no aplica en KO).
+      const provPts = (pred, m) => matchPredictionPoints(pred, m)
 
       // Detalle por partido JUGADO o EN JUEGO — orden cronológico
       const played = (matchesRes.data || [])

@@ -10,6 +10,7 @@ import { PREDICTIONS_DEADLINE, KNOCKOUT_PREDICTIONS_OPEN, KNOCKOUT_PREDICTIONS_D
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
+import { matchPredictionPoints } from '../utils/livePoints'
 import { isFriendlyVisible } from '../config/featureFlags'
 import NicknameModal from '../components/NicknameModal'
 
@@ -224,19 +225,14 @@ export default function Dashboard({ session, demoMode }) {
     const liveProvisional = {}
     const liveProvisionalExacts = {}   // exactos en vivo, para el DESEMPATE (igual que la Clasificación)
     if (live.length > 0) {
-      const liveIds = live.map(m => m.id)
-      const { data: allLivePreds } = await supabase
-        .from('predictions')
-        .select('user_id, match_id, predicted_home, predicted_away')
-        .in('match_id', liveIds)
-      ;(allLivePreds || []).forEach(p => {
-        const m = live.find(x => x.id === p.match_id)
-        if (!m || p.predicted_home == null || p.predicted_away == null) return
-        const h = m.home_score ?? 0, a = m.away_score ?? 0
-        let pts = 0
-        if (p.predicted_home === h && p.predicted_away === a) { pts = 3; liveProvisionalExacts[p.user_id] = (liveProvisionalExacts[p.user_id] || 0) + 1 }
-        else if (Math.sign(p.predicted_home - p.predicted_away) === Math.sign(h - a)) pts = 1
-        liveProvisional[p.user_id] = (liveProvisional[p.user_id] || 0) + pts
+      // Mismo RPC que la Clasificación: grupos 3/1, pero eliminatorias +2 resultado /
+      // +1 quién avanza / +1 CC (sin el "+1 por signo" de grupos, que NO aplica en KO).
+      // Así la posición del hero coincide exactamente con la Clasificación.
+      const { data: provRows } = await supabase.rpc('live_provisional_points')
+      ;(provRows || []).forEach(r => {
+        if (r.scope !== 'mundial') return
+        liveProvisional[r.user_id] = r.provisional || 0
+        liveProvisionalExacts[r.user_id] = r.prov_exact || 0
       })
     }
 
@@ -489,8 +485,8 @@ function formatDateShort(dateStr) {
 
   function calcLivePts(pred, match) {
     if (!pred || match.home_score === null) return 0
-    if (pred.predicted_home === match.home_score && pred.predicted_away === match.away_score) return 3
-    return Math.sign(pred.predicted_home - pred.predicted_away) === Math.sign(match.home_score - match.away_score) ? 1 : 0
+    // Grupos 3/1; eliminatorias +2 resultado / +1 quién avanza (sin el "+1 signo").
+    return matchPredictionPoints(pred, match)
   }
 
   return (
