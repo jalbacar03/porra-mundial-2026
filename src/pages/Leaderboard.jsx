@@ -817,7 +817,8 @@ function renderSofaScore({
             <span key={i} className={tabHasLive ? 'live-points' : ''}
               style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>
               {v}{i === 1 && ex > 0 ? (
-                <sup style={{ fontSize: '8px', fontWeight: 400, marginLeft: '0.5px', color: 'var(--text-dim)' }}>{ex}</sup>
+                <sup className={tabHasLive ? 'live-points' : ''}
+                  style={{ fontSize: '8px', fontWeight: 400, marginLeft: '0.5px', color: tabHasLive ? 'var(--red)' : 'var(--text-dim)' }}>{ex}</sup>
               ) : null}
             </span>
           ))
