@@ -133,6 +133,9 @@ export default function Leaderboard({ demoMode }) {
           exact: r.prov_exact || 0,
           sign: r.prov_sign || 0,
           points: r.provisional || 0,
+          re: r.prov_re || 0,     // provisional desglosado por columna (para el rojo en vivo)
+          x12: r.prov_x12 || 0,
+          cc: r.prov_cc || 0,
         }
       })
       setLiveProvisional({ friendly, mundial })
@@ -280,13 +283,16 @@ export default function Leaderboard({ demoMode }) {
         // Provisional según la tab activa — objeto {exact, sign, points} que
         // separa friendly/mundial. Vacío si el usuario no puntúa en vivo.
         const prov = (activeTab === 'friendly' ? provisionalByStage.friendly : provisionalByStage.mundial)[r.user_id]
-          || { exact: 0, sign: 0, points: 0 }
+          || { exact: 0, sign: 0, points: 0, re: 0, x12: 0, cc: 0 }
         return {
           ...r,
           full_name: profileNames[r.user_id] || r.full_name || 'Participante',
           provisional: prov.points,
           prov_exact: prov.exact,
           prov_sign: prov.sign,
+          prov_re: prov.re || 0,
+          prov_x12: prov.x12 || 0,
+          prov_cc: prov.cc || 0,
           // ex/si mostrados = finished (vista) + provisional (live)
           display_exact: (r.exact_hits || 0) + prov.exact,
           display_sign:  (r.sign_hits  || 0) + prov.sign,
@@ -748,14 +754,14 @@ function renderSofaScore({
     const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
     const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
     const esp = user.pre_tournament_points || 0
-    const cc = user.bracket_points || 0
+    const cc = (user.bracket_points || 0) + (tabHasLive ? (user.prov_cc || 0) : 0)
     const qa = user.ko_advancer_points || 0 // quién avanza de ronda (+1)
     // Mundial: columnas en PUNTOS que suman EXACTO al total (RE + 1X2 + CC + ESP = PTS).
     //   RE  = puntos por resultado exacto = grupos ×3 + elim ×2 = (fg_points − sign_hits) + ko_result_points
     //   1X2 = puntos por acertar solo el ganador = signo grupos ×1 + quién avanza elim ×1 = sign_hits + ko_advancer_points
     // (valores resueltos; el live solo mueve el PTS total, como hasta ahora)
-    const re = ((user.fg_points || 0) - (user.sign_hits || 0)) + (user.ko_result_points || 0)
-    const sg = (user.sign_hits || 0) + qa
+    const re = ((user.fg_points || 0) - (user.sign_hits || 0)) + (user.ko_result_points || 0) + (tabHasLive ? (user.prov_re || 0) : 0)
+    const sg = (user.sign_hits || 0) + qa + (tabHasLive ? (user.prov_x12 || 0) : 0)
     const pj = playedCount
     const pts = tabHasLive ? user.effective_points : user.total_points
     const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
@@ -803,9 +809,11 @@ function renderSofaScore({
           )}
         </span>
         {showEsp ? (
-          // Mundial: PJ · RE · 1X2 · CC · ESP — todas en PUNTOS, suman al PTS total
+          // Mundial: PJ · RE · 1X2 · CC · ESP — todas en PUNTOS, suman al PTS total.
+          // En vivo: rojo parpadeante y RE/1X2/CC ya incluyen el provisional (se mueven).
           [pj, re, sg, cc, esp].map((v, i) => (
-            <span key={i} style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: 400 }}>{v}</span>
+            <span key={i} className={tabHasLive ? 'live-points' : ''}
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{v}</span>
           ))
         ) : (
           // Liguilla: PJ · RE · 1X2 (RE = exactos ×3, 1X2 = signos ×1 → suman al total)
