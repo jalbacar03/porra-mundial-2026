@@ -594,7 +594,7 @@ export default function Leaderboard({ demoMode }) {
             fontSize: '9px', lineHeight: '1.5', color: 'var(--text-dim)',
             textAlign: 'center', marginBottom: '8px'
           }}>
-            Cada columna son PUNTOS que suman al total (RE + 1X2 + CC + ESP = PTS). · PJ partidos jugados · RE puntos por resultado exacto · 1X2 puntos por acertar el ganador · CC puntos del cuadro ciego · ESP especiales
+            Cada columna son PUNTOS que suman al total (RE + 1X2 + CC + ESP = PTS). · PJ partidos jugados · RE puntos por resultado exacto (el nº pequeño = exactos acertados, desempate) · 1X2 puntos por acertar el ganador · CC puntos del cuadro ciego · ESP especiales
           </div>
         )}
         {
@@ -723,7 +723,7 @@ function renderSofaScore({
   // Mundial: ESP (especiales) y, ya en eliminatorias, CC (cuadro ciego) entre 1X2 y PTS.
   const baseGrid = !showEsp
     ? '34px 1fr 20px 22px 26px 34px'                  // Liguilla (PJ RE 1X2)
-    : '36px 1fr 20px 20px 20px 20px 22px 30px'        // Mundial (PJ RE QA CC ESP PTS)
+    : '36px 1fr 20px 30px 20px 20px 22px 30px'        // Mundial (PJ RE·ex 1X2 CC ESP PTS) — RE ancho para el superíndice de exactos
   const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 
@@ -815,7 +815,11 @@ function renderSofaScore({
           // En vivo: rojo parpadeante y RE/1X2/CC ya incluyen el provisional (se mueven).
           [pj, re, sg, cc, esp].map((v, i) => (
             <span key={i} className={tabHasLive ? 'live-points' : ''}
-              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>{v}</span>
+              style={{ color: tabHasLive ? 'var(--red)' : 'var(--text-muted)', textAlign: 'center', fontSize: '13px', fontWeight: tabHasLive ? 700 : 400 }}>
+              {v}{i === 1 && ex > 0 ? (
+                <sup style={{ fontSize: '8px', fontWeight: 400, marginLeft: '0.5px', color: 'var(--text-dim)' }}>{ex}</sup>
+              ) : null}
+            </span>
           ))
         ) : (
           // Liguilla: PJ · RE · 1X2 (RE = exactos ×3, 1X2 = signos ×1 → suman al total)
@@ -856,7 +860,7 @@ function renderSofaScore({
         {showEsp ? (
           <>
             <span title="Partidos jugados" style={{ textAlign: 'center' }}>PJ</span>
-            <span title="Puntos por resultado exacto (grupos ×3 + eliminatorias ×2)" style={{ textAlign: 'center' }}>RE</span>
+            <span title="Puntos por resultado exacto (grupos ×3 + eliminatorias ×2). El número pequeño = nº de exactos acertados (desempate)" style={{ textAlign: 'center' }}>RE</span>
             <span title="Puntos por acertar el ganador sin el marcador (signo grupos ×1 + quién avanza elim ×1)" style={{ textAlign: 'center' }}>1X2</span>
             <span title="Puntos del cuadro ciego (1·1·2·4·8)" style={{ textAlign: 'center' }}>CC</span>
             <span title="Predicciones especiales" style={{ textAlign: 'center' }}>ESP</span>
