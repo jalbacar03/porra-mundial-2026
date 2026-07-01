@@ -136,6 +136,7 @@ export default function Leaderboard({ demoMode }) {
           re: r.prov_re || 0,     // provisional desglosado por columna (para el rojo en vivo)
           x12: r.prov_x12 || 0,
           cc: r.prov_cc || 0,
+          esp: r.prov_esp || 0,   // decepción/revelación provisional ("si acaba así")
         }
       })
       setLiveProvisional({ friendly, mundial })
@@ -283,7 +284,7 @@ export default function Leaderboard({ demoMode }) {
         // Provisional según la tab activa — objeto {exact, sign, points} que
         // separa friendly/mundial. Vacío si el usuario no puntúa en vivo.
         const prov = (activeTab === 'friendly' ? provisionalByStage.friendly : provisionalByStage.mundial)[r.user_id]
-          || { exact: 0, sign: 0, points: 0, re: 0, x12: 0, cc: 0 }
+          || { exact: 0, sign: 0, points: 0, re: 0, x12: 0, cc: 0, esp: 0 }
         return {
           ...r,
           full_name: profileNames[r.user_id] || r.full_name || 'Participante',
@@ -293,6 +294,7 @@ export default function Leaderboard({ demoMode }) {
           prov_re: prov.re || 0,
           prov_x12: prov.x12 || 0,
           prov_cc: prov.cc || 0,
+          prov_esp: prov.esp || 0,
           // ex/si mostrados = finished (vista) + provisional (live)
           display_exact: (r.exact_hits || 0) + prov.exact,
           display_sign:  (r.sign_hits  || 0) + prov.sign,
@@ -753,7 +755,7 @@ function renderSofaScore({
       : isPrize ? C.prize : isBottom3 ? C.red : 'var(--text-muted)'
     const ex = tabHasLive ? (user.display_exact ?? user.exact_hits ?? 0) : (user.exact_hits || 0)
     const si = tabHasLive ? (user.display_sign  ?? user.sign_hits  ?? 0) : (user.sign_hits  || 0)
-    const esp = user.pre_tournament_points || 0
+    const esp = (user.pre_tournament_points || 0) + (tabHasLive ? (user.prov_esp || 0) : 0)
     const cc = (user.bracket_points || 0) + (tabHasLive ? (user.prov_cc || 0) : 0)
     const qa = user.ko_advancer_points || 0 // quién avanza de ronda (+1)
     // Mundial: columnas en PUNTOS que suman EXACTO al total (RE + 1X2 + CC + ESP = PTS).
