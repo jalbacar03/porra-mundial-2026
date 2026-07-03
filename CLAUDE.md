@@ -82,8 +82,8 @@ Se puntúa por ACERTAR QUIÉN GANA cada cruce (= avanza de ronda). Estar en una 
 
 ## Automatización (API-Football + Vercel Cron)
 - **`/api/sync-results.js`** — Serverless function que sincroniza resultados desde API-Football
-- **Vercel Cron**: se ejecuta 1 vez al día (9 AM UTC) — Hobby plan limit
-- **Admin backup**: botón manual en pestaña "⚡ Sync API" del panel admin (CRUCIAL durante partidos en vivo)
+- **Vercel Cron**: `/api/sync-results` corre **cada 2 min** (`*/2 * * * *`) — Vercel Pro activo (ya NO es Hobby/diario). Ver `vercel.json`
+- **Admin backup**: botón manual en pestaña "⚡ Sync API" del panel admin (respaldo; con el cron a 2 min casi nunca hace falta)
 - **Flujo**: API-Football → actualiza `matches` → trigger calcula puntos (solo status=finished) → leaderboard se actualiza
 - **Sync de partidos en vivo**: actualiza scores intermedios con status='live' (no dispara cálculo de puntos)
 - **Transición live→finished**: corregido — busca `status !== 'finished'` (no `home_score === null`)
@@ -91,7 +91,7 @@ Se puntúa por ACERTAR QUIÉN GANA cada cruce (= avanza de ronda). Estar en una 
 - **Resolución manual** (Admin → Pre-torneo): MVP, Guante de Oro (FIFA los anuncia, API-Football no los expone)
 - **Hat-trick optimizado**: solo busca eventos en partidos donde un equipo metió 3+ goles (ahorra API calls)
 - **Error handling**: apiFetch y supaFetch logean errores y devuelven arrays vacíos (no crashean)
-- API-Football: plan Free (100 req/día, 0€). Key: configurada en Vercel env vars
+- API-Football: **plan de pago** (sync cada 2 min durante el torneo). Key: configurada en Vercel env vars
 
 ## Crónica del día (Gemini AI)
 - **`/api/generate-insight.js`** — Genera crónica diaria con Gemini 2.0 Flash Lite
@@ -320,8 +320,8 @@ vercel.json               # Cron config (sync diario 9AM UTC)
 ### Pendientes próximos (orden de prioridad)
 1. **Seed jugadores día 2 jun** — ejecutar `scripts/seed-players.js` con plantillas oficiales cuando se publiquen
 2. **Re-seed Bot365 pre-tournament** — Bot365 quedó sin pre_tournament_entries (set viejo). Hay que actualizar `scripts/seed-bot365.js` y re-ejecutar con los 14 nuevos slugs
-3. **Activar Vercel Pro** cuando empiece el Mundial → cron `*/5` para resultados quasi-live (actualmente daily)
-4. **API-Football Pro plan** si queremos sync más frecuente que diario (Free: 100 req/día = no llega para live)
+3. ✅ **Vercel Pro activo** — cron de sync a `*/2` (cada 2 min). HECHO
+4. ✅ **API-Football plan de pago** — sync cada 2 min durante el torneo. HECHO
 5. **PDF normas** — regenerar con look&feel de la porra cuando el contenido esté finalizado (sustituye al .docx)
 6. **Captar e invitar a los ~95 participantes restantes** — solo 4 paid + Bot365 en DB
 7. **Opcional**: `CRON_SECRET=<random>` en Vercel → activa dual-auth montada
@@ -346,7 +346,7 @@ Solo serverless (sin VITE_):
 - Supabase SQL Editor no soporta `auth.uid()` en queries manuales — usar UUID literal
 - El Service Worker puede cachear agresivamente — si el usuario no ve cambios, borrar PWA y reinstalar desde Safari
 - Vercel despliega automático con cada push a main
-- API-Football free tier: 100 req/día (sobra para 3-4 partidos/día durante el Mundial)
+- API-Football: plan de pago (sync cada 2 min vía cron `*/2`, sin límite práctico de req/día para el torneo)
 - Gemini free tier: 15 RPM, prácticamente gratis
 - Revelación = llega a cuartos de final. Decepción = cae eliminada en fase de grupos.
 - Prioridad: avanzar rápido e iterar, no sobre-ingenierar
