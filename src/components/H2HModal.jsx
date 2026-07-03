@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { FootballSpinner } from './Skeleton'
 import { formatRealName } from '../utils/nickname'
-import { matchPredictionPoints } from '../utils/livePoints'
+import { matchPredictionPoints, matchCCPoints } from '../utils/livePoints'
 
 /**
  * Head-to-head comparison modal between current user and a rival.
