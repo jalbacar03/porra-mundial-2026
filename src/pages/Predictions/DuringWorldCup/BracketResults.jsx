@@ -72,10 +72,13 @@ export default function BracketResults({ session }) {
     if (firstOpen) setActiveRound(firstOpen)
   }
 
-  // Cierre ÚNICO por ronda: toda la ronda se cierra de golpe 1h antes de su
+  // Cierre ÚNICO por ronda: toda la ronda se cierra de golpe 1 min antes de su
   // primer partido (decisión de producto: completar la ronda entera antes de
   // que empiece, como el cuadro ciego). R32 usa la constante fija (dom 20:00);
-  // las rondas siguientes se calculan como primer-partido − 1h.
+  // las rondas siguientes se calculan como primer-partido − 1 min. Los cruces
+  // se van habilitando solos según el sync rellena los equipos de la ronda
+  // (isBettingOpen exige teamsSet): el plazo se abre exactamente cuando se
+  // conocen los emparejamientos y cierra 1 min antes del primer partido.
   const roundDeadline = useMemo(() => {
     const map = { [R32_STAGE]: KNOCKOUT_PREDICTIONS_DEADLINE }
     STAGE_ORDER.forEach(stage => {
@@ -83,7 +86,7 @@ export default function BracketResults({ session }) {
       const ms = matches.filter(m => m.stage === stage && m.match_date)
       if (ms.length) {
         const earliest = Math.min(...ms.map(m => new Date(m.match_date).getTime()))
-        map[stage] = new Date(earliest - 60 * 60 * 1000)
+        map[stage] = new Date(earliest - 60 * 1000)
       }
     })
     return map
