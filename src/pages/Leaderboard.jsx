@@ -595,6 +595,9 @@ export default function Leaderboard({ demoMode }) {
             textAlign: 'center', marginBottom: '8px'
           }}>
             Cada columna son PUNTOS que suman al total (RE + 1X2 + CC + ESP = PTS). · PJ partidos jugados · RE puntos por resultado exacto (el nº pequeño = exactos acertados, desempate) · 1X2 puntos por acertar el ganador · CC puntos del cuadro ciego · ESP especiales
+            {tabHasLive && (
+              <> · <span style={{ color: 'var(--red)', fontWeight: 600 }}>🎯 clavando el resultado exacto en directo</span></>
+            )}
           </div>
         )}
         {
@@ -768,6 +771,10 @@ function renderSofaScore({
     const pts = tabHasLive ? user.effective_points : user.total_points
     const notPaid = !isFriendly && paymentConfirmed && !paymentConfirmed.has(user.user_id)
     const rowClickable = clickable && !isMe
+    // 🎯 SOLO en vivo: el usuario está clavando el marcador EXACTO de al menos un
+    // partido en curso ahora mismo (prov_exact = nº de live que borda). Si el
+    // marcador cambia y deja de coincidir, prov_exact baja a 0 y el 🎯 desaparece.
+    const nailingExact = tabHasLive && (user.prov_exact || 0) > 0
     return (
       <div
         key={(pinned ? 'fav-' : '') + user.user_id}
@@ -808,6 +815,10 @@ function renderSofaScore({
           }}>{user.full_name}</span>
           {notPaid && (
             <span title="No pagado" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#c2362b', flexShrink: 0 }} />
+          )}
+          {nailingExact && (
+            <span className="live-pulse" title="Clavando el resultado exacto de un partido en directo"
+              style={{ fontSize: '11px', flexShrink: 0, lineHeight: 1 }}>🎯</span>
           )}
         </span>
         {showEsp ? (
