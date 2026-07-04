@@ -39,11 +39,13 @@ export default function Dashboard({ session, demoMode }) {
   const [myBracketPicks, setMyBracketPicks] = useState([])   // CC por partido (cuadro ciego)
   const [preMundialMatches, setPreMundialMatches] = useState([]) // Mundial: partidos "de hoy" incl. madrugada (banner pre)
   const [recentFinishedMatches, setRecentFinishedMatches] = useState([]) // Mundial: terminados hoy/ayer (banner final)
+  const [openRound, setOpenRound] = useState(null)  // ronda KO abierta para rellenar (octavos→final)
   const [loading, setLoading] = useState(true)
   const { permission: notifPerm, requestPermission, sendLocal, subscribePush } = useNotifications()
   const { points: livePoints, matchCount: liveMatchCount } = useLivePoints(session?.user?.id)
   const hasLiveMundial = liveMatchCount > 0
   const knockoutCd = useCountdown(KNOCKOUT_PREDICTIONS_DEADLINE)
+  const openRoundCd = useCountdown(openRound?.deadline || KNOCKOUT_PREDICTIONS_DEADLINE)
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -196,6 +198,31 @@ export default function Dashboard({ session, demoMode }) {
     const predsMap = {}
     preds?.forEach(p => { predsMap[p.match_id] = true })
     setUserPredictions(predsMap)
+
+    // Ronda eliminatoria ABIERTA para rellenar (octavos → final). Genérico: la
+    // primera ronda KO cuyos cruces ya tienen equipos, aún no ha empezado y
+    // estamos antes de su cierre (1er partido − 1 min, igual que BracketResults).
+    // Cuenta cuántos cruces le faltan al usuario para nudge en Inicio.
+    const KO_ROUNDS = [
+      { stage: 'Round of 16', label: 'octavos' },
+      { stage: 'Quarter-finals', label: 'cuartos' },
+      { stage: 'Semi-finals', label: 'semifinales' },
+      { stage: 'Final', label: 'la final' },
+    ]
+    let openR = null
+    for (const kr of KO_ROUNDS) {
+      const ms = (allMatchesData || []).filter(m => m.stage === kr.stage && m.home_team_id && m.away_team_id)
+      const dated = ms.filter(m => m.match_date)
+      if (!dated.length) continue
+      const earliest = Math.min(...dated.map(m => new Date(m.match_date).getTime()))
+      const deadline = earliest - 60 * 1000  // 1 min antes del primer partido de la ronda
+      if (Date.now() >= deadline) continue   // ronda ya cerrada → probar la siguiente
+      const ids = new Set(ms.map(m => m.id))
+      const done = (preds || []).filter(p => ids.has(p.match_id) && p.predicted_home != null && p.predicted_away != null).length
+      openR = { label: kr.label, deadline: new Date(deadline), total: ms.length, faltan: ms.length - done }
+      break
+    }
+    setOpenRound(openR)
 
     // Group progress
     const groups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
@@ -579,6 +606,42 @@ function formatDateShort(dateStr) {
           <span style={{ fontSize: '20px', color: 'var(--gold)', flexShrink: 0 }}>›</span>
         </div>
       )}
+
+      {/* RONDA ELIMINATORIA ABIERTA (octavos → final): CTA para rellenar los
+          cruces de la ronda en curso. Genérico y dinámico: aparece cuando los
+          cruces ya tienen equipos y cierra 1 min antes del primer partido.
+          Solo si al usuario le falta algún cruce. */}
+      {!demoMode && new Date() >= KNOCKOUT_PREDICTIONS_OPEN && openRound && openRound.faltan > 0 && !openRoundCd.expired && (() => {
+        const d = openRound.deadline
+        const nowD = new Date()
+        const tmr = new Date(nowD); tmr.setDate(nowD.getDate() + 1)
+        const dayLbl = d.toDateString() === nowD.toDateString() ? 'hoy'
+          : d.toDateString() === tmr.toDateString() ? 'mañana'
+          : d.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'Europe/Madrid' })
+        const hhmm = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
+        const title = openRound.label === 'la final' ? 'Rellena la final' : `Rellena tus ${openRound.label}`
+        return (
+          <div onClick={() => navigate('/predictions')} role="button" tabIndex={0}
+            className="tap-scale"
+            style={{
+              marginBottom: '14px', padding: '14px 16px', borderRadius: '14px',
+              background: 'linear-gradient(135deg, #2a2410, #3a3110)',
+              border: '1.5px solid rgba(255,204,0,0.45)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '12px'
+            }}>
+            <span style={{ fontSize: '26px', lineHeight: 1, flexShrink: 0 }}>🏆</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--gold)', marginBottom: '2px' }}>
+                {title}
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4' }}>
+                Te {openRound.faltan === 1 ? 'falta' : 'faltan'} <strong>{openRound.faltan}</strong> de {openRound.total} · cierra <strong>{dayLbl} {hhmm}</strong> · faltan {openRoundCd.days > 0 ? `${openRoundCd.days}d ` : ''}{String(openRoundCd.hours).padStart(2, '0')}h {String(openRoundCd.minutes).padStart(2, '0')}m
+              </div>
+            </div>
+            <span style={{ fontSize: '20px', color: 'var(--gold)', flexShrink: 0 }}>›</span>
+          </div>
+        )
+      })()}
 
       {/* PWA install prompt — only renders when applicable (not standalone, not dismissed) */}
       {!demoMode && <PWAInstallBanner />}

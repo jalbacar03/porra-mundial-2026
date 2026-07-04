@@ -17,6 +17,10 @@
       "schedule": "*/30 * * * *"
     },
     {
+      "path": "/api/notify-round-open",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/notify-knockout-open",
       "schedule": "30 5 28 6 *"
     },
