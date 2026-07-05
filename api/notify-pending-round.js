@@ -29,7 +29,7 @@ const KO_ROUNDS = [
 // Override manual del cierre único de una ronda (ampliaciones). Debe coincidir
 // con KNOCKOUT_ROUND_DEADLINE_OVERRIDES en src/hooks/useCountdown.js.
 const ROUND_DEADLINE_OVERRIDES = {
-  'Round of 16': new Date('2026-07-05T19:00:00Z'), // dom 5 jul, 21:00 Madrid
+  'Round of 16': new Date('2026-07-05T19:40:00Z'), // dom 5 jul, 21:40 Madrid
 }
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
