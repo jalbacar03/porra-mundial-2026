@@ -79,9 +79,15 @@ export default async function handler(req, res) {
   const nowMs = Date.now()
   let round = null
   for (const kr of KO_ROUNDS) {
-    const ms = matches.filter(m => m.stage === kr.stage && m.home_team_id && m.away_team_id && m.match_date)
-    if (!ms.length) continue
-    const earliest = Math.min(...ms.map(m => new Date(m.match_date).getTime()))
+    const all = matches.filter(m => m.stage === kr.stage)
+    if (!all.length) continue
+    // La ronda solo se considera ABIERTA cuando TODOS sus cruces ya se conocen
+    // (p.ej. cuartos espera a que acaben los 8 octavos). Evita avisos prematuros
+    // del tipo "cuartos abierto" con un solo cruce definido.
+    if (all.some(m => !m.home_team_id || !m.away_team_id)) continue
+    const dated = all.filter(m => m.match_date)
+    if (!dated.length) continue
+    const earliest = Math.min(...dated.map(m => new Date(m.match_date).getTime()))
     const deadline = earliest - 60 * 1000
     if (nowMs >= deadline) continue
     round = { ...kr, deadline: new Date(deadline) }

@@ -97,9 +97,18 @@ export default function BracketResults({ session }) {
     return match.home_team_id != null && match.away_team_id != null
   }
 
+  // Una ronda solo se abre para predecir cuando TODOS sus cruces ya se conocen
+  // (p.ej. cuartos espera a que acaben los 8 octavos). Así no se puede rellenar
+  // un cruce suelto de la siguiente ronda antes de que esté completa.
+  function roundFullyKnown(stage) {
+    const ms = matches.filter(m => m.stage === stage)
+    return ms.length > 0 && ms.every(m => m.home_team_id != null && m.away_team_id != null)
+  }
+
   function isBettingOpen(match) {
     if (match.status === 'finished') return false
     if (!teamsSet(match)) return false
+    if (!roundFullyKnown(match.stage)) return false
     const dl = roundDeadline[match.stage]
     if (!dl) return false
     return now < dl

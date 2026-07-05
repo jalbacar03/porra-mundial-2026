@@ -211,15 +211,20 @@ export default function Dashboard({ session, demoMode }) {
     ]
     let openR = null
     for (const kr of KO_ROUNDS) {
-      const ms = (allMatchesData || []).filter(m => m.stage === kr.stage && m.home_team_id && m.away_team_id)
-      const dated = ms.filter(m => m.match_date)
+      const all = (allMatchesData || []).filter(m => m.stage === kr.stage)
+      if (!all.length) continue
+      // La ronda solo se ABRE cuando TODOS sus cruces ya se conocen (p.ej. cuartos
+      // espera a que se jueguen los 8 octavos). Así no aparece "cuartos 1 de 1"
+      // en cuanto un solo cruce tiene equipos.
+      if (all.some(m => !m.home_team_id || !m.away_team_id)) continue
+      const dated = all.filter(m => m.match_date)
       if (!dated.length) continue
       const earliest = Math.min(...dated.map(m => new Date(m.match_date).getTime()))
       const deadline = earliest - 60 * 1000  // 1 min antes del primer partido de la ronda
       if (Date.now() >= deadline) continue   // ronda ya cerrada → probar la siguiente
-      const ids = new Set(ms.map(m => m.id))
+      const ids = new Set(all.map(m => m.id))
       const done = (preds || []).filter(p => ids.has(p.match_id) && p.predicted_home != null && p.predicted_away != null).length
-      openR = { label: kr.label, deadline: new Date(deadline), total: ms.length, faltan: ms.length - done }
+      openR = { label: kr.label, deadline: new Date(deadline), total: all.length, faltan: all.length - done }
       break
     }
     setOpenRound(openR)
