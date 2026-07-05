@@ -1,4 +1,4 @@
-"""Cards OCTAVOS 5 jul (mismo look): todos los marcadores (alineados) + quién pasa a cuartos + cuadro ciego r16 + revelación."""
+"""Cards octavos 5 jul (mismo look): todos los marcadores + quién pasa a cuartos + cuadro ciego r16 + revelación."""
 import os
 from PIL import Image, ImageDraw, ImageFont
 DESK = os.path.expanduser('~/Desktop/porra_tarjetas'); os.makedirs(DESK, exist_ok=True)
@@ -14,15 +14,15 @@ def font(sz, bold=False):
 GOLD='#ffcc00'; BLUE='#2563eb'; BLUEL='#60a5fa'; GREEN='#2f9e63'; GREENL='#7fcaa0'; MUT='#8a8f99'; DIM='#5f636e'; WHITE='#ffffff'; PURP='#a855f7'
 
 CARDS = [
-  {'file':'oct05_brasil_noruega.png','hora':'HOY 22:00','home':'Brasil','away':'Noruega','total':105,
-   'x1':[('1 · BRASIL',52,'55',True),('X · EMPATE',32,'34',False),('2 · NORUEGA',15,'16',False)],
-   'scores':[('2-1',36),('1-1',20),('2-2',14),('1-2',10),('3-1',9),('3-2',5),('2-3',4),('2-0',3),('0-1',2),('1-0',1),('3-0',1)],
-   'adv':('Brasil',74,'Noruega',31),'cc':('Brasil',93,'Noruega',15),
+  {'file':'oct05_brasil_noruega.png','hora':'HOY 22:00','home':'Brasil','away':'Noruega','total':106,
+   'x1':[('1 · BRASIL',52,'55',True),('X · EMPATE',32,'34',False),('2 · NORUEGA',16,'17',False)],
+   'scores':[('2-1',35),('1-1',20),('2-2',14),('1-2',11),('3-1',10),('3-2',5),('2-3',4),('2-0',3),('0-1',2),('1-0',1),('3-0',1)],
+   'adv':('Brasil',74,'Noruega',32),'cc':('Brasil',93,'Noruega',15),
    'special':[('REVELACIÓN','Noruega: 26 la eligieron como revelación','+3 si llega a cuartos')]},
-  {'file':'oct05_mexico_inglaterra.png','hora':'HOY 02:00','home':'México','away':'Inglaterra','total':106,
-   'x1':[('1 · MÉXICO',8,'8',False),('X · EMPATE',50,'53',True),('2 · INGLATERRA',42,'45',False)],
-   'scores':[('1-1',42),('1-2',31),('2-2',9),('0-1',6),('2-1',6),('0-2',5),('1-3',2),('0-0',2),('2-3',1),('1-0',1),('3-2',1)],
-   'adv':('México',25,'Inglaterra',81),'cc':('México',6,'Inglaterra',105),
+  {'file':'oct05_mexico_inglaterra.png','hora':'LUN 02:00','home':'México','away':'Inglaterra','total':107,
+   'x1':[('1 · MÉXICO',8,'9',False),('X · EMPATE',50,'53',True),('2 · INGLATERRA',42,'45',False)],
+   'scores':[('1-1',42),('1-2',31),('2-2',9),('2-1',7),('0-1',6),('0-2',5),('1-3',2),('0-0',2),('2-3',1),('1-0',1),('3-2',1)],
+   'adv':('México',26,'Inglaterra',81),'cc':('México',6,'Inglaterra',105),
    'special':[]},
 ]
 
@@ -51,7 +51,7 @@ def render(c):
     mx=max(n for _,n in c['scores'])
     for i,(sc,n) in enumerate(c['scores']):
         top=CT+i*RH; lead=(i==0); col=BLUEL if lead else WHITE; barcol=BLUE if lead else '#2f9e63'
-        bar_cy=top+10  # centro vertical de la barra → todo el texto de la fila se centra aquí
+        bar_cy=top+10
         rr(76,top+6,180,8,4,'#2c303a'); rr(76,top+6,max(3,round(n/mx*180)),8,4,barcol)
         tx(26,bar_cy,sc,12,col,True,anchor='lm')
         tx(300,bar_cy,str(round(n/BASE*100,1))+'%',10,MUT,anchor='rm')
