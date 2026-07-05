@@ -112,12 +112,9 @@ export default async function handler(req, res) {
     return res.json({ sent: 0, pruned: 0, total: 0 })
   }
 
-  const cierre = round.deadline.toLocaleString('es-ES', {
-    weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid',
-  })
   const payload = JSON.stringify({
     title: `🏆 ${round.display}: cuadro abierto`,
-    body: `Ya se conocen los cruces. Rellena ${round.label === 'la final' ? 'la final' : 'tus ' + round.label} antes del ${cierre}.`,
+    body: `Ya se conocen los cruces. Rellena ${round.label === 'la final' ? 'la final' : 'tus ' + round.label} — cada cruce cierra cuando empieza ese partido.`,
     url: '/predictions',
   })
 

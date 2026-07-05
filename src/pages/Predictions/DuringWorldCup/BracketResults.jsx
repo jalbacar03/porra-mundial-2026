@@ -72,26 +72,6 @@ export default function BracketResults({ session }) {
     if (firstOpen) setActiveRound(firstOpen)
   }
 
-  // Cierre ÚNICO por ronda: toda la ronda se cierra de golpe 1 min antes de su
-  // primer partido (decisión de producto: completar la ronda entera antes de
-  // que empiece, como el cuadro ciego). R32 usa la constante fija (dom 20:00);
-  // las rondas siguientes se calculan como primer-partido − 1 min. Los cruces
-  // se van habilitando solos según el sync rellena los equipos de la ronda
-  // (isBettingOpen exige teamsSet): el plazo se abre exactamente cuando se
-  // conocen los emparejamientos y cierra 1 min antes del primer partido.
-  const roundDeadline = useMemo(() => {
-    const map = { [R32_STAGE]: KNOCKOUT_PREDICTIONS_DEADLINE }
-    STAGE_ORDER.forEach(stage => {
-      if (stage === R32_STAGE) return
-      const ms = matches.filter(m => m.stage === stage && m.match_date)
-      if (ms.length) {
-        const earliest = Math.min(...ms.map(m => new Date(m.match_date).getTime()))
-        map[stage] = new Date(earliest - 60 * 1000)
-      }
-    })
-    return map
-  }, [matches])
-
   // ¿Equipos reales ya determinados? (antes del sorteo/sync son null → no se predice)
   function teamsSet(match) {
     return match.home_team_id != null && match.away_team_id != null
@@ -105,26 +85,16 @@ export default function BracketResults({ session }) {
     return ms.length > 0 && ms.every(m => m.home_team_id != null && m.away_team_id != null)
   }
 
+  // Cierre POR PARTIDO: cada cruce admite predicción hasta que empieza ESE
+  // partido (no un cierre único de ronda). Los ya jugados quedan cerrados por
+  // status='finished'. La ronda debe estar completa (todos los cruces conocidos)
+  // para poder empezar a predecir cualquiera de ella.
   function isBettingOpen(match) {
     if (match.status === 'finished') return false
     if (!teamsSet(match)) return false
     if (!roundFullyKnown(match.stage)) return false
-    const dl = roundDeadline[match.stage]
-    if (!dl) return false
-    return now < dl
-  }
-
-  // Cuenta atrás del bloque (d/h/m/s) hasta el cierre único de la ronda.
-  function countdownParts(stage) {
-    const deadline = roundDeadline[stage]
-    if (!deadline) return null
-    let diff = deadline - now
-    if (diff <= 0) return null
-    const d = Math.floor(diff / 86400000); diff -= d * 86400000
-    const h = Math.floor(diff / 3600000); diff -= h * 3600000
-    const m = Math.floor(diff / 60000); diff -= m * 60000
-    const s = Math.floor(diff / 1000)
-    return { d, h, m, s }
+    if (!match.match_date) return false
+    return now < new Date(match.match_date)
   }
 
   function updatePrediction(matchId, field, value) {
@@ -252,16 +222,17 @@ export default function BracketResults({ session }) {
   const activeRoundData = roundMatches.find(r => r.stage === activeRound)
   const hasAnyUnsaved = activeRoundData?.matches.some(m => hasUnsavedChanges(m.id) && isBettingOpen(m))
 
-  // Banner de cierre de la ronda activa (cierre único para toda la ronda)
-  const activeDeadline = roundDeadline[activeRound]
+  // Banner de estado de la ronda activa (cierre POR PARTIDO). Contamos cuántos
+  // cruces siguen abiertos (aún no empezados) y cuál es el próximo en cerrarse.
   const activeAllFinished = activeRoundData?.matches.every(m => m.status === 'finished')
-  const activeTeamsSet = activeRoundData?.matches.some(m => teamsSet(m))
-  const deadlinePassed = activeDeadline && now >= activeDeadline
-  const deadlineStr = activeDeadline
-    ? activeDeadline.toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
+  const activeRoundKnown = activeRoundData?.matches.every(m => teamsSet(m))
+  const openMatches = activeRoundData?.matches.filter(m => isBettingOpen(m)) || []
+  const nextClose = openMatches.length
+    ? new Date(Math.min(...openMatches.map(m => new Date(m.match_date).getTime())))
     : null
-  const cp = countdownParts(activeRound)
-  const pad = (n) => String(n).padStart(2, '0')
+  const nextCloseStr = nextClose
+    ? nextClose.toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' })
+    : null
 
   return (
     <div>
@@ -271,7 +242,7 @@ export default function BracketResults({ session }) {
           Cuadro de eliminatorias
         </h3>
         <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
-          Predice el resultado a 90 minutos. Toda la ronda cierra de golpe poco antes de su primer partido.
+          Predice el resultado a 90 minutos. Cada cruce se cierra cuando empieza ese partido.
         </p>
         <div style={{
           marginTop: '8px', display: 'flex', gap: '12px',
@@ -311,38 +282,20 @@ export default function BracketResults({ session }) {
         })}
       </div>
 
-      {/* Banner de cierre ÚNICO de la ronda — un solo timer para todo el bloque */}
-      {activeRoundData && !activeAllFinished && activeDeadline && (
+      {/* Banner de estado — cierre POR PARTIDO (cada cruce hasta que empieza) */}
+      {activeRoundData && !activeAllFinished && (
         <div style={{
           marginBottom: '12px', padding: '12px 14px', borderRadius: '10px',
-          background: deadlinePassed ? 'var(--red-bg)' : 'rgba(255,204,0,0.08)',
-          border: deadlinePassed ? '1px solid rgba(226,75,74,0.25)' : '1px solid rgba(255,204,0,0.22)',
-          fontSize: '11px', lineHeight: '1.45',
-          color: deadlinePassed ? 'var(--red)' : 'var(--text-muted)'
+          background: openMatches.length ? 'rgba(255,204,0,0.08)' : 'var(--bg-secondary)',
+          border: openMatches.length ? '1px solid rgba(255,204,0,0.22)' : '0.5px solid var(--border)',
+          fontSize: '11px', lineHeight: '1.45', color: 'var(--text-muted)'
         }}>
-          {!activeTeamsSet ? (
-            <span>⏳ <strong>Emparejamientos por confirmar.</strong> En cuanto se cierren los grupos aparecerán los rivales reales y podrás predecir.</span>
-          ) : deadlinePassed ? (
-            <span>🔒 <strong>{activeRoundData.label} cerrados.</strong> Ya no admiten cambios.</span>
+          {!activeRoundKnown ? (
+            <span>⏳ <strong>Emparejamientos por confirmar.</strong> En cuanto se jueguen los cruces anteriores aparecerán los rivales y podrás predecir.</span>
+          ) : openMatches.length > 0 ? (
+            <span>🟢 <strong>Predice los cruces que aún no se han jugado.</strong> Cada uno se cierra cuando empieza ese partido{nextCloseStr ? <> — el próximo cierra <span style={{ textTransform: 'capitalize', color: 'var(--text-primary)', fontWeight: 700 }}>{nextCloseStr}</span></> : ''}.</span>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                  Cierran los {activeRoundData.matches.length} {activeRoundData.label.toLowerCase()} a la vez
-                </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-dim)', marginTop: '2px', textTransform: 'capitalize' }}>
-                  {deadlineStr}
-                </div>
-              </div>
-              {cp && (
-                <div style={{
-                  fontSize: '20px', fontWeight: '800', color: 'var(--gold)',
-                  fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0
-                }}>
-                  {cp.d > 0 ? `${cp.d}d ` : ''}{cp.h}:{pad(cp.m)}:{pad(cp.s)}
-                </div>
-              )}
-            </div>
+            <span>🔒 <strong>Sin cruces abiertos.</strong> Todos los partidos de esta ronda ya han empezado o terminado.</span>
           )}
         </div>
       )}

@@ -217,14 +217,13 @@ export default function Dashboard({ session, demoMode }) {
       // espera a que se jueguen los 8 octavos). Así no aparece "cuartos 1 de 1"
       // en cuanto un solo cruce tiene equipos.
       if (all.some(m => !m.home_team_id || !m.away_team_id)) continue
-      const dated = all.filter(m => m.match_date)
-      if (!dated.length) continue
-      const earliest = Math.min(...dated.map(m => new Date(m.match_date).getTime()))
-      const deadline = earliest - 60 * 1000  // 1 min antes del primer partido de la ronda
-      if (Date.now() >= deadline) continue   // ronda ya cerrada → probar la siguiente
-      const ids = new Set(all.map(m => m.id))
+      // Cierre POR PARTIDO: siguen abiertos los cruces no jugados y no empezados.
+      const openM = all.filter(m => m.status !== 'finished' && m.match_date && new Date(m.match_date).getTime() > Date.now())
+      if (!openM.length) continue   // nada abierto en esta ronda → probar la siguiente
+      const ids = new Set(openM.map(m => m.id))
       const done = (preds || []).filter(p => ids.has(p.match_id) && p.predicted_home != null && p.predicted_away != null).length
-      openR = { label: kr.label, deadline: new Date(deadline), total: all.length, faltan: all.length - done }
+      const nextClose = Math.min(...openM.map(m => new Date(m.match_date).getTime()))
+      openR = { label: kr.label, deadline: new Date(nextClose), total: openM.length, faltan: openM.length - done }
       break
     }
     setOpenRound(openR)
@@ -640,7 +639,7 @@ function formatDateShort(dateStr) {
                 {title}
               </div>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4' }}>
-                Te {openRound.faltan === 1 ? 'falta' : 'faltan'} <strong>{openRound.faltan}</strong> de {openRound.total} · cierra <strong>{dayLbl} {hhmm}</strong> · faltan {openRoundCd.days > 0 ? `${openRoundCd.days}d ` : ''}{String(openRoundCd.hours).padStart(2, '0')}h {String(openRoundCd.minutes).padStart(2, '0')}m
+                Te {openRound.faltan === 1 ? 'queda' : 'quedan'} <strong>{openRound.faltan}</strong> de {openRound.total} sin jugar · el próximo cierra <strong>{dayLbl} {hhmm}</strong> · en {openRoundCd.days > 0 ? `${openRoundCd.days}d ` : ''}{String(openRoundCd.hours).padStart(2, '0')}h {String(openRoundCd.minutes).padStart(2, '0')}m
               </div>
             </div>
             <span style={{ fontSize: '20px', color: 'var(--gold)', flexShrink: 0 }}>›</span>
