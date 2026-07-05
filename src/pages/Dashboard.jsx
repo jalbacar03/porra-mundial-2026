@@ -6,7 +6,7 @@ import { SkeletonDashboard, FootballSpinner } from '../components/Skeleton'
 import PointsChart from '../components/PointsChart'
 import Avatar from '../components/Avatar'
 import PWAInstallBanner from '../components/PWAInstallBanner'
-import { PREDICTIONS_DEADLINE, KNOCKOUT_PREDICTIONS_OPEN, KNOCKOUT_PREDICTIONS_DEADLINE, useCountdown } from '../hooks/useCountdown'
+import { PREDICTIONS_DEADLINE, KNOCKOUT_PREDICTIONS_OPEN, KNOCKOUT_PREDICTIONS_DEADLINE, KNOCKOUT_ROUND_DEADLINE_OVERRIDES, useCountdown } from '../hooks/useCountdown'
 import { useNotifications } from '../hooks/useNotifications'
 import { useLivePoints } from '../hooks/useLivePoints'
 import { displayName } from '../utils/nickname'
@@ -217,13 +217,18 @@ export default function Dashboard({ session, demoMode }) {
       // espera a que se jueguen los 8 octavos). Así no aparece "cuartos 1 de 1"
       // en cuanto un solo cruce tiene equipos.
       if (all.some(m => !m.home_team_id || !m.away_team_id)) continue
-      // Cierre POR PARTIDO: siguen abiertos los cruces no jugados y no empezados.
-      const openM = all.filter(m => m.status !== 'finished' && m.match_date && new Date(m.match_date).getTime() > Date.now())
-      if (!openM.length) continue   // nada abierto en esta ronda → probar la siguiente
-      const ids = new Set(openM.map(m => m.id))
+      const dated = all.filter(m => m.match_date)
+      if (!dated.length) continue
+      const earliest = Math.min(...dated.map(m => new Date(m.match_date).getTime()))
+      const override = KNOCKOUT_ROUND_DEADLINE_OVERRIDES[kr.stage]
+      const deadline = override ? override.getTime() : earliest - 60 * 1000  // override de ampliación o "1er partido − 1 min"
+      if (Date.now() >= deadline) continue   // ronda ya cerrada → probar la siguiente
+      // Solo cuentan los cruces aún NO jugados (los jugados quedan cerrados y no
+      // se pueden rellenar aunque el cierre único siga abierto).
+      const fillable = all.filter(m => m.status !== 'finished')
+      const ids = new Set(fillable.map(m => m.id))
       const done = (preds || []).filter(p => ids.has(p.match_id) && p.predicted_home != null && p.predicted_away != null).length
-      const nextClose = Math.min(...openM.map(m => new Date(m.match_date).getTime()))
-      openR = { label: kr.label, deadline: new Date(nextClose), total: openM.length, faltan: openM.length - done }
+      openR = { label: kr.label, deadline: new Date(deadline), total: fillable.length, faltan: fillable.length - done }
       break
     }
     setOpenRound(openR)
@@ -639,7 +644,7 @@ function formatDateShort(dateStr) {
                 {title}
               </div>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4' }}>
-                Te {openRound.faltan === 1 ? 'queda' : 'quedan'} <strong>{openRound.faltan}</strong> de {openRound.total} sin jugar · el próximo cierra <strong>{dayLbl} {hhmm}</strong> · en {openRoundCd.days > 0 ? `${openRoundCd.days}d ` : ''}{String(openRoundCd.hours).padStart(2, '0')}h {String(openRoundCd.minutes).padStart(2, '0')}m
+                Te {openRound.faltan === 1 ? 'falta' : 'faltan'} <strong>{openRound.faltan}</strong> de {openRound.total} · cierra <strong>{dayLbl} {hhmm}</strong> · faltan {openRoundCd.days > 0 ? `${openRoundCd.days}d ` : ''}{String(openRoundCd.hours).padStart(2, '0')}h {String(openRoundCd.minutes).padStart(2, '0')}m
               </div>
             </div>
             <span style={{ fontSize: '20px', color: 'var(--gold)', flexShrink: 0 }}>›</span>

@@ -19,6 +19,14 @@ export const PREDICTIONS_DEADLINE = new Date('2026-06-10T21:59:59Z')
 export const KNOCKOUT_PREDICTIONS_OPEN = new Date('2026-06-28T05:00:00Z')      // dom 28, 07:00 Madrid
 export const KNOCKOUT_PREDICTIONS_DEADLINE = new Date('2026-06-29T16:00:00Z')  // lun 29, 18:00 Madrid (reapertura)
 
+// Override manual del CIERRE ÚNICO de una ronda KO (ampliaciones de plazo).
+// Clave = matches.stage. Si existe, MANDA sobre el cálculo "primer partido − 1 min".
+// Se usa cuando se amplía el plazo de una ronda cuyo primer partido ya se jugó
+// (p.ej. octavos: 2 cruces jugados el sáb, se reabre el resto hasta el dom 21:00).
+export const KNOCKOUT_ROUND_DEADLINE_OVERRIDES = {
+  'Round of 16': new Date('2026-07-05T19:00:00Z'),  // dom 5 jul, 21:00 Madrid (ampliación octavos)
+}
+
 export function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(targetDate))
 
