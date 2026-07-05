@@ -17,10 +17,10 @@ MATCHES = [('BRA – NOR','HOY 22:00'), ('MÉX – ING','LUN 02:00')]
 # (pos, nombre, pts, color, [pred_p1, pred_p2])
 TOP = [
   (1,'Jan Alemany',120,GOLD,['2-1','0-1']),
-  (2,'Nacho de Oza',115,SILVER,['3-1','1-1']),
-  (3,'Tomás Brillas',114,BRONZE,['1-1','0-1']),
-  (4,'Gonzalo Gramunt',112,PRIZE,['2-1','1-2']),
-  (5,'Carlos de Muller',110,PRIZE,['2-2','1-1']),
+  (2,'Javi Albácar',115,SILVER,['2-1','0-0']),
+  (3,'Nacho de Oza',115,BRONZE,['3-1','1-1']),
+  (4,'Tomás Brillas',114,PRIZE,['1-1','0-1']),
+  (5,'Gonzalo Gramunt',112,PRIZE,['2-1','1-2']),
 ]
 CX = [258, 340]  # centros de las 2 columnas de pronóstico
 W=380; RH=62; H=84+44+len(TOP)*RH+26
