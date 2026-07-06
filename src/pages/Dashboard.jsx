@@ -13,6 +13,7 @@ import { displayName } from '../utils/nickname'
 import { matchPredictionPoints, matchCCPoints } from '../utils/livePoints'
 import { isFriendlyVisible } from '../config/featureFlags'
 import NicknameModal from '../components/NicknameModal'
+import TopPredictionsWidget from '../components/TopPredictionsWidget'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -1230,6 +1231,9 @@ function formatDateShort(dateStr) {
           📋 Ver normas
         </button>
       </div>
+
+      {/* Qué ha puesto el top 5 para los próximos partidos (rondas ya cerradas) */}
+      {!demoMode && <TopPredictionsWidget />}
 
       {/* ===== PRÓXIMOS (compact rows with badges) ===== */}
       {!demoMode && nextMatches.length > 0 && (() => {

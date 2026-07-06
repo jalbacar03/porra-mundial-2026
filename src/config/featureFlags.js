@@ -28,7 +28,7 @@ export function isFriendlyVisible(profile) {
  * ese participante (perfil) en vez del H2H. En pruebas solo lo ve Javi; cuando
  * esté validado, poner PARTICIPANT_PROFILE_FOR_ALL = true para habilitarlo a todos.
  */
-export const PARTICIPANT_PROFILE_FOR_ALL = false
+export const PARTICIPANT_PROFILE_FOR_ALL = true
 const PARTICIPANT_PROFILE_VIEWERS = ['e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'] // Javi (admin)
 export function canSeeParticipantProfile(userId) {
   return PARTICIPANT_PROFILE_FOR_ALL || PARTICIPANT_PROFILE_VIEWERS.includes(userId)

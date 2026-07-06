@@ -231,6 +231,9 @@ async function generateWithGemini(data) {
   const today = new Date().toLocaleDateString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
+  // El plazo de predicciones pre-torneo (10 jun) ya pasó → NO mencionarlo durante
+  // el torneo. Solo se habla del cierre si aún estamos antes de esa fecha.
+  const showDeadline = data.daysToDeadline > 0
 
   // Shared context block — same data for both prompts
   let context
@@ -257,9 +260,7 @@ MOVIMIENTOS DE HOY (puntos sumados + cambio de posición):
 ${movementsText}
 
 RESULTADOS RECIENTES:
-${recentResults}
-
-DÍAS HASTA EL CIERRE DE PREDICCIONES: ${data.daysToDeadline}`
+${recentResults}${showDeadline ? `\n\nDÍAS HASTA EL CIERRE DE PREDICCIONES: ${data.daysToDeadline}` : ''}`
   } else {
     const newsContext = data.newsHeadlines.length > 0
       ? `\nÚLTIMAS NOTICIAS DEL FÚTBOL:\n${data.newsHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
@@ -282,7 +283,7 @@ DÍAS HASTA EL CIERRE DE PREDICCIONES: ${data.daysToDeadline}`
 - Tono profesional pero cercano. Cero hype. Datos > adjetivos. Nombres > genéricos.
 - PROHIBIDO: exclamaciones múltiples, "¡atención!", "ojo", "tensión", "presagio", "imparable", "sin duda", emojis decorativos, signos "¡".
 - Permitido máximo 1 emoji solo si aporta dato (🏆 líder, ⚽ gol).
-- Usa exactamente ${data.daysToDeadline} días para el cierre. No inventes.${noMatchesRule}`
+${showDeadline ? `- Usa exactamente ${data.daysToDeadline} días para el cierre. No inventes.` : '- NO menciones ningún "cierre de plazo", "último día" ni "hoy cierran las predicciones": el plazo pre-torneo ya pasó y el torneo está en marcha (fase eliminatoria).'}${noMatchesRule}`
 
   const shortPrompt = `Redacta la SHORT del día — el extracto que un usuario lee de un vistazo en el dashboard.
 
@@ -310,7 +311,7 @@ ESTRUCTURA:
 - Estructura: contexto de la noticia o jornada → análisis del impacto sobre las predicciones (campeón, revelación, goleador, líder de la porra) → comparativa o patrón histórico relevante → implicación para los participantes.
 - Frases comparativas explícitas ("a diferencia de…", "frente a…"), datos numéricos o porcentajes cuando proceda, ironía mesurada permitida.
 - Tono editorial: periodista de fondo, no comentarista de partido. Como The Economist o un buen columnista de El País.
-- Cierra mencionando que ${data.daysToDeadline === 0 ? 'hoy es el último día' : data.daysToDeadline === 1 ? 'queda 1 día' : `quedan ${data.daysToDeadline} días`} para el cierre del plazo. Respeta exactamente esa forma (singular/plural).
+${showDeadline ? `- Cierra mencionando que ${data.daysToDeadline === 1 ? 'queda 1 día' : `quedan ${data.daysToDeadline} días`} para el cierre del plazo. Respeta exactamente esa forma (singular/plural).` : '- Cierra con una frase sobre la carrera de la porra o lo que está en juego en los próximos partidos. NO menciones cierres de plazo de predicciones.'}
 
 ${context}
 

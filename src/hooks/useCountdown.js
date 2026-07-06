@@ -30,12 +30,17 @@ export const KNOCKOUT_ROUND_DEADLINE_OVERRIDES = {
 export function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(targetDate))
 
+  // Dependemos del INSTANTE (ms), no de la referencia del objeto Date: así un
+  // `new Date(mismaHora)` en cada render del padre no reinicia el interval (era
+  // lo que hacía saltar los segundos de 2 en 2 en los countdowns de partidos).
+  const targetMs = targetDate ? targetDate.getTime() : null
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(getTimeLeft(targetDate))
     }, 1000)
     return () => clearInterval(timer)
-  }, [targetDate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetMs])
 
   return timeLeft
 }
