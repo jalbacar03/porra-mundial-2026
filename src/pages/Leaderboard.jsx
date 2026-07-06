@@ -5,9 +5,10 @@ import { generateMockLeaderboard } from '../hooks/useDemoMode'
 import { SkeletonLeaderboard } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import H2HModal from '../components/H2HModal'
+import ParticipantProfileModal from '../components/ParticipantProfileModal'
 import { displayName, formatRealName } from '../utils/nickname'
 import { KNOCKOUT_PREDICTIONS_OPEN } from '../hooks/useCountdown'
-import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible } from '../config/featureFlags'
+import { FRIENDLY_TOURNAMENT_ENABLED, isFriendlyVisible, canSeeParticipantProfile } from '../config/featureFlags'
 const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 
 export default function Leaderboard({ demoMode }) {
@@ -17,6 +18,7 @@ export default function Leaderboard({ demoMode }) {
   const [profileNames, setProfileNames] = useState({})
   const [positionChanges, setPositionChanges] = useState({})
   const [h2hRival, setH2hRival] = useState(null)
+  const [profileUser, setProfileUser] = useState(null)  // PRUEBA: perfil de predicciones al pulsar nombre
   const [liveMatches, setLiveMatches] = useState([])
   // Provisional por scope, calculado server-side (RPC SECURITY DEFINER) para
   // que TODOS los usuarios vean el provisional de TODOS (el RLS de predictions
@@ -612,7 +614,9 @@ export default function Leaderboard({ demoMode }) {
           paymentConfirmed: activeTab === 'friendly' ? null : paymentConfirmed,
           onRowClick: activeTab === 'friendly'
             ? null
-            : (user) => setH2hRival({ id: user.user_id, name: user.full_name }),
+            : (user) => (canSeeParticipantProfile(userId)
+                ? setProfileUser({ id: user.user_id, name: user.full_name })
+                : setH2hRival({ id: user.user_id, name: user.full_name })),
           following: activeTab === 'friendly' ? null : following,
           onToggleFollow: activeTab === 'friendly' ? null : toggleFollow,
         })
@@ -627,6 +631,15 @@ export default function Leaderboard({ demoMode }) {
           rivalId={h2hRival.id}
           rivalName={h2hRival.name}
           onClose={() => setH2hRival(null)}
+        />
+      )}
+
+      {/* PRUEBA (gated): perfil con todas las predicciones del participante */}
+      {profileUser && (
+        <ParticipantProfileModal
+          participantId={profileUser.id}
+          participantName={profileUser.name}
+          onClose={() => setProfileUser(null)}
         />
       )}
     </div>
