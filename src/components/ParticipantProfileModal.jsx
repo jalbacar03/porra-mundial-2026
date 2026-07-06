@@ -17,6 +17,8 @@ const KO_LABEL = {
   'Semi-finals': 'Semifinales', 'Third place': '3er puesto', 'Final': 'Final',
 }
 const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+// Cuadro ciego (bracket_picks): a quién pusieron pasando cada ronda pre-Mundial.
+const CC_ORDER = [['r32', 'Pasan a octavos'], ['r16', 'Pasan a cuartos'], ['qf', 'Pasan a semifinales'], ['sf', 'Finalistas'], ['final', 'Campeón']]
 
 export default function ParticipantProfileModal({ participantId, participantName, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -28,13 +30,14 @@ export default function ParticipantProfileModal({ participantId, participantName
     if (!participantId) return
     ;(async () => {
       try {
-        const [predsRes, matchesRes, betsRes, entriesRes, teamsRes, lbRes] = await Promise.all([
+        const [predsRes, matchesRes, betsRes, entriesRes, teamsRes, lbRes, bracketRes] = await Promise.all([
           supabase.from('predictions').select('match_id, predicted_home, predicted_away, predicted_advancer_id, points_earned').eq('user_id', participantId),
           supabase.from('matches').select('id, stage, group_name, status, match_date, match_number, home_score, away_score, home_team:teams!matches_home_team_id_fkey(name, flag_url), away_team:teams!matches_away_team_id_fkey(name, flag_url)').neq('stage', 'friendly').neq('stage', 'test').order('match_number'),
-          supabase.from('pre_tournament_bets').select('id, name, question, input_type, sort_order').eq('is_active', true).order('sort_order'),
+          supabase.from('pre_tournament_bets').select('id, name, input_type, sort_order').eq('is_active', true).order('sort_order'),
           supabase.from('pre_tournament_entries').select('bet_id, value, points_awarded, is_resolved').eq('user_id', participantId),
           supabase.from('teams').select('id, name'),
           supabase.from('leaderboard').select('total_points, exact_hits').eq('user_id', participantId).maybeSingle(),
+          supabase.from('bracket_picks').select('round, predicted_winner_id').eq('user_id', participantId),
         ])
         const predMap = {}
         ;(predsRes.data || []).forEach(p => { predMap[p.match_id] = p })
@@ -47,6 +50,7 @@ export default function ParticipantProfileModal({ participantId, participantName
           entries: entriesRes.data || [],
           teamName,
           lb: lbRes.data || null,
+          bracket: bracketRes.data || [],
         })
       } catch (e) {
         console.error('perfil fetch', e); setData(null)
@@ -111,12 +115,12 @@ export default function ParticipantProfileModal({ participantId, participantName
           </div>
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '4px', marginTop: '14px', background: 'var(--bg-input)', borderRadius: '8px', padding: '3px' }}>
-            {[['grupos', 'Grupos'], ['elim', 'Eliminatorias'], ['esp', 'Especiales']].map(([k, l]) => (
+            {[['grupos', 'Grupos'], ['elim', 'Eliminat.'], ['cuadro', 'Cuadro'], ['esp', 'Especiales']].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} style={{
-                flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                flex: 1, padding: '7px 3px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                 background: tab === k ? 'var(--bg-secondary)' : 'transparent',
                 color: tab === k ? 'var(--text-primary)' : 'var(--text-muted)',
-                fontSize: '11px', fontWeight: tab === k ? 700 : 500,
+                fontSize: '10.5px', fontWeight: tab === k ? 700 : 500, whiteSpace: 'nowrap',
               }}>{l}</button>
             ))}
           </div>
@@ -174,6 +178,30 @@ export default function ParticipantProfileModal({ participantId, participantName
                 })}
               </div>
             ))
+          ) : tab === 'cuadro' ? (
+            data.bracket.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '13px' }}>Sin cuadro ciego.</div>
+            ) : (
+              <>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginBottom: '12px', lineHeight: 1.4 }}>
+                  A quién puso pasando cada ronda antes de empezar el Mundial.
+                </div>
+                {CC_ORDER.map(([rk, label]) => {
+                  const teams = data.bracket.filter(b => b.round === rk).map(b => data.teamName[b.predicted_winner_id]).filter(Boolean)
+                  if (!teams.length) return null
+                  return (
+                    <div key={rk} style={{ marginBottom: '14px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, marginBottom: '7px' }}>{label}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {teams.map((t, i) => (
+                          <span key={i} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', padding: '4px 10px', background: 'var(--bg-input)', borderRadius: '20px' }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </>
+            )
           ) : (
             data.entries.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '13px' }}>Sin predicciones especiales.</div>
@@ -187,7 +215,7 @@ export default function ParticipantProfileModal({ participantId, participantName
                 : '—'
               return (
                 <div key={bet.id} style={{ padding: '10px 0', borderBottom: '0.5px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>{bet.name || bet.question}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>{bet.name}</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{val}</span>
                     {e.is_resolved && (
