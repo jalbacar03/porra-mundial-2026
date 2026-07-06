@@ -13,7 +13,7 @@ import { displayName } from '../utils/nickname'
 import { matchPredictionPoints, matchCCPoints } from '../utils/livePoints'
 import { isFriendlyVisible } from '../config/featureFlags'
 import NicknameModal from '../components/NicknameModal'
-import TopPredictionsWidget from '../components/TopPredictionsWidget'
+import { useTopPicks } from '../hooks/useTopPicks'
 
 export default function Dashboard({ session, demoMode }) {
   const navigate = useNavigate()
@@ -47,6 +47,7 @@ export default function Dashboard({ session, demoMode }) {
   const hasLiveMundial = liveMatchCount > 0
   const knockoutCd = useCountdown(KNOCKOUT_PREDICTIONS_DEADLINE)
   const openRoundCd = useCountdown(openRound?.deadline || KNOCKOUT_PREDICTIONS_DEADLINE)
+  const topPicks = useTopPicks()  // { matchId: [{name, medal, cell}] } — top 5 por partido (rondas cerradas)
   const [notifDismissed, setNotifDismissed] = useState(() => localStorage.getItem('porra26_notif_dismissed') === '1')
 
   // Stable mock data (regenerate only when demoMode changes)
@@ -942,6 +943,7 @@ function formatDateShort(dateStr) {
           <MundialMatchBanner
             key={m.id} match={m} prediction={pred} bracketPicks={myBracketPicks}
             isLast={i === items.length - 1}
+            topPicks={topPicks[m.id]}
             onClick={() => navigate('/matchday')}
           />
         ))
@@ -1232,9 +1234,6 @@ function formatDateShort(dateStr) {
         </button>
       </div>
 
-      {/* Qué ha puesto el top 5 para los próximos partidos (rondas ya cerradas) */}
-      {!demoMode && <TopPredictionsWidget />}
-
       {/* ===== PRÓXIMOS (compact rows with badges) ===== */}
       {!demoMode && nextMatches.length > 0 && (() => {
         const today = new Date()
@@ -1446,7 +1445,8 @@ function formatDateShort(dateStr) {
 }
 
 // Banner de partido del Mundial: live (rojo) o pre (verde + countdown hasta el inicio).
-function MundialMatchBanner({ match, prediction, bracketPicks, isLast, onClick }) {
+function MundialMatchBanner({ match, prediction, bracketPicks, isLast, topPicks, onClick }) {
+  const [showTop, setShowTop] = useState(false)
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
   const matchDate = new Date(match.match_date)
@@ -1537,6 +1537,28 @@ function MundialMatchBanner({ match, prediction, bracketPicks, isLast, onClick }
           )}
         </div>
       </div>
+
+      {topPicks?.length > 0 && (
+        <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '8px' }}>
+          <button onClick={() => setShowTop(v => !v)} style={{
+            background: 'none', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer',
+            fontSize: '11px', fontWeight: '700', padding: 0, display: 'flex', alignItems: 'center', gap: '5px'
+          }}>
+            👑 Qué ha puesto el top 5 <span style={{ fontSize: '9px' }}>{showTop ? '▲' : '▼'}</span>
+          </button>
+          {showTop && (
+            <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {topPicks.map((t, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <span style={{ width: '15px', fontWeight: '800', color: t.medal, flexShrink: 0 }}>{i + 1}º</span>
+                  <span style={{ flex: 1, color: 'rgba(255,255,255,0.9)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                  <span style={{ fontWeight: '700', color: '#fff', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{t.cell}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
