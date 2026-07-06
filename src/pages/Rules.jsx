@@ -1,3 +1,5 @@
+import DownloadPredictions from '../components/DownloadPredictions'
+
 export default function Rules() {
   return (
     <div style={{ maxWidth: '540px', margin: '0 auto', padding: '16px', minHeight: '100svh' }}>
@@ -226,6 +228,11 @@ export default function Rules() {
           'El organizador se reserva el derecho de resolver disputas.'
         ]} />
       </Section>
+
+      {/* ===== TRANSPARENCIA / DESCARGAS ===== */}
+      <div style={{ marginBottom: '16px' }}>
+        <DownloadPredictions />
+      </div>
 
       <div style={{ height: '100px' }} />
     </div>
