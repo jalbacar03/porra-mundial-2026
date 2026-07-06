@@ -5,17 +5,22 @@ const BOT365_ID = 'b0365b03-65b0-365b-0365-b0365b036500'
 export const TOP_MEDAL = ['#ffcc00', '#c8ccd4', '#cd8246', '#9a8456', '#9a8456']
 
 /**
- * Devuelve un mapa { matchId: [{ name, medal, cell }] } con lo que ha puesto el
- * TOP 5 de la clasificación en cada partido — SOLO de rondas ya cerradas (el
- * primer partido de la ronda ya empezó), para no revelar picks de una ronda con
- * el plazo abierto. Se usa en los banners de partido del Inicio.
+ * Devuelve un mapa { matchId: [{ name, medal, cell, ph, pa }] } con lo que ha
+ * puesto el TOP 5 ACTUAL de la clasificación en cada partido — solo de rondas ya
+ * cerradas (el primer partido de la ronda ya empezó), para no revelar picks de
+ * una ronda con el plazo abierto.
+ *
+ * DINÁMICO: se re-calcula cuando cambian los partidos (Realtime). Así, si al
+ * acabar un partido cambia el top 5, el desplegable del siguiente partido ya
+ * muestra el top 5 nuevo. `ph`/`pa` = marcador crudo, para marcar 🎯 en vivo.
  */
 export function useTopPicks() {
   const [picks, setPicks] = useState({})
 
   useEffect(() => {
     let alive = true
-    ;(async () => {
+
+    async function load() {
       try {
         const [lbRes, profRes, matchesRes, teamsRes] = await Promise.all([
           supabase.from('leaderboard').select('user_id, full_name, total_points, exact_hits'),
@@ -32,7 +37,6 @@ export function useTopPicks() {
         const teamName = {}
         ;(teamsRes.data || []).forEach(t => { teamName[t.id] = t.name })
 
-        // Rondas cerradas: primer partido de la ronda ya empezó.
         const now = Date.now()
         const stageFirst = {}
         ;(matchesRes.data || []).forEach(m => {
@@ -52,25 +56,35 @@ export function useTopPicks() {
         const predMap = {}
         ;(predRes.data || []).forEach(p => { predMap[`${p.user_id}|${p.match_id}`] = p })
 
-        const cell = (uid, mid) => {
+        const entry = (uid, mid) => {
           const p = predMap[`${uid}|${mid}`]
-          if (!p || p.predicted_home == null) return '—'
-          let s = `${p.predicted_home}-${p.predicted_away}`
-          if (p.predicted_home === p.predicted_away && p.predicted_advancer_id) {
-            s += ` ${(teamName[p.predicted_advancer_id] || '').slice(0, 3).toUpperCase()}`
+          const has = p && p.predicted_home != null
+          let cell = '—'
+          if (has) {
+            cell = `${p.predicted_home}-${p.predicted_away}`
+            if (p.predicted_home === p.predicted_away && p.predicted_advancer_id) {
+              cell += ` ${(teamName[p.predicted_advancer_id] || '').slice(0, 3).toUpperCase()}`
+            }
           }
-          return s
+          return { cell, ph: has ? p.predicted_home : null, pa: has ? p.predicted_away : null }
         }
         const out = {}
         for (const mid of closedMatchIds) {
-          out[mid] = top5.map((u, i) => ({ name: u.full_name, medal: TOP_MEDAL[i], cell: cell(u.user_id, mid) }))
+          out[mid] = top5.map((u, i) => ({ name: u.full_name, medal: TOP_MEDAL[i], ...entry(u.user_id, mid) }))
         }
         if (alive) setPicks(out)
       } catch (e) {
         console.error('useTopPicks', e)
       }
-    })()
-    return () => { alive = false }
+    }
+
+    load()
+    // Re-calcula al cambiar los partidos (un partido acaba → puede cambiar el top 5).
+    const channel = supabase.channel('toppicks-matches')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => load())
+      .subscribe()
+
+    return () => { alive = false; supabase.removeChannel(channel) }
   }, [])
 
   return picks

@@ -1538,27 +1538,37 @@ function MundialMatchBanner({ match, prediction, bracketPicks, isLast, topPicks,
         </div>
       </div>
 
-      {topPicks?.length > 0 && (
+      {topPicks?.length > 0 && !isFinished && (() => {
+        // ¿Alguien del top 5 está clavando el marcador exacto ahora mismo?
+        const anyNail = (isLive || isStarted) && topPicks.some(t => t.ph != null && t.ph === match.home_score && t.pa === match.away_score)
+        return (
         <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.14)', paddingTop: '8px' }}>
           <button onClick={() => setShowTop(v => !v)} style={{
             background: 'none', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer',
             fontSize: '11px', fontWeight: '700', padding: 0, display: 'flex', alignItems: 'center', gap: '5px'
           }}>
-            👑 Qué ha puesto el top 5 <span style={{ fontSize: '9px' }}>{showTop ? '▲' : '▼'}</span>
+            Qué ha puesto el top 5{anyNail && <span title="Alguien del top 5 está clavando el resultado">🎯</span>} <span style={{ fontSize: '9px' }}>{showTop ? '▲' : '▼'}</span>
           </button>
           {showTop && (
             <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              {topPicks.map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                  <span style={{ width: '15px', fontWeight: '800', color: t.medal, flexShrink: 0 }}>{i + 1}º</span>
-                  <span style={{ flex: 1, color: 'rgba(255,255,255,0.9)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                  <span style={{ fontWeight: '700', color: '#fff', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{t.cell}</span>
-                </div>
-              ))}
+              {topPicks.map((t, i) => {
+                // 🎯 en vivo: este miembro del top 5 está clavando el marcador exacto ahora mismo.
+                const nail = (isLive || isStarted) && t.ph != null && t.ph === match.home_score && t.pa === match.away_score
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                    <span style={{ width: '15px', fontWeight: '800', color: t.medal, flexShrink: 0 }}>{i + 1}º</span>
+                    <span style={{ flex: 1, color: 'rgba(255,255,255,0.9)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.name}{nail && <span title="Clavando el resultado" style={{ marginLeft: '5px' }}>🎯</span>}
+                    </span>
+                    <span style={{ fontWeight: '700', color: nail ? '#7fffb0' : '#fff', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{t.cell}</span>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
