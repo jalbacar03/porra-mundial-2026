@@ -118,7 +118,7 @@ export default function Leaderboard({ demoMode }) {
     const pc = { friendly: 0, mundial: 0 }
     ;(playedRows || []).forEach(m => {
       if (m.stage === 'friendly') pc.friendly++
-      else if (m.stage !== 'test') pc.mundial++
+      else if (m.stage !== 'test' && m.stage !== 'Third place') pc.mundial++  // el 3er puesto no cuenta
     })
     setPlayedCounts(pc)
 
@@ -739,7 +739,7 @@ function renderSofaScore({
   // Mundial: ESP (especiales) y, ya en eliminatorias, CC (cuadro ciego) entre 1X2 y PTS.
   const baseGrid = !showEsp
     ? '34px 1fr 20px 22px 26px 34px'                  // Liguilla (PJ RE 1X2)
-    : '36px 1fr 20px 30px 20px 20px 22px 30px'        // Mundial (PJ RE·ex 1X2 CC ESP PTS) — RE ancho para el superíndice de exactos
+    : '36px 1fr 28px 30px 22px 22px 22px 34px'        // Mundial (PJ RE·ex 1X2 CC ESP PTS) — PJ ancho para 3 dígitos (100), PTS ancho para 3 dígitos
   const GRID = (canFollow ? '15px ' : '') + baseGrid
   const clickable = typeof onRowClick === 'function'
 

@@ -22,7 +22,7 @@ const STAGE_LABEL = {
   'Quarter-finals': 'Cuartos', 'Semi-finals': 'Semifinales',
   'Third place': '3er puesto', 'Final': 'Final',
 }
-const STAGE_ORDER = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Third place', 'Final']
+const STAGE_ORDER = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Final']  // sin 3er puesto (no cuenta en la porra)
 
 // Pagina con Range para sortear el tope de filas de PostgREST (~1000). Devuelve
 // TODAS las filas (importante: hay ~8600 predicciones de grupo).

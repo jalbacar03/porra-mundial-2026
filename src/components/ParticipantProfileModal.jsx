@@ -11,7 +11,7 @@ import { formatRealName } from '../utils/nickname'
  * y las rondas KO cuyo primer partido ya empezó). Nunca enseña una ronda con el
  * plazo abierto — evita que se copien picks en vivo.
  */
-const KO_ORDER = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Third place', 'Final']
+const KO_ORDER = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Final']  // sin 3er puesto (no cuenta)
 const KO_LABEL = {
   'Round of 32': 'Dieciseisavos', 'Round of 16': 'Octavos', 'Quarter-finals': 'Cuartos',
   'Semi-finals': 'Semifinales', 'Third place': '3er puesto', 'Final': 'Final',

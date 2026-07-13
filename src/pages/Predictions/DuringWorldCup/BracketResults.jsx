@@ -7,7 +7,9 @@ import { matchCCPoints } from '../../../utils/livePoints'
 // La BD guarda estos literales EXACTOS en matches.stage (los escribe
 // syncKnockoutTeams). NO usar 'r32'/'quarter_final' — no existen en la tabla y
 // dejarían el cuadro real sin partidos.
-const STAGE_ORDER = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Third place', 'Final']
+// El 3er puesto NO forma parte de la porra (normas: 31 partidos de eliminatorias,
+// sin 3er/4º puesto). Se excluye de las predicciones y del scoring.
+const STAGE_ORDER = ['Round of 32', 'Round of 16', 'Quarter-finals', 'Semi-finals', 'Final']
 const STAGE_LABELS = {
   'Round of 32': 'Dieciseisavos', 'Round of 16': 'Octavos',
   'Quarter-finals': 'Cuartos', 'Semi-finals': 'Semifinales',
