@@ -30,6 +30,7 @@ const KO_ROUNDS = [
 // con KNOCKOUT_ROUND_DEADLINE_OVERRIDES en src/hooks/useCountdown.js.
 const ROUND_DEADLINE_OVERRIDES = {
   'Round of 16': new Date('2026-07-05T19:40:00Z'), // dom 5 jul, 21:40 Madrid
+  'Semi-finals': new Date('2026-07-14T18:30:00Z'), // mar 14 jul, 20:30 Madrid
 }
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {

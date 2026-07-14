@@ -24,7 +24,8 @@ export const KNOCKOUT_PREDICTIONS_DEADLINE = new Date('2026-06-29T16:00:00Z')  /
 // Se usa cuando se amplía el plazo de una ronda cuyo primer partido ya se jugó
 // (p.ej. octavos: 2 cruces jugados el sáb, se reabre el resto hasta el dom 21:00).
 export const KNOCKOUT_ROUND_DEADLINE_OVERRIDES = {
-  'Round of 16': new Date('2026-07-05T19:40:00Z'),  // dom 5 jul, 21:40 Madrid (ampliación octavos)
+  'Round of 16': new Date('2026-07-05T19:40:00Z'),   // dom 5 jul, 21:40 Madrid (ampliación octavos)
+  'Semi-finals': new Date('2026-07-14T18:30:00Z'),   // mar 14 jul, 20:30 Madrid (cierre semis adelantado)
 }
 
 export function useCountdown(targetDate) {
