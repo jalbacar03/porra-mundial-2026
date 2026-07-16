@@ -29,15 +29,19 @@ export default function MaintenanceScreen({ message }) {
         fontSize: '20px', fontWeight: '800', color: 'var(--text-primary, #fff)',
         margin: '24px 0 10px', letterSpacing: '-0.3px'
       }}>
-        Volvemos enseguida
+        App en mantenimiento
       </h1>
 
-      <p style={{
-        fontSize: '14px', color: 'var(--text-muted, #8a8f99)', lineHeight: '1.6',
-        maxWidth: '320px', margin: 0
-      }}>
-        {message || 'Estamos haciendo ajustes en la app. Vuelve en un rato.'}
-      </p>
+      {/* El detalle es opcional a propósito: si maintenance_message va vacío no
+          se cuenta nada (no dar pistas de en qué se está trabajando). */}
+      {message && (
+        <p style={{
+          fontSize: '14px', color: 'var(--text-muted, #8a8f99)', lineHeight: '1.6',
+          maxWidth: '320px', margin: 0
+        }}>
+          {message}
+        </p>
+      )}
 
       <div style={{
         marginTop: '28px', fontSize: '12px', color: 'var(--text-dim, #6f747f)'

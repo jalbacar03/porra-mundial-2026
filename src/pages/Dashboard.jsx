@@ -683,10 +683,10 @@ function formatDateShort(dateStr) {
               borderRadius: '14px',
               background: isLive
                 ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
-                : 'linear-gradient(135deg, #1a2433, #2a3950)',
+                : 'linear-gradient(135deg, var(--accent-grad-a), var(--accent-grad-b))',
               border: isLive
                 ? '1.5px solid rgba(226,75,74,0.5)'
-                : '1px solid rgba(100,150,255,0.25)',
+                : '1px solid rgba(var(--accent-rgb),0.25)',
               cursor: 'pointer',
               position: 'relative',
               overflow: 'hidden'
@@ -695,7 +695,7 @@ function formatDateShort(dateStr) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{
                 fontSize: '10px', fontWeight: '800',
-                color: isLive ? 'var(--red)' : '#7eb3ff',
+                color: isLive ? 'var(--red)' : 'var(--accent-soft)',
                 letterSpacing: '1.4px', textTransform: 'uppercase'
               }}>
                 {isLive
@@ -786,10 +786,9 @@ function formatDateShort(dateStr) {
       }}>
       <div style={{
         flex: '2 1 280px',
-        // Fase eliminatoria → azul Liguilla (cambio de chip); grupos → verde.
-        background: new Date() >= KNOCKOUT_PREDICTIONS_OPEN
-          ? 'linear-gradient(135deg, #102a4d, #1d4d8c)'
-          : 'linear-gradient(135deg, #102a4d, #1d4d8c)',
+        // El degradado sale del acento del tema (antes había un ternario con las
+        // dos ramas ya idénticas, resto del cambio de paleta).
+        background: 'linear-gradient(135deg, var(--accent-grad-a), var(--accent-grad-b))',
         borderRadius: '14px',
         padding: '18px 20px',
         position: 'relative',
@@ -1380,8 +1379,8 @@ function formatDateShort(dateStr) {
               'linear-gradient(90deg, #ffd700, #b8860b)',
               'linear-gradient(90deg, #c0c0c0, #888)',
               'linear-gradient(90deg, #cd7f32, #8b4513)',
-              'linear-gradient(90deg, var(--accent), #16356b)',
-              'linear-gradient(90deg, var(--accent), #16356b)'
+              'linear-gradient(90deg, var(--accent), var(--accent-grad-a))',
+              'linear-gradient(90deg, var(--accent), var(--accent-grad-a))'
             ]
             const barWidth = maxPoints > 0 ? Math.max((user.total_points / maxPoints) * 100, 8) : 8
 
@@ -1469,10 +1468,18 @@ function MundialMatchBanner({ match, prediction, bracketPicks, isLast, topPicks,
   // CC (cuadro ciego) que aporta este cruce: +1/+2/+4/+8 si tu equipo del cuadro
   // ciego es el que gana (o va ganando, en vivo). Se muestra en live y finalizado.
   const ccPts = (isLive || isFinished) ? matchCCPoints(bracketPicks, match) : 0
-  // Estilos por estado: live/en juego (rojo) · finalizado (gris neutro) · pre (verde)
-  const bg = (isLive || isStarted) ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
-    : isFinished ? 'linear-gradient(135deg, #1c1f29, #242833)'
-      : 'linear-gradient(135deg, #0f2747, #173a66)'
+  // La FINAL lleva la bandera de fondo, difuminada: las paradas suaves del
+  // degradado hacen la mezcla (más barato y nítido que un blur() sobre un div
+  // superpuesto, y sin pelearse con el z-index del contenido). Encima, un velo
+  // oscuro en capa superior para que el texto siga legible sobre el amarillo.
+  const isFinalMatch = match.stage === 'Final' && !isFinished
+  const FLAG_SOFT = 'linear-gradient(180deg, #c60b1e 0%, #c60b1e 14%, #ffc400 38%, #ffc400 62%, #c60b1e 86%, #c60b1e 100%)'
+  // Estilos por estado: final (bandera) · live/en juego (rojo) · finalizado (gris) · pre (acento)
+  const bg = isFinalMatch
+    ? `linear-gradient(135deg, rgba(12,14,20,0.88) 0%, rgba(12,14,20,0.66) 100%), ${FLAG_SOFT}`
+    : (isLive || isStarted) ? 'linear-gradient(135deg, #3a1418, #5a1d24)'
+      : isFinished ? 'linear-gradient(135deg, #1c1f29, #242833)'
+        : 'linear-gradient(135deg, var(--accent-grad-a), var(--accent-grad-b))'
   const borderCol = (isLive || isStarted) ? '1.5px solid rgba(226,75,74,0.5)'
     : isFinished ? '1px solid rgba(255,255,255,0.1)'
       : '1px solid rgba(var(--accent-rgb),0.4)'

@@ -16,11 +16,17 @@
        --accent-soft   variante legible sobre fondo oscuro (textos, aciertos)
        --accent-tint   tinte de fondo
        --accent-hover  hover de acción                                       */
-  --accent: #2563eb;
-  --accent-rgb: 37, 99, 235;
-  --accent-soft: #60a5fa;
-  --accent-tint: #161f2e;
-  --accent-hover: #3b82f6;
+  --accent: #c60b1e;
+  --accent-rgb: 198, 11, 30;
+  --accent-soft: #f87171;
+  --accent-tint: #2a1416;
+  --accent-hover: #e11d2e;
+
+  /* Degradados de los hero/widgets. Se DERIVAN del acento con color-mix en vez
+     de fijar hex a mano: así cualquier cambio de paleta los arrastra solo.
+     (Estaban hardcodeados #102a4d->#1d4d8c y por eso seguían azules.) */
+  --accent-grad-a: color-mix(in srgb, var(--accent) 30%, #0b0e14);
+  --accent-grad-b: color-mix(in srgb, var(--accent) 65%, #0b0e14);
 
   /* Alias legado: al pasar de verde a azul se cambió el VALOR de --green, no el
      nombre. Se mantiene (236 usos) apuntando al acento canónico. */

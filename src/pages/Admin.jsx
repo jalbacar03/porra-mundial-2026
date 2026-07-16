@@ -928,7 +928,7 @@ export default function Admin({ session }) {
         <>
           {/* Hero summary */}
           <div style={{
-            background: 'linear-gradient(135deg, #102a4d, #16356b)',
+            background: 'linear-gradient(135deg, var(--accent-grad-a), var(--accent-grad-b))',
             borderRadius: '12px', padding: '16px', marginBottom: '14px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

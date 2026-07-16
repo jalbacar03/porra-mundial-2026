@@ -495,11 +495,15 @@ function PageLoader() {
  *   edge='bottom' → barra superior (desktop)
  *   edge='top'    → barra inferior (móvil)
  */
+// Alto de la franja. Se reserva como padding en las barras (ver más abajo): la
+// franja va en absolute, así que sin ese hueco se comería los iconos.
+export const SPAIN_STRIPE_H = 12
+
 function SpainStripe({ edge }) {
   return (
     <div aria-hidden="true" style={{
       position: 'absolute', left: 0, right: 0, [edge]: 0,
-      height: '8px', pointerEvents: 'none',
+      height: `${SPAIN_STRIPE_H}px`, pointerEvents: 'none',
       // 1:2:1 con paradas duras. Colores de la bandera, no el dorado de la app:
       // así lee como bandera y no como un adorno más del tema.
       background: 'linear-gradient(180deg, #c60b1e 0 25%, #ffc400 25% 75%, #c60b1e 75% 100%)',
@@ -513,10 +517,11 @@ function TopNavbar({ isAdmin, demoMode }) {
   return (
     <nav className="top-navbar" style={{
       background: 'var(--bg-nav)',
-      padding: '0 16px',
+      // Hueco inferior para la franja (misma razón que en la barra de móvil).
+      padding: `0 16px ${SPAIN_STRIPE_H}px`,
       alignItems: 'center',
       justifyContent: 'space-between',
-      height: '48px',
+      height: `${48 + SPAIN_STRIPE_H}px`,
       position: 'sticky',
       top: 0,
       zIndex: 100,
@@ -653,6 +658,8 @@ function BottomNavbar({ isAdmin }) {
       background: 'var(--bg-nav)',
       alignItems: 'center',
       justifyContent: 'space-around',
+      // Hueco para la franja: sin esto se solapa con los iconos.
+      paddingTop: `${SPAIN_STRIPE_H}px`,
       zIndex: 100
     }}>
       <SpainStripe edge="top" />

@@ -494,7 +494,7 @@ export default function Stats({ demoMode }) {
         <div className="tab-fade-in">
           {/* Hero accuracy card — Dashboard hero style */}
           <div style={{
-            background: 'linear-gradient(135deg, #102a4d, #1d4d8c)',
+            background: 'linear-gradient(135deg, var(--accent-grad-a), var(--accent-grad-b))',
             borderRadius: '14px',
             padding: '18px 20px',
             marginBottom: '12px',
@@ -829,7 +829,7 @@ export default function Stats({ demoMode }) {
           <div className="tab-fade-in">
             {/* Position hero — Dashboard style */}
             <div style={{
-              background: 'linear-gradient(135deg, #102a4d, #1d4d8c)',
+              background: 'linear-gradient(135deg, var(--accent-grad-a), var(--accent-grad-b))',
               borderRadius: '14px',
               padding: '18px 20px',
               marginBottom: '12px',

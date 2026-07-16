@@ -43,7 +43,9 @@ export function canSeeParticipantProfile(userId) {
  * --accent-rgb (para rgba), --accent-soft (texto legible sobre oscuro),
  * --accent-tint (fondo) y --accent-hover.
  */
-export const DEFAULT_ACCENT = 'blue'
+// Paleta oficial de la app (la que ve todo el mundo). Debe coincidir con los
+// valores de --accent* en index.css.
+export const DEFAULT_ACCENT = 'red'
 export const ACCENT_PALETTES = {
   blue: {
     '--accent': '#2563eb', '--accent-rgb': '37, 99, 235',
