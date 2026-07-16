@@ -22,11 +22,13 @@
   --accent-tint: #2a1416;
   --accent-hover: #e11d2e;
 
-  /* Degradados de los hero/widgets. Se DERIVAN del acento con color-mix en vez
-     de fijar hex a mano: así cualquier cambio de paleta los arrastra solo.
-     (Estaban hardcodeados #102a4d->#1d4d8c y por eso seguían azules.) */
-  --accent-grad-a: color-mix(in srgb, var(--accent) 30%, #0b0e14);
-  --accent-grad-b: color-mix(in srgb, var(--accent) 65%, #0b0e14);
+  /* Degradados de los hero/widgets.
+     Valor por defecto = fallback ESTÁTICO para navegadores sin color-mix
+     (Safari < 16.2, iPhones que no pasan de iOS 15/16.1). Sin esto, el
+     `background` entero de los hero sería inválido y las cards saldrían SIN
+     fondo. Son el equivalente ya calculado del color-mix de abajo. */
+  --accent-grad-a: #430d17;
+  --accent-grad-b: #850c1b;
 
   /* Alias legado: al pasar de verde a azul se cambió el VALOR de --green, no el
      nombre. Se mantiene (236 usos) apuntando al acento canónico. */
@@ -63,6 +65,16 @@
 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Donde SÍ hay color-mix (Safari 16.2+, Chrome 111+), los degradados se derivan
+   del acento: así un cambio de paleta los arrastra solo, sin hex a mano. Los
+   navegadores viejos se quedan con el fallback estático de arriba (rojo fijo). */
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  :root {
+    --accent-grad-a: color-mix(in srgb, var(--accent) 30%, #0b0e14);
+    --accent-grad-b: color-mix(in srgb, var(--accent) 65%, #0b0e14);
+  }
 }
 
 
