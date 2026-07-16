@@ -57,6 +57,13 @@ export const ACCENT_PALETTES = {
     '--accent': '#7c3aed', '--accent-rgb': '124, 58, 237',
     '--accent-soft': '#c4b5fd', '--accent-tint': '#1e1830', '--accent-hover': '#8b5cf6',
   },
+  // Rojo de la bandera (#c60b1e), el mismo de la franja de la navegación.
+  // OJO: --red (#e24b4a) ya significa error/peligro en toda la app; con esta
+  // paleta el color de acción y el de error quedan a un paso el uno del otro.
+  red: {
+    '--accent': '#c60b1e', '--accent-rgb': '198, 11, 30',
+    '--accent-soft': '#f87171', '--accent-tint': '#2a1416', '--accent-hover': '#e11d2e',
+  },
 }
 const ACCENT_PREVIEW_VIEWERS = ['e2fc4937-cd8d-4cb1-8291-05fa8a66ce97'] // Javi (admin)
 export function canPreviewAccent(userId) {

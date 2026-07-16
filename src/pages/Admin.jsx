@@ -1969,6 +1969,7 @@ const ACCENT_LABELS = {
   blue: { name: 'Azul', note: 'El actual — lo que ve todo el mundo' },
   indigo: { name: 'Índigo', note: 'Más suave y nocturno, cercano al azul' },
   violet: { name: 'Violeta', note: 'El salto más grande respecto al actual' },
+  red: { name: 'Rojo', note: 'El de la bandera — ojo: choca con el rojo de error' },
 }
 
 function AccentTab() {

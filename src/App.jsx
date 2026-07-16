@@ -499,7 +499,7 @@ function SpainStripe({ edge }) {
   return (
     <div aria-hidden="true" style={{
       position: 'absolute', left: 0, right: 0, [edge]: 0,
-      height: '6px', pointerEvents: 'none',
+      height: '8px', pointerEvents: 'none',
       // 1:2:1 con paradas duras. Colores de la bandera, no el dorado de la app:
       // así lee como bandera y no como un adorno más del tema.
       background: 'linear-gradient(180deg, #c60b1e 0 25%, #ffc400 25% 75%, #c60b1e 75% 100%)',

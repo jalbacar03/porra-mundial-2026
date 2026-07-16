@@ -2,8 +2,11 @@ import { FootballSpinner } from './Skeleton'
 
 /**
  * Pantalla de mantenimiento. Se muestra a todo el mundo (excepto admin, o con
- * ?staff=1) cuando app_config.maintenance_mode = true. Bloquea el acceso mientras
- * se cierran los grupos / se calculan puntos. Toggle por SQL, sin redeploy.
+ * ?staff=1) cuando app_config.maintenance_mode = true. Toggle por SQL, sin redeploy.
+ *
+ * El titular es perenne a propósito: el detalle concreto va en
+ * app_config.maintenance_message, que sí se cambia sin tocar código. (Antes decía
+ * "Cerrando la fase de grupos" fijo, y seguía ahí en plena final.)
  */
 export default function MaintenanceScreen({ message }) {
   return (
@@ -26,14 +29,14 @@ export default function MaintenanceScreen({ message }) {
         fontSize: '20px', fontWeight: '800', color: 'var(--text-primary, #fff)',
         margin: '24px 0 10px', letterSpacing: '-0.3px'
       }}>
-        Cerrando la fase de grupos
+        Volvemos enseguida
       </h1>
 
       <p style={{
         fontSize: '14px', color: 'var(--text-muted, #8a8f99)', lineHeight: '1.6',
         maxWidth: '320px', margin: 0
       }}>
-        {message || 'Estamos calculando los puntos finales de la fase de grupos. La app vuelve enseguida.'}
+        {message || 'Estamos haciendo ajustes en la app. Vuelve en un rato.'}
       </p>
 
       <div style={{
