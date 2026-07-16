@@ -300,7 +300,10 @@ export default function Dashboard({ session, demoMode }) {
     const STARTED_GRACE_MS = 3.5 * 60 * 60 * 1000
     const preMundial = (allMatchesData || [])
       .filter(m => m.status === 'scheduled' && m.stage !== 'friendly' && m.stage !== 'test'
-        && new Date(m.match_date) <= cutoff
+        && m.stage !== 'Third place'   // el 3er puesto no forma parte de la porra
+        // La FINAL se muestra desde ya (aunque falten días) — es el partido del torneo.
+        // El resto, solo los "de hoy" (hasta el corte de las 9:00).
+        && (m.stage === 'Final' || new Date(m.match_date) <= cutoff)
         && new Date(m.match_date) > new Date(now.getTime() - STARTED_GRACE_MS))
       .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))
       .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
@@ -314,7 +317,7 @@ export default function Dashboard({ session, demoMode }) {
     startOfYesterday.setDate(startOfYesterday.getDate() - 1)
     const recentFinished = (allMatchesData || [])
       .filter(m => m.status === 'finished' && m.home_score !== null
-        && m.stage !== 'friendly' && m.stage !== 'test'
+        && m.stage !== 'friendly' && m.stage !== 'test' && m.stage !== 'Third place'
         && new Date(m.match_date) >= startOfYesterday)
       .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))
       .map(m => ({ ...m, userPrediction: preds?.find(p => p.match_id === m.id) || null }))
