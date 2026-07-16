@@ -6,6 +6,8 @@ import { FootballSpinner } from '../components/Skeleton'
 import Avatar from '../components/Avatar'
 import BracketView from '../components/bracket/BracketView'
 import PlayerSelector from '../components/bets/PlayerSelector'
+import { ACCENT_PALETTES, DEFAULT_ACCENT } from '../config/featureFlags'
+import { getAccentPreview, setAccentPreview } from '../hooks/useAccentPreview'
 
 const SYNC_HISTORY_KEY = 'admin_sync_history_v1'
 
@@ -687,7 +689,13 @@ export default function Admin({ session }) {
         <button onClick={() => setActiveTab('bot365')} style={pillStyle(activeTab === 'bot365')}>
           🤖 Bot365
         </button>
+        <button onClick={() => setActiveTab('accent')} style={pillStyle(activeTab === 'accent')}>
+          🎨 Aspecto
+        </button>
       </div>
+
+      {/* ========== ASPECTO TAB (prueba de color, solo la ves tú) ========== */}
+      {activeTab === 'accent' && <AccentTab />}
 
 
       {/* ========== RESULTS TAB ========== */}
@@ -1945,6 +1953,75 @@ export default function Admin({ session }) {
           </>
         )
       })()}
+    </div>
+  )
+}
+
+/**
+ * Prueba de color — cambia el acento SOLO en este dispositivo y para quien esté
+ * autorizado (canPreviewAccent). El resto de participantes sigue viendo el color
+ * por defecto. Sirve para valorar un cambio de paleta en producción sin riesgo.
+ *
+ * Si una paleta convence: llevar sus valores a --accent* en index.css (pasa a ser
+ * el color de todos) y borrar esta pestaña + el hook + los flags.
+ */
+const ACCENT_LABELS = {
+  blue: { name: 'Azul', note: 'El actual — lo que ve todo el mundo' },
+  indigo: { name: 'Índigo', note: 'Más suave y nocturno, cercano al azul' },
+  violet: { name: 'Violeta', note: 'El salto más grande respecto al actual' },
+}
+
+function AccentTab() {
+  const [current, setCurrent] = useState(getAccentPreview())
+  const pick = (name) => { setAccentPreview(name); setCurrent(name) }
+
+  return (
+    <div style={{ background: 'var(--bg-secondary)', borderRadius: '14px', padding: '20px', border: '0.5px solid var(--border)' }}>
+      <h3 style={{ fontSize: '15px', color: 'var(--text-primary)', marginBottom: '6px' }}>Prueba de color</h3>
+      <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+        Cambia el acento de la app al instante, <strong>solo en este dispositivo</strong>. Los demás
+        participantes siguen viendo el azul. Navega por Inicio, Clasificación y Stats para valorarlo.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {Object.keys(ACCENT_PALETTES).map(name => {
+          const active = current === name
+          const pal = ACCENT_PALETTES[name]
+          return (
+            <button key={name} onClick={() => pick(name)} className="tap-scale" style={{
+              display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left',
+              padding: '12px 14px', borderRadius: '10px', cursor: 'pointer',
+              background: active ? 'rgba(var(--accent-rgb),0.10)' : 'var(--bg-input)',
+              border: active ? '1px solid rgba(var(--accent-rgb),0.45)' : '1px solid var(--border)',
+            }}>
+              {/* Muestra real de la paleta (no usa las variables: así se ve aunque no esté activa) */}
+              <span style={{ display: 'flex', flexShrink: 0 }}>
+                <span style={{ width: '22px', height: '22px', borderRadius: '50% 0 0 50%', background: pal['--accent'] }} />
+                <span style={{ width: '22px', height: '22px', borderRadius: '0 50% 50% 0', background: pal['--accent-soft'] }} />
+              </span>
+              <span style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {ACCENT_LABELS[name]?.name || name}
+                  {name === DEFAULT_ACCENT && (
+                    <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 600, color: 'var(--text-dim)' }}>
+                      POR DEFECTO
+                    </span>
+                  )}
+                </span>
+                <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {ACCENT_LABELS[name]?.note}
+                </span>
+              </span>
+              {active && <span style={{ fontSize: '14px', color: 'var(--accent-soft)' }}>✓</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '14px', lineHeight: 1.5 }}>
+        Ojo: la barra de estado del móvil seguirá azul (es un meta estático, solo cambia al hacerlo
+        oficial). El PDF de la clasificación sí sigue al color elegido.
+      </p>
     </div>
   )
 }
