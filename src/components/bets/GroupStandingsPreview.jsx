@@ -126,7 +126,7 @@ export default function GroupStandingsPreview({ session, onAutoFillR32 }) {
               onClick={() => setActiveGroup(g)}
               style={{
                 padding: '4px 8px', borderRadius: '4px', border: 'none',
-                background: isActive ? 'var(--green)' : allPredicted ? 'rgba(37,99,235,0.15)' : 'var(--bg-primary)',
+                background: isActive ? 'var(--green)' : allPredicted ? 'rgba(var(--accent-rgb),0.15)' : 'var(--bg-primary)',
                 color: isActive ? '#fff' : allPredicted ? 'var(--green)' : 'var(--text-muted)',
                 cursor: 'pointer', fontSize: '11px', fontWeight: isActive ? '600' : '400',
                 minWidth: '28px', flexShrink: 0
@@ -157,7 +157,7 @@ export default function GroupStandingsPreview({ session, onAutoFillR32 }) {
             const isTop2 = idx < 2
             const is3rdQualified = idx === 2 && qualified3rdIds.includes(row.team.id)
             const bgColor = isTop2
-              ? 'rgba(37,99,235,0.12)'
+              ? 'rgba(var(--accent-rgb),0.12)'
               : is3rdQualified
                 ? 'rgba(255,204,0,0.1)'
                 : idx === 2

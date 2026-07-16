@@ -350,7 +350,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                   {isFinished && (
                     <span style={{
                       fontSize: '9px', padding: '1px 6px', borderRadius: '3px',
-                      background: 'rgba(37,99,235,0.1)', color: 'var(--green)', fontWeight: '600'
+                      background: 'rgba(var(--accent-rgb),0.1)', color: 'var(--green)', fontWeight: '600'
                     }}>FINAL</span>
                   )}
                   {isLive && (
@@ -395,7 +395,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                     const ptsBadge = isFinished && hasPred && pts != null ? (
                       <span style={{
                         padding: '3px 11px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
-                        background: pts === 3 ? 'rgba(37,99,235,0.15)' : pts === 1 ? 'rgba(255,204,0,0.12)' : 'rgba(226,75,74,0.12)',
+                        background: pts === 3 ? 'rgba(var(--accent-rgb),0.15)' : pts === 1 ? 'rgba(255,204,0,0.12)' : 'rgba(226,75,74,0.12)',
                         color: pts === 3 ? 'var(--green)' : pts === 1 ? 'var(--gold)' : '#e74c3c'
                       }}>
                         {pts === 3 ? 'Exacto +3' : pts === 1 ? 'Signo +1' : 'Fallo · 0'}
@@ -586,7 +586,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
                         {demoMode && isFinished && demoPoints !== null ? (
                           <span style={{
                             padding: '2px 10px', borderRadius: '3px', fontSize: '10px', fontWeight: '600',
-                            background: demoPoints === 3 ? 'rgba(37,99,235,0.15)' : demoPoints === 1 ? 'rgba(255,204,0,0.1)' : 'rgba(226,75,74,0.1)',
+                            background: demoPoints === 3 ? 'rgba(var(--accent-rgb),0.15)' : demoPoints === 1 ? 'rgba(255,204,0,0.1)' : 'rgba(226,75,74,0.1)',
                             color: demoPoints === 3 ? 'var(--green)' : demoPoints === 1 ? 'var(--gold)' : '#e74c3c'
                           }}>
                             {demoPoints === 3 ? 'Exacto +3' : demoPoints === 1 ? 'Signo +1' : 'Fallo 0'}
@@ -666,7 +666,7 @@ export default function GroupMatchPredictions({ session, deadline, demoMode }) {
             <tbody>
               {currentGroupStandings.map((row, idx) => {
                 const isTop2 = idx < 2
-                const bgColor = isTop2 ? 'rgba(37,99,235,0.1)' : idx === 2 ? 'rgba(255,204,0,0.06)' : 'transparent'
+                const bgColor = isTop2 ? 'rgba(var(--accent-rgb),0.1)' : idx === 2 ? 'rgba(255,204,0,0.06)' : 'transparent'
                 const borderLeft = isTop2 ? '3px solid var(--green)' : idx === 2 ? '3px solid rgba(255,204,0,0.3)' : '3px solid transparent'
                 return (
                   <tr key={row.team.id} style={{ background: bgColor }}>

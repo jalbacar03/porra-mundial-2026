@@ -282,7 +282,7 @@ export default function BracketResults({ session }) {
           marginTop: '8px', display: 'flex', gap: '12px',
           fontSize: '10px', color: 'var(--text-dim)'
         }}>
-          <span><strong style={{ color: '#60a5fa' }}>+1</strong> quién pasa</span>
+          <span><strong style={{ color: 'var(--accent-soft)' }}>+1</strong> quién pasa</span>
           <span><strong style={{ color: 'var(--gold)' }}>+2</strong> resultado a 90'</span>
           <span><strong style={{ color: 'var(--text-dim)' }}>máx 3</strong></span>
         </div>
@@ -371,12 +371,12 @@ export default function BracketResults({ session }) {
                 marginBottom: '8px',
                 borderLeft: result
                   ? result.points === 3 ? '3px solid var(--gold)'
-                  : result.points > 0 ? '3px solid #2563eb'
+                  : result.points > 0 ? '3px solid var(--accent)'
                   : '3px solid var(--red)'
                   : '3px solid var(--border)',
                 border: result
                   ? result.points === 3 ? '1px solid rgba(255,204,0,0.3)'
-                  : result.points > 0 ? '1px solid rgba(37,99,235,0.2)'
+                  : result.points > 0 ? '1px solid rgba(var(--accent-rgb),0.2)'
                   : '1px solid rgba(231,76,60,0.2)'
                   : '0.5px solid var(--border)'
               }}>
@@ -392,7 +392,7 @@ export default function BracketResults({ session }) {
                     <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: '600' }}>⏳ Por determinar</span>
                   )}
                   {!isFinished && tset && open && (
-                    <span style={{ fontSize: '9px', color: '#60a5fa', fontWeight: '600' }}>Abierto</span>
+                    <span style={{ fontSize: '9px', color: 'var(--accent-soft)', fontWeight: '600' }}>Abierto</span>
                   )}
                   {!isFinished && tset && !open && (
                     <span style={{ fontSize: '9px', color: 'var(--red)', fontWeight: '600' }}>🔒 Cerrado</span>
@@ -502,9 +502,9 @@ export default function BracketResults({ session }) {
                       {[match.home_team, match.away_team].map(t => t && (
                         <button key={t.id} onClick={() => setAdvancer(match.id, t.id)} style={{
                           flex: 1, padding: '7px 6px', borderRadius: '6px', cursor: 'pointer',
-                          border: pred.advancer === t.id ? '1.5px solid #60a5fa' : '1px solid var(--border)',
-                          background: pred.advancer === t.id ? 'rgba(37,99,235,0.15)' : 'var(--bg-input)',
-                          color: pred.advancer === t.id ? '#60a5fa' : 'var(--text-muted)',
+                          border: pred.advancer === t.id ? '1.5px solid var(--accent-soft)' : '1px solid var(--border)',
+                          background: pred.advancer === t.id ? 'rgba(var(--accent-rgb),0.15)' : 'var(--bg-input)',
+                          color: pred.advancer === t.id ? 'var(--accent-soft)' : 'var(--text-muted)',
                           fontSize: '11px', fontWeight: pred.advancer === t.id ? '700' : '500',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                         }}>
@@ -527,7 +527,7 @@ export default function BracketResults({ session }) {
                       </span>
                       <span style={{
                         marginLeft: '8px', fontWeight: '600',
-                        color: result.points === 3 ? 'var(--gold)' : result.points > 0 ? '#60a5fa' : '#e74c3c'
+                        color: result.points === 3 ? 'var(--gold)' : result.points > 0 ? 'var(--accent-soft)' : '#e74c3c'
                       }}>
                         {result.points > 0 ? `+${result.points}${parts.length ? ` (${parts.join(' + ')})` : ''}` : 'Fallo'}
                       </span>

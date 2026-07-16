@@ -323,7 +323,7 @@ export default function Bracket() {
                   <div style={{
                     flex: 1, display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '8px 10px', borderRadius: '6px',
-                    background: homeWon ? 'rgba(37,99,235,0.1)' : 'var(--bg-input)',
+                    background: homeWon ? 'rgba(var(--accent-rgb),0.1)' : 'var(--bg-input)',
                     border: homeWon ? '0.5px solid var(--green)' : '0.5px solid transparent'
                   }}>
                     {match.home_team?.flag_url && (
@@ -357,7 +357,7 @@ export default function Bracket() {
                   <div style={{
                     flex: 1, display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '8px 10px', borderRadius: '6px',
-                    background: awayWon ? 'rgba(37,99,235,0.1)' : 'var(--bg-input)',
+                    background: awayWon ? 'rgba(var(--accent-rgb),0.1)' : 'var(--bg-input)',
                     border: awayWon ? '0.5px solid var(--green)' : '0.5px solid transparent'
                   }}>
                     {match.away_team?.flag_url && (

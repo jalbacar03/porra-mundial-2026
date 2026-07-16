@@ -8,10 +8,25 @@
   --bg-input: #13151c;
   --bg-nav: #0e0f14;
 
-  /* Verde principal */
-  --green: #2563eb;
-  --green-light: #161f2e;
-  --green-hover: #3b82f6;
+  /* ===== Acento principal — ÚNICA fuente de verdad del color de la app =====
+     Cambiar estos 5 valores repinta toda la app. Nada de azul debe quedar
+     hardcoded fuera de aquí: si necesitas el acento, usa la variable.
+       --accent        acción (botones, estados activos)
+       --accent-rgb    triplete para rgba(var(--accent-rgb), x)
+       --accent-soft   variante legible sobre fondo oscuro (textos, aciertos)
+       --accent-tint   tinte de fondo
+       --accent-hover  hover de acción                                       */
+  --accent: #2563eb;
+  --accent-rgb: 37, 99, 235;
+  --accent-soft: #60a5fa;
+  --accent-tint: #161f2e;
+  --accent-hover: #3b82f6;
+
+  /* Alias legado: al pasar de verde a azul se cambió el VALOR de --green, no el
+     nombre. Se mantiene (236 usos) apuntando al acento canónico. */
+  --green: var(--accent);
+  --green-light: var(--accent-tint);
+  --green-hover: var(--accent-hover);
 
   /* Amarillo/dorado */
   --gold: #ffcc00;
@@ -144,8 +159,8 @@ input:focus, button:focus-visible {
   100% { transform: rotate(360deg) scale(0.96); opacity: 0.55; }
 }
 @keyframes footballHalo {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.0); }
-  50%      { box-shadow: 0 0 22px 4px rgba(37,99,235,0.18); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb),0.0); }
+  50%      { box-shadow: 0 0 22px 4px rgba(var(--accent-rgb),0.18); }
 }
 .football-spin {
   animation: footballSpin 2.4s ease-in-out infinite,
@@ -201,12 +216,12 @@ input:focus, button:focus-visible {
 }
 
 .stats-card:hover {
-  border-color: rgba(0, 122, 69, 0.2);
+  border-color: rgba(var(--accent-rgb), 0.2);
 }
 
 .stats-hero {
-  background: linear-gradient(160deg, #1a3a2a 0%, var(--bg-secondary) 50%, #2a2520 100%);
-  border: 1px solid rgba(0, 122, 69, 0.25);
+  background: linear-gradient(160deg, var(--accent-tint) 0%, var(--bg-secondary) 50%, #2a2520 100%);
+  border: 1px solid rgba(var(--accent-rgb), 0.25);
   border-radius: 16px;
   padding: 24px 20px;
   text-align: center;
@@ -224,7 +239,7 @@ input:focus, button:focus-visible {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #00c464, #ffcc00);
+  background: linear-gradient(135deg, var(--accent-soft), #ffcc00);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -307,8 +322,8 @@ input:focus, button:focus-visible {
 
 /* Exact prediction celebration */
 @keyframes exactGlow {
-  0%, 100% { box-shadow: 0 0 0 rgba(37,99,235,0); }
-  50% { box-shadow: 0 0 20px rgba(37,99,235,0.4), 0 0 40px rgba(37,99,235,0.15); }
+  0%, 100% { box-shadow: 0 0 0 rgba(var(--accent-rgb),0); }
+  50% { box-shadow: 0 0 20px rgba(var(--accent-rgb),0.4), 0 0 40px rgba(var(--accent-rgb),0.15); }
 }
 .exact-celebration {
   animation: exactGlow 2s ease-in-out infinite;

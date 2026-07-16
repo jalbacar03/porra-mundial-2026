@@ -191,7 +191,7 @@ export default function News() {
             <button
               onClick={fetchNews}
               style={{
-                padding: '8px 20px', background: '#2563eb', color: '#fff',
+                padding: '8px 20px', background: 'var(--accent)', color: '#fff',
                 border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px',
                 fontWeight: '600'
               }}
@@ -218,7 +218,7 @@ export default function News() {
             marginBottom: '16px',
             transition: 'border-color 0.2s ease'
           }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = '#2563eb'}
+          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
           onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2d38'}
         >
           {heroArticle.image && (
@@ -255,7 +255,7 @@ export default function News() {
               marginBottom: '10px'
             }}>
               <span style={{
-                fontSize: '11px', fontWeight: '700', color: '#2563eb',
+                fontSize: '11px', fontWeight: '700', color: 'var(--accent)',
                 textTransform: 'uppercase', letterSpacing: '0.8px'
               }}>
                 {heroArticle.sourceIcon} {heroArticle.source}
@@ -308,7 +308,7 @@ export default function News() {
                 textDecoration: 'none',
                 transition: 'border-color 0.2s ease'
               }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = '#2563eb'}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2d38'}
             >
               {article.image && (
@@ -337,7 +337,7 @@ export default function News() {
                   marginBottom: '8px'
                 }}>
                   <span style={{
-                    fontSize: '10px', fontWeight: '700', color: '#2563eb',
+                    fontSize: '10px', fontWeight: '700', color: 'var(--accent)',
                     textTransform: 'uppercase', letterSpacing: '0.6px'
                   }}>
                     {article.sourceIcon} {article.source}

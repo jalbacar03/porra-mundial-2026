@@ -85,7 +85,7 @@ export default function ParticipantProfileModal({ participantId, participantName
     if (p.predicted_home === p.predicted_away) s += ` · pasa ${data.teamName[p.predicted_advancer_id] || '?'}`
     return s
   }
-  const ptsColor = (pts) => pts >= 2 ? '#60a5fa' : pts === 1 ? 'var(--gold)' : 'var(--text-dim)'
+  const ptsColor = (pts) => pts >= 2 ? 'var(--accent-soft)' : pts === 1 ? 'var(--gold)' : 'var(--text-dim)'
 
   const name = formatRealName(participantName) || participantName || 'Participante'
 
@@ -219,7 +219,7 @@ export default function ParticipantProfileModal({ participantId, participantName
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{val}</span>
                     {e.is_resolved && (
-                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: (e.points_awarded || 0) > 0 ? 'rgba(37,99,235,0.18)' : 'var(--bg-input)', color: (e.points_awarded || 0) > 0 ? '#60a5fa' : 'var(--text-dim)' }}>{e.points_awarded || 0} pts</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: (e.points_awarded || 0) > 0 ? 'rgba(var(--accent-rgb),0.18)' : 'var(--bg-input)', color: (e.points_awarded || 0) > 0 ? 'var(--accent-soft)' : 'var(--text-dim)' }}>{e.points_awarded || 0} pts</span>
                     )}
                   </div>
                 </div>

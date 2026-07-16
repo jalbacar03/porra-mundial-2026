@@ -41,7 +41,7 @@ function getPointsStatus(pred, match) {
   if (!pred || match.home_score === null) return null
   const pts = matchPredictionPoints(pred, match)
   const isKnockout = match.stage && !['group', 'friendly', 'test'].includes(match.stage)
-  const GREEN = { color: 'var(--green)', bg: 'rgba(37,99,235,0.15)' }
+  const GREEN = { color: 'var(--green)', bg: 'rgba(var(--accent-rgb),0.15)' }
   const GOLD = { color: 'var(--gold)', bg: 'rgba(255,204,0,0.1)' }
   const RED = { color: 'var(--red)', bg: 'rgba(226,75,74,0.1)' }
   if (isKnockout) {
@@ -377,10 +377,10 @@ export default function MatchDayLive({ session }) {
           <div key={match.id} className={live ? 'live-match-card' : 'stats-card'} style={{
             ...(live ? {
               border: '1px solid rgba(226,75,74,0.3)',
-              background: 'linear-gradient(160deg, rgba(226,75,74,0.06) 0%, var(--bg-secondary) 40%, rgba(37,99,235,0.04) 100%)',
+              background: 'linear-gradient(160deg, rgba(226,75,74,0.06) 0%, var(--bg-secondary) 40%, rgba(var(--accent-rgb),0.04) 100%)',
             } : finished ? {
-              border: '1px solid rgba(37,99,235,0.2)',
-              background: 'linear-gradient(135deg, rgba(37,99,235,0.04) 0%, var(--bg-secondary) 100%)',
+              border: '1px solid rgba(var(--accent-rgb),0.2)',
+              background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.04) 0%, var(--bg-secondary) 100%)',
             } : {}),
             position: 'relative', overflow: 'hidden'
           }}>
@@ -391,7 +391,7 @@ export default function MatchDayLive({ session }) {
                 position: 'absolute', top: 0, left: 0, right: 0, height: '2px',
                 background: live
                   ? 'linear-gradient(90deg, var(--red), rgba(226,75,74,0.3))'
-                  : 'linear-gradient(90deg, var(--green), rgba(37,99,235,0.2))'
+                  : 'linear-gradient(90deg, var(--green), rgba(var(--accent-rgb),0.2))'
               }} />
             )}
 
@@ -455,7 +455,7 @@ export default function MatchDayLive({ session }) {
                     fontSize: '28px', fontWeight: '900', letterSpacing: '4px',
                     color: live ? 'var(--text-primary)' : '#fff',
                     fontFamily: 'SF Mono, Monaco, monospace',
-                    boxShadow: finished ? '0 2px 8px rgba(37,99,235,0.3)' : 'none',
+                    boxShadow: finished ? '0 2px 8px rgba(var(--accent-rgb),0.3)' : 'none',
                     border: live ? '1px solid rgba(226,75,74,0.3)' : 'none'
                   }}>
                     {match.home_score}-{match.away_score}
@@ -553,7 +553,7 @@ export default function MatchDayLive({ session }) {
               <div style={{ marginTop: pred ? 0 : '14px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
                   {[
-                    { label: '1', pct: consensus.homePct, color: '#00c464', bg: 'rgba(37,99,235,0.12)' },
+                    { label: '1', pct: consensus.homePct, color: 'var(--accent-soft)', bg: 'rgba(var(--accent-rgb),0.12)' },
                     { label: 'X', pct: consensus.drawPct, color: 'var(--text-secondary)', bg: 'rgba(74,79,94,0.25)' },
                     { label: '2', pct: consensus.awayPct, color: '#ffcc00', bg: 'rgba(255,204,0,0.1)' }
                   ].map(({ label, pct, color, bg }) => {
@@ -561,7 +561,9 @@ export default function MatchDayLive({ session }) {
                     return (
                       <div key={label} className="odds-pill" style={{
                         background: bg, color,
-                        borderColor: pct === max ? `${color}60` : 'transparent',
+                        // color-mix: `color` puede ser un var() del tema, y
+                        // `var(--x)60` sería CSS inválido (el borde no pintaba).
+                        borderColor: pct === max ? `color-mix(in srgb, ${color} 38%, transparent)` : 'transparent',
                         padding: '6px 4px'
                       }}>
                         <div style={{ fontSize: '8px', fontWeight: '600', letterSpacing: '0.5px', opacity: 0.7 }}>{label}</div>

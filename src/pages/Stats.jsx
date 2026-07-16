@@ -287,7 +287,7 @@ export default function Stats({ demoMode }) {
     })
     const t = h + d + a || 1
     return [
-      { name: 'Local', value: Math.round((h / t) * 100), color: '#2563eb' },
+      { name: 'Local', value: Math.round((h / t) * 100), color: 'var(--accent)' },
       { name: 'Empate', value: Math.round((d / t) * 100), color: '#4a4f5e' },
       { name: 'Visitante', value: Math.round((a / t) * 100), color: '#ffcc00' }
     ]
@@ -394,9 +394,9 @@ export default function Stats({ demoMode }) {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
         <div className="odds-pill" style={{
-          background: 'rgba(37,99,235,0.12)',
-          color: '#00c464',
-          borderColor: homePct === max ? 'rgba(37,99,235,0.4)' : 'transparent'
+          background: 'rgba(var(--accent-rgb),0.12)',
+          color: 'var(--accent-soft)',
+          borderColor: homePct === max ? 'rgba(var(--accent-rgb),0.4)' : 'transparent'
         }}>
           <div style={{ fontSize: '9px', fontWeight: '600', letterSpacing: '0.5px', opacity: 0.7 }}>1</div>
           <div style={{ fontSize: '18px', fontWeight: '800', lineHeight: 1.2 }}>{homePct}%</div>
@@ -625,8 +625,10 @@ export default function Stats({ demoMode }) {
                   <div key={i} style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '8px 12px', borderRadius: '8px',
-                    background: `${item.color}10`,
-                    border: `1px solid ${item.color}20`
+                    // color-mix (no concatenar alpha en hex): item.color puede ser
+                    // un var() del tema, y `var(--x)10` sería CSS inválido.
+                    background: `color-mix(in srgb, ${item.color} 6%, transparent)`,
+                    border: `1px solid color-mix(in srgb, ${item.color} 13%, transparent)`
                   }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', flex: 1 }}>{item.name}</span>
                     <span style={{ fontSize: '16px', fontWeight: '800', color: item.color }}>{item.value}%</span>
@@ -702,7 +704,7 @@ export default function Stats({ demoMode }) {
                   label={{ position: 'right', fill: '#9da3b0', fontSize: 11, fontWeight: 600 }}
                 >
                   {groupGoals.slice(0, 8).map((entry, i) => (
-                    <Cell key={i} fill={i === 0 ? '#ffcc00' : i === 1 ? '#2563eb' : '#2a4a3a'} />
+                    <Cell key={i} fill={i === 0 ? '#ffcc00' : i === 1 ? 'var(--accent)' : '#2a4a3a'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -736,9 +738,9 @@ export default function Stats({ demoMode }) {
                       url={getProfileAvatar(user.user_id)}
                       name={fullName}
                       size={30}
-                      color={isMe ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.05)'}
-                      border={isMe ? '1px solid rgba(37,99,235,0.4)' : '1px solid rgba(255,255,255,0.06)'}
-                      textColor={isMe ? '#60a5fa' : 'var(--text-muted)'}
+                      color={isMe ? 'rgba(var(--accent-rgb),0.25)' : 'rgba(255,255,255,0.05)'}
+                      border={isMe ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid rgba(255,255,255,0.06)'}
+                      textColor={isMe ? 'var(--accent-soft)' : 'var(--text-muted)'}
                     />
                     <span style={{
                       flex: 1, fontSize: '13px',
@@ -1035,7 +1037,7 @@ export default function Stats({ demoMode }) {
                   <div key={i} style={{ marginBottom: i < 2 ? '14px' : 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                       <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600' }}>{row.label}</span>
-                      <span style={{ fontSize: '11px', color: better ? '#60a5fa' : 'var(--red)', fontWeight: '700' }}>
+                      <span style={{ fontSize: '11px', color: better ? 'var(--accent-soft)' : 'var(--red)', fontWeight: '700' }}>
                         {better ? '+' : ''}{row.mine - row.avg} vs media
                       </span>
                     </div>
@@ -1132,7 +1134,7 @@ export default function Stats({ demoMode }) {
                   {rivalAbove && gapToAbove > 0 && (
                     <div style={{
                       padding: '14px', borderRadius: '10px', marginBottom: '12px',
-                      background: 'linear-gradient(135deg, rgba(255,204,0,0.06), rgba(37,99,235,0.04))',
+                      background: 'linear-gradient(135deg, rgba(255,204,0,0.06), rgba(var(--accent-rgb),0.04))',
                       border: '1px solid rgba(255,204,0,0.12)'
                     }}>
                       <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6 }}>
@@ -1149,7 +1151,7 @@ export default function Stats({ demoMode }) {
                         </div>
                         {gapToAbove <= upcoming.length && (
                           <div style={{
-                            padding: '6px 10px', borderRadius: '6px', background: 'rgba(37,99,235,0.1)',
+                            padding: '6px 10px', borderRadius: '6px', background: 'rgba(var(--accent-rgb),0.1)',
                             fontSize: '11px', color: 'var(--green)', fontWeight: '600'
                           }}>
                             o {signsNeeded} signo{signsNeeded !== 1 ? 's' : ''} seguidos
@@ -1309,7 +1311,7 @@ export default function Stats({ demoMode }) {
                     <span style={{
                       fontSize: '9px', fontWeight: '700', color: 'var(--green)',
                       padding: '2px 8px', borderRadius: '20px',
-                      background: 'rgba(37,99,235,0.12)', textTransform: 'uppercase', letterSpacing: '0.8px'
+                      background: 'rgba(var(--accent-rgb),0.12)', textTransform: 'uppercase', letterSpacing: '0.8px'
                     }}>FT</span>
                   )}
                 </div>
@@ -1698,9 +1700,9 @@ export default function Stats({ demoMode }) {
                         url={getProfileAvatar(h2hUserB)}
                         name={getProfileName(h2hUserB)}
                         size={60}
-                        color="rgba(37,99,235,0.15)"
+                        color="rgba(var(--accent-rgb),0.15)"
                         border="2px solid var(--green)"
-                        textColor="#60a5fa"
+                        textColor="var(--accent-soft)"
                       />
                       <div style={{ textAlign: 'center' }}>
                         <div style={{
@@ -1878,7 +1880,7 @@ export default function Stats({ demoMode }) {
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <div style={{
                               flex: 1, textAlign: 'center', padding: '8px', borderRadius: '8px',
-                              background: predA?.points_earned === 3 ? 'rgba(37,99,235,0.18)' : predA?.points_earned === 1 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)'
+                              background: predA?.points_earned === 3 ? 'rgba(var(--accent-rgb),0.18)' : predA?.points_earned === 1 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)'
                             }}>
                               <div style={{ fontSize: '9px', color: 'var(--gold)', marginBottom: '3px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
                                 A
@@ -1886,7 +1888,7 @@ export default function Stats({ demoMode }) {
                               <div style={{
                                 fontSize: '15px', fontWeight: '800',
                                 fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '1px',
-                                color: predA?.points_earned === 3 ? '#60a5fa' : predA?.points_earned === 1 ? 'var(--gold)' : 'var(--text-muted)'
+                                color: predA?.points_earned === 3 ? 'var(--accent-soft)' : predA?.points_earned === 1 ? 'var(--gold)' : 'var(--text-muted)'
                               }}>
                                 {predA ? `${predA.predicted_home}-${predA.predicted_away}` : '—'}
                               </div>
@@ -1896,7 +1898,7 @@ export default function Stats({ demoMode }) {
                             </div>
                             <div style={{
                               flex: 1, textAlign: 'center', padding: '8px', borderRadius: '8px',
-                              background: predB?.points_earned === 3 ? 'rgba(37,99,235,0.18)' : predB?.points_earned === 1 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)'
+                              background: predB?.points_earned === 3 ? 'rgba(var(--accent-rgb),0.18)' : predB?.points_earned === 1 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)'
                             }}>
                               <div style={{ fontSize: '9px', color: 'var(--green)', marginBottom: '3px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
                                 B
@@ -1904,7 +1906,7 @@ export default function Stats({ demoMode }) {
                               <div style={{
                                 fontSize: '15px', fontWeight: '800',
                                 fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '1px',
-                                color: predB?.points_earned === 3 ? '#60a5fa' : predB?.points_earned === 1 ? 'var(--gold)' : 'var(--text-muted)'
+                                color: predB?.points_earned === 3 ? 'var(--accent-soft)' : predB?.points_earned === 1 ? 'var(--gold)' : 'var(--text-muted)'
                               }}>
                                 {predB ? `${predB.predicted_home}-${predB.predicted_away}` : '—'}
                               </div>
@@ -1948,23 +1950,23 @@ export default function Stats({ demoMode }) {
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <div style={{
                               flex: 1, textAlign: 'center', padding: '8px', borderRadius: '8px',
-                              background: resolved && ptsA > ptsB ? 'rgba(37,99,235,0.15)' : 'var(--bg-input)'
+                              background: resolved && ptsA > ptsB ? 'rgba(var(--accent-rgb),0.15)' : 'var(--bg-input)'
                             }}>
                               <div style={{ fontSize: '9px', color: 'var(--gold)', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px' }}>A</div>
                               <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {valA || '—'}
                               </div>
-                              {resolved && <div style={{ fontSize: '10px', color: ptsA > 0 ? '#60a5fa' : 'var(--text-dim)', marginTop: '3px', fontWeight: '700' }}>+{ptsA}</div>}
+                              {resolved && <div style={{ fontSize: '10px', color: ptsA > 0 ? 'var(--accent-soft)' : 'var(--text-dim)', marginTop: '3px', fontWeight: '700' }}>+{ptsA}</div>}
                             </div>
                             <div style={{
                               flex: 1, textAlign: 'center', padding: '8px', borderRadius: '8px',
-                              background: resolved && ptsB > ptsA ? 'rgba(37,99,235,0.15)' : 'var(--bg-input)'
+                              background: resolved && ptsB > ptsA ? 'rgba(var(--accent-rgb),0.15)' : 'var(--bg-input)'
                             }}>
                               <div style={{ fontSize: '9px', color: 'var(--green)', marginBottom: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.6px' }}>B</div>
                               <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {valB || '—'}
                               </div>
-                              {resolved && <div style={{ fontSize: '10px', color: ptsB > 0 ? '#60a5fa' : 'var(--text-dim)', marginTop: '3px', fontWeight: '700' }}>+{ptsB}</div>}
+                              {resolved && <div style={{ fontSize: '10px', color: ptsB > 0 ? 'var(--accent-soft)' : 'var(--text-dim)', marginTop: '3px', fontWeight: '700' }}>+{ptsB}</div>}
                             </div>
                           </div>
                         </div>
@@ -2073,15 +2075,15 @@ export default function Stats({ demoMode }) {
                       display: 'flex', alignItems: 'center', gap: '10px',
                       marginTop: '12px', padding: '10px 12px',
                       background: 'var(--bg-input)', borderRadius: '20px',
-                      border: '1px solid rgba(37,99,235,0.25)'
+                      border: '1px solid rgba(var(--accent-rgb),0.25)'
                     }}>
                       <Avatar
                         url={getProfileAvatar(viewUser)}
                         name={getProfileName(viewUser)}
                         size={32}
-                        color="rgba(37,99,235,0.15)"
-                        border="1px solid rgba(37,99,235,0.3)"
-                        textColor="#60a5fa"
+                        color="rgba(var(--accent-rgb),0.15)"
+                        border="1px solid rgba(var(--accent-rgb),0.3)"
+                        textColor="var(--accent-soft)"
                       />
                       <div style={{
                         fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)',
@@ -2093,7 +2095,7 @@ export default function Stats({ demoMode }) {
                       <span style={{
                         fontSize: '9px', color: 'var(--green)', fontWeight: '700',
                         textTransform: 'uppercase', letterSpacing: '0.8px',
-                        padding: '3px 8px', background: 'rgba(37,99,235,0.15)', borderRadius: '20px'
+                        padding: '3px 8px', background: 'rgba(var(--accent-rgb),0.15)', borderRadius: '20px'
                       }}>
                         Activo
                       </span>
@@ -2211,8 +2213,8 @@ export default function Stats({ demoMode }) {
                                       fontSize: '12px', fontWeight: '800',
                                       padding: '2px 8px', borderRadius: '4px',
                                       fontFamily: 'SF Mono, Monaco, monospace', letterSpacing: '1px',
-                                      background: isFinished ? (pred.points_earned === 3 ? 'rgba(37,99,235,0.18)' : pred.points_earned === 1 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)') : 'var(--bg-input)',
-                                      color: isFinished ? (pred.points_earned === 3 ? '#60a5fa' : pred.points_earned === 1 ? 'var(--gold)' : 'var(--text-dim)') : 'var(--text-primary)'
+                                      background: isFinished ? (pred.points_earned === 3 ? 'rgba(var(--accent-rgb),0.18)' : pred.points_earned === 1 ? 'rgba(255,204,0,0.1)' : 'var(--bg-input)') : 'var(--bg-input)',
+                                      color: isFinished ? (pred.points_earned === 3 ? 'var(--accent-soft)' : pred.points_earned === 1 ? 'var(--gold)' : 'var(--text-dim)') : 'var(--text-primary)'
                                     }}>
                                       {pred.predicted_home}-{pred.predicted_away}
                                     </span>
@@ -2231,7 +2233,7 @@ export default function Stats({ demoMode }) {
                                 <div style={{ textAlign: 'center' }}>
                                   <span style={{
                                     fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px',
-                                    color: pred.points_earned === 3 ? '#60a5fa' : pred.points_earned === 1 ? 'var(--gold)' : 'var(--text-dim)'
+                                    color: pred.points_earned === 3 ? 'var(--accent-soft)' : pred.points_earned === 1 ? 'var(--gold)' : 'var(--text-dim)'
                                   }}>
                                     {pred.points_earned === 3 ? 'Exacto · +3' : pred.points_earned === 1 ? 'Signo · +1' : 'Fallo · 0'}
                                   </span>
@@ -2278,8 +2280,8 @@ export default function Stats({ demoMode }) {
                                   <span style={{
                                     fontSize: '10px', fontWeight: '700', padding: '3px 9px', borderRadius: '20px',
                                     textTransform: 'uppercase', letterSpacing: '0.6px',
-                                    background: (entry.points_awarded || 0) > 0 ? 'rgba(37,99,235,0.18)' : 'var(--bg-input)',
-                                    color: (entry.points_awarded || 0) > 0 ? '#60a5fa' : 'var(--text-dim)'
+                                    background: (entry.points_awarded || 0) > 0 ? 'rgba(var(--accent-rgb),0.18)' : 'var(--bg-input)',
+                                    color: (entry.points_awarded || 0) > 0 ? 'var(--accent-soft)' : 'var(--text-dim)'
                                   }}>
                                     {entry.points_awarded || 0} pts
                                   </span>

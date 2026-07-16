@@ -1037,7 +1037,7 @@ export default function Admin({ session }) {
                       {profile.has_paid && (
                         <span style={{
                           padding: '1px 7px', borderRadius: '20px', fontSize: '10px',
-                          background: profile.payment_confirmed ? 'rgba(37,99,235,0.15)' : 'rgba(226,75,74,0.15)',
+                          background: profile.payment_confirmed ? 'rgba(var(--accent-rgb),0.15)' : 'rgba(226,75,74,0.15)',
                           color: profile.payment_confirmed ? 'var(--green)' : '#e74c3c',
                           fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px'
                         }}>
@@ -1483,12 +1483,12 @@ export default function Admin({ session }) {
                 muestra picks congelados; pre-deadline muestra estado vivo). */}
             <div style={{
               marginBottom: '12px', padding: '10px 12px',
-              background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.25)',
+              background: 'rgba(var(--accent-rgb),0.08)', border: '1px solid rgba(var(--accent-rgb),0.25)',
               borderRadius: '8px',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px'
             }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#60a5fa' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-soft)' }}>
                   Export Liguilla → Excel
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -1499,7 +1499,7 @@ export default function Admin({ session }) {
                 onClick={exportLiguillaXLSX}
                 style={{
                   padding: '8px 14px', borderRadius: '8px', border: 'none',
-                  background: '#2563eb', color: '#fff',
+                  background: 'var(--accent)', color: '#fff',
                   fontSize: '12px', fontWeight: 700, cursor: 'pointer',
                   whiteSpace: 'nowrap', flexShrink: 0
                 }}

@@ -156,7 +156,7 @@ export default function RulesPopup({ userId, onAccepted }) {
             width: '100%',
             padding: '14px',
             marginTop: '16px',
-            background: 'var(--green, #2563eb)',
+            background: 'var(--green, var(--accent))',
             color: '#fff',
             border: 'none',
             borderRadius: '8px',

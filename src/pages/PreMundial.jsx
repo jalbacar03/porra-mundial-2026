@@ -20,11 +20,11 @@ import ScorePicker from '../components/predictions/ScorePicker'
 
 // Paleta La Liguilla — azul + dorado en lugar de verde + dorado
 const LIGUILLA = {
-  primary:    '#2563eb',           // azul ación
-  primaryDim: 'rgba(37,99,235,0.15)',
-  borderSoft: 'rgba(37,99,235,0.25)',
+  primary:    'var(--accent)',           // azul ación
+  primaryDim: 'rgba(var(--accent-rgb),0.15)',
+  borderSoft: 'rgba(var(--accent-rgb),0.25)',
   gold:       '#ffcc00',
-  green:      '#60a5fa',
+  green:      'var(--accent-soft)',
   red:        '#ff6b6b',
 }
 

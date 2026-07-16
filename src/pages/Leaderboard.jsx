@@ -378,8 +378,17 @@ export default function Leaderboard({ demoMode }) {
     ])
     const isFriendly = activeTab === 'friendly'
     const played = isFriendly ? playedCounts.friendly : playedCounts.mundial
-    const ACCENT = isFriendly ? [37, 99, 235] : [22, 163, 74]
-    const DARK = isFriendly ? [15, 23, 42] : [13, 27, 21]
+    // jsPDF no entiende CSS, así que leemos el acento del tema y lo pasamos a RGB
+    // numérico: el PDF sigue al color de la app sin duplicar el valor a mano.
+    // (Antes el PDF del Mundial iba en el verde viejo [22,163,74]: se quedó sin
+    // migrar cuando la app pasó de verde a azul.)
+    const readRGB = (name, fallback) => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue(name)
+      const p = raw.split(',').map(n => parseInt(n.trim(), 10))
+      return p.length === 3 && p.every(Number.isFinite) ? p : fallback
+    }
+    const ACCENT = readRGB('--accent-rgb', [37, 99, 235])
+    const DARK = [15, 23, 42]
     const GOLD = [212, 175, 55], SILVER = [150, 152, 158], BRONZE = [176, 118, 64]
     const INK = [28, 31, 40], MUT = [120, 125, 135]
 
@@ -483,7 +492,7 @@ export default function Leaderboard({ demoMode }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h2 style={{
             fontSize: '28px', fontWeight: '800',
-            color: activeTab === 'friendly' ? '#60a5fa' : 'var(--text-primary)',
+            color: activeTab === 'friendly' ? 'var(--accent-soft)' : 'var(--text-primary)',
             margin: 0, letterSpacing: '-0.5px'
           }}>
             {activeTab === 'friendly' ? 'Liguilla' : 'Clasificación'}
@@ -533,7 +542,7 @@ export default function Leaderboard({ demoMode }) {
         }}>
           {[
             { key: 'mundial',  label: 'Mundial',     accent: 'var(--green)' },
-            { key: 'friendly', label: 'La Liguilla', accent: '#2563eb' },
+            { key: 'friendly', label: 'La Liguilla', accent: 'var(--accent)' },
           ].map(t => (
             <button
               key={t.key}
@@ -711,15 +720,15 @@ function renderSofaScore({
   following = null, onToggleFollow = null, search = '',
 }) {
   const isFriendly = theme === 'friendly'
-  // A partir de la fase eliminatoria, la clasificación del Mundial adopta el azul
-  // de la Liguilla (cambio de chip visual). La Liguilla ya era azul de siempre.
-  const useBlue = isFriendly || new Date() >= KNOCKOUT_PREDICTIONS_OPEN
+  // Liguilla y Mundial comparten ya el mismo acento (el "cambio de chip" verde→azul
+  // dejó las dos ramas idénticas, así que el ternario sobraba). El color sale del
+  // tema: ver --accent en index.css.
   const C = {
-    accent:      useBlue ? '#2563eb' : '#2563eb',
-    accentLight: useBlue ? '#60a5fa' : '#60a5fa',
-    accentBgRGB: useBlue ? '37,99,235' : '22,163,74',
-    blue: '#2563eb',
-    green: '#60a5fa',
+    accent:      'var(--accent)',
+    accentLight: 'var(--accent-soft)',
+    accentBgRGB: 'var(--accent-rgb)',
+    blue: 'var(--accent)',
+    green: 'var(--accent-soft)',
     gold: '#ffd700',
     silver: '#c0c0c0',
     bronze: '#cd7f32',

@@ -92,7 +92,7 @@ export function FootballSpinner({ size = 28, text = null, padded = true }) {
         height: `${size}px`
       }}>
         <svg viewBox="0 0 32 32" width={size} height={size}
-             style={{ display: 'block', filter: 'drop-shadow(0 4px 8px rgba(37,99,235,0.18))' }}>
+             style={{ display: 'block', filter: 'drop-shadow(0 4px 8px rgba(var(--accent-rgb),0.18))' }}>
           <circle cx="16" cy="16" r="14" fill="#22252f" stroke="rgba(255,255,255,0.18)" strokeWidth="0.6" />
           <polygon points="16,8 21,12 19,18 13,18 11,12" fill="#0e1014" />
           <line x1="16" y1="3" x2="16" y2="8"   stroke="#0e1014" strokeWidth="0.7" />

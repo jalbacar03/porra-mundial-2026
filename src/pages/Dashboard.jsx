@@ -588,9 +588,9 @@ function formatDateShort(dateStr) {
               <Avatar
                 name={profile?.nickname || profile?.full_name}
                 size={40}
-                color="rgba(37,99,235,0.18)"
-                border="1px solid rgba(37,99,235,0.3)"
-                textColor="#60a5fa"
+                color="rgba(var(--accent-rgb),0.18)"
+                border="1px solid rgba(var(--accent-rgb),0.3)"
+                textColor="var(--accent-soft)"
               />
             </button>
           </div>
@@ -742,7 +742,7 @@ function formatDateShort(dateStr) {
               </span>
               {hasPred ? (
                 <span style={{
-                  fontSize: '11px', fontWeight: '700', color: '#60a5fa',
+                  fontSize: '11px', fontWeight: '700', color: 'var(--accent-soft)',
                   background: 'rgba(74,222,128,0.12)',
                   padding: '4px 8px', borderRadius: '6px'
                 }}>
@@ -970,7 +970,7 @@ function formatDateShort(dateStr) {
             style={{
               marginBottom: '14px', padding: '14px 16px',
               background: 'var(--bg-secondary)', borderRadius: '12px',
-              border: allDone ? '1px solid rgba(37,99,235,0.3)' : '1px solid var(--border-light)',
+              border: allDone ? '1px solid rgba(var(--accent-rgb),0.3)' : '1px solid var(--border-light)',
               cursor: 'pointer'
             }}>
             <div style={{
@@ -1207,11 +1207,11 @@ function formatDateShort(dateStr) {
 
       {/* ===== ACCESO RÁPIDO: PREDICCIONES + NORMAS ===== */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(37,99,235,0.06), rgba(37,99,235,0.02))',
+        background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.06), rgba(var(--accent-rgb),0.02))',
         borderRadius: '10px',
         padding: '14px 16px',
         marginBottom: '12px',
-        border: '0.5px solid rgba(37,99,235,0.15)',
+        border: '0.5px solid rgba(var(--accent-rgb),0.15)',
         display: 'flex',
         gap: '8px'
       }}>
@@ -1287,7 +1287,7 @@ function formatDateShort(dateStr) {
                   <div style={{
                     flexShrink: 0, fontSize: '11px', fontWeight: '700',
                     padding: '4px 9px', borderRadius: '6px',
-                    background: hasPred ? 'rgba(37,99,235,0.12)' : 'rgba(255,255,255,0.04)',
+                    background: hasPred ? 'rgba(var(--accent-rgb),0.12)' : 'rgba(255,255,255,0.04)',
                     color: hasPred ? 'var(--green)' : 'var(--text-dim)',
                     border: '1px solid transparent'
                   }}>
@@ -1380,8 +1380,8 @@ function formatDateShort(dateStr) {
               'linear-gradient(90deg, #ffd700, #b8860b)',
               'linear-gradient(90deg, #c0c0c0, #888)',
               'linear-gradient(90deg, #cd7f32, #8b4513)',
-              'linear-gradient(90deg, #2563eb, #16356b)',
-              'linear-gradient(90deg, #2563eb, #16356b)'
+              'linear-gradient(90deg, var(--accent), #16356b)',
+              'linear-gradient(90deg, var(--accent), #16356b)'
             ]
             const barWidth = maxPoints > 0 ? Math.max((user.total_points / maxPoints) * 100, 8) : 8
 
@@ -1475,8 +1475,8 @@ function MundialMatchBanner({ match, prediction, bracketPicks, isLast, topPicks,
       : 'linear-gradient(135deg, #0f2747, #173a66)'
   const borderCol = (isLive || isStarted) ? '1.5px solid rgba(226,75,74,0.5)'
     : isFinished ? '1px solid rgba(255,255,255,0.1)'
-      : '1px solid rgba(37,99,235,0.4)'
-  const accent = (isLive || isStarted) ? 'var(--red)' : isFinished ? 'rgba(255,255,255,0.55)' : '#60a5fa'
+      : '1px solid rgba(var(--accent-rgb),0.4)'
+  const accent = (isLive || isStarted) ? 'var(--red)' : isFinished ? 'rgba(255,255,255,0.55)' : 'var(--accent-soft)'
   return (
     <div onClick={onClick} role="button" tabIndex={0} className="tap-scale"
       style={{
@@ -1524,8 +1524,8 @@ function MundialMatchBanner({ match, prediction, bracketPicks, isLast, topPicks,
           {pts != null && (
             <span style={{
               padding: '2px 9px', borderRadius: '4px', fontSize: '11px', fontWeight: '700',
-              background: pts >= 2 ? 'rgba(37,99,235,0.2)' : pts === 1 ? 'rgba(255,204,0,0.15)' : 'rgba(226,75,74,0.15)',
-              color: pts >= 2 ? '#60a5fa' : pts === 1 ? 'var(--gold)' : '#e74c3c'
+              background: pts >= 2 ? 'rgba(var(--accent-rgb),0.2)' : pts === 1 ? 'rgba(255,204,0,0.15)' : 'rgba(226,75,74,0.15)',
+              color: pts >= 2 ? 'var(--accent-soft)' : pts === 1 ? 'var(--gold)' : '#e74c3c'
             }}>
               {pts > 0 ? `+${pts}` : '0'}
             </span>

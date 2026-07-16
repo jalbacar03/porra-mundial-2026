@@ -47,6 +47,7 @@ import MaintenanceScreen from './components/MaintenanceScreen'
 import RulesPopup from './components/RulesPopup'
 import NicknameModal from './components/NicknameModal'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
+import { useAccentPreview } from './hooks/useAccentPreview'
 
 // Acceso pausado manualmente por el organizador. Sólo estos ids ven la pantalla
 // de bloqueo (siguen en la clasificación; no se toca has_paid). Vaciar para
@@ -510,16 +511,16 @@ function TopNavbar({ isAdmin, demoMode }) {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            background: 'linear-gradient(135deg, rgba(37,99,235,0.3), rgba(30,64,175,0.3))',
+            background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.3), rgba(30,64,175,0.3))',
             padding: '4px 12px',
             borderRadius: '4px',
-            border: '0.5px solid rgba(37,99,235,0.25)'
+            border: '0.5px solid rgba(var(--accent-rgb),0.25)'
           }}>
             <span style={{ fontSize: '10px' }}>⚽</span>
             <span style={{
               fontSize: '11px',
               fontWeight: '700',
-              color: '#60a5fa',
+              color: 'var(--accent-soft)',
               letterSpacing: '0.5px',
               textTransform: 'uppercase'
             }}>
@@ -552,16 +553,16 @@ function TopNavbar({ isAdmin, demoMode }) {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            background: 'linear-gradient(135deg, rgba(37,99,235,0.3), rgba(30,64,175,0.3))',
+            background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.3), rgba(30,64,175,0.3))',
             padding: '4px 12px',
             borderRadius: '4px',
-            border: '0.5px solid rgba(37,99,235,0.25)'
+            border: '0.5px solid rgba(var(--accent-rgb),0.25)'
           }}>
             <span style={{ fontSize: '10px' }}>⚽</span>
             <span style={{
               fontSize: '11px',
               fontWeight: '700',
-              color: '#60a5fa',
+              color: 'var(--accent-soft)',
               letterSpacing: '0.5px',
               textTransform: 'uppercase'
             }}>
@@ -732,6 +733,8 @@ function StyledNavLink({ to, end, children }) {
 }
 
 function AppLayout({ session }) {
+  // Prueba de color (?accent=indigo|violet|blue): solo para quien esté autorizado.
+  useAccentPreview(session.user.id)
   const [isAdmin, setIsAdmin] = useState(false)
   const [hasPaid, setHasPaid] = useState(null) // null = cargando
   const [rulesAccepted, setRulesAccepted] = useState(null) // null = cargando
