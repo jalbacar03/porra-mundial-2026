@@ -483,21 +483,47 @@ function PageLoader() {
 /* ============================
    NAVBAR + LAYOUT PRINCIPAL
    ============================ */
+/**
+ * Franja rojigualda (1:2:1, sin escudo) que hace de línea divisoria de la
+ * navegación. Sustituye al borde que ya tenían las barras, así que no añade
+ * altura ni desplaza el layout.
+ *
+ * Va en las DOS barras a propósito: la superior solo existe en desktop y la
+ * inferior solo en móvil (App.css las alterna), así que cada usuario la ve una
+ * sola vez, en el borde que separa la navegación del contenido.
+ *
+ *   edge='bottom' → barra superior (desktop)
+ *   edge='top'    → barra inferior (móvil)
+ */
+function SpainStripe({ edge }) {
+  return (
+    <div aria-hidden="true" style={{
+      position: 'absolute', left: 0, right: 0, [edge]: 0,
+      height: '6px', pointerEvents: 'none',
+      // 1:2:1 con paradas duras. Colores de la bandera, no el dorado de la app:
+      // así lee como bandera y no como un adorno más del tema.
+      background: 'linear-gradient(180deg, #c60b1e 0 25%, #ffc400 25% 75%, #c60b1e 75% 100%)',
+    }} />
+  )
+}
+
 function TopNavbar({ isAdmin, demoMode }) {
   const countdown = useCountdown(WORLD_CUP_START)
 
   return (
     <nav className="top-navbar" style={{
       background: 'var(--bg-nav)',
-      borderBottom: '2px solid var(--green)',
       padding: '0 16px',
       alignItems: 'center',
       justifyContent: 'space-between',
       height: '48px',
       position: 'sticky',
       top: 0,
-      zIndex: 100
+      zIndex: 100,
+      // La franja se posiciona respecto a esta barra (sticky ya es "positioned").
+      overflow: 'visible'
     }}>
+      <SpainStripe edge="bottom" />
       {/* Logo + Countdown wrapper */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <NavLink to="/" style={{ textDecoration: 'none' }}>
@@ -625,11 +651,11 @@ function BottomNavbar({ isAdmin }) {
       right: 0,
       minHeight: '60px',
       background: 'var(--bg-nav)',
-      borderTop: '1px solid var(--border)',
       alignItems: 'center',
       justifyContent: 'space-around',
       zIndex: 100
     }}>
+      <SpainStripe edge="top" />
       {navItems.map((item, i) => {
         const isActive = item.to !== null && (
           item.end
