@@ -44,6 +44,7 @@ const PreMundial = lazyWithReload(() => import('./pages/PreMundial'))
 import PaymentWall from './components/PaymentWall'
 import AccessBlocked from './components/AccessBlocked'
 import MaintenanceScreen from './components/MaintenanceScreen'
+import TournamentClosed from './components/TournamentClosed'
 import RulesPopup from './components/RulesPopup'
 import NicknameModal from './components/NicknameModal'
 import { useCountdown, WORLD_CUP_START } from './hooks/useCountdown'
@@ -877,7 +878,7 @@ export default function App() {
     Promise.all([
       supabase.auth.getSession(),
       // Fail-open: si la lectura falla, NO se bloquea la app (objeto vacío).
-      supabase.from('app_config').select('maintenance_mode, maintenance_message').eq('id', 1).maybeSingle()
+      supabase.from('app_config').select('maintenance_mode, maintenance_message, archived_mode').eq('id', 1).maybeSingle()
         .then(r => r, () => ({ data: null })),
     ]).then(([sess, cfg]) => {
       setSession(sess?.data?.session ?? null)
@@ -900,6 +901,12 @@ export default function App() {
   const isAdmin = session?.user?.id === ADMIN_ID
   const inMaintenance = !loading && config?.maintenance_mode === true && !isAdmin && !staffBypass
 
+  // Modo ARCHIVO: la porra terminó. Se sirve UNA sola pantalla (clasificación
+  // definitiva) en lugar de la app; ni siquiera se monta el router, así que no
+  // hay rutas ni navegación a las que llegar. Reversible desde la BD:
+  //   update app_config set archived_mode = false where id = 1;
+  const inArchived = !loading && config?.archived_mode === true && !isAdmin && !staffBypass
+
   if (loading) {
     return (
       <div style={{
@@ -916,6 +923,10 @@ export default function App() {
   if (inMaintenance) return <MaintenanceScreen message={config?.maintenance_message} />
   if (recovery) return <ResetPassword onDone={() => setRecovery(false)} />
   if (!session) return <Auth />
+
+  // Porra cerrada: se devuelve la pantalla de archivo y NO se monta el router,
+  // así que no existen rutas ni navegación que puedan alcanzarse.
+  if (inArchived) return <TournamentClosed />
 
   return (
     <BrowserRouter>
