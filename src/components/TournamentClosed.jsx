@@ -49,7 +49,7 @@ export default function TournamentClosed() {
     }}>
       {/* Franja rojigualda: España campeona */}
       <div aria-hidden="true" style={{
-        position: 'fixed', top: 0, left: 0, right: 0, height: '8px', zIndex: 10,
+        position: 'fixed', bottom: 0, left: 0, right: 0, height: '8px', zIndex: 10,
         background: 'linear-gradient(180deg, #c60b1e 0 25%, #ffc400 25% 75%, #c60b1e 75% 100%)'
       }} />
 
@@ -74,14 +74,6 @@ export default function TournamentClosed() {
           }}>
             España campeona del mundo. Gracias a todos por participar.
           </p>
-          <div style={{
-            marginTop: '14px', display: 'inline-block', padding: '6px 14px',
-            borderRadius: '20px', background: 'rgba(var(--accent-rgb),0.12)',
-            border: '1px solid rgba(var(--accent-rgb),0.3)',
-            fontSize: '12px', fontWeight: '700', color: 'var(--accent-soft)'
-          }}>
-            🇪🇸 España 1 - 0 Argentina
-          </div>
         </div>
 
         {/* Clasificación */}
