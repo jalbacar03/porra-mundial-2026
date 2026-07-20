@@ -905,7 +905,9 @@ export default function App() {
   // definitiva) en lugar de la app; ni siquiera se monta el router, así que no
   // hay rutas ni navegación a las que llegar. Reversible desde la BD:
   //   update app_config set archived_mode = false where id = 1;
-  const inArchived = !loading && config?.archived_mode === true && !isAdmin && !staffBypass
+  // A diferencia del mantenimiento, el admin NO bypasea por defecto: la idea es
+  // ver la app cerrada igual que cualquiera. Para entrar a mantenerla, ?staff=1.
+  const inArchived = !loading && config?.archived_mode === true && !staffBypass
 
   if (loading) {
     return (
